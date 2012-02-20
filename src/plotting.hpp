@@ -96,8 +96,9 @@ namespace lib {
 
   template <typename T> 
   bool draw_polyline(EnvT *e,  GDLGStream *a, T * xVal, T* yVal, 
+             DDouble minVal, DDouble maxVal,
 		     bool xLog, bool yLog, 
-		     DDouble yStart, DDouble yEnd, DLong psym=0);
+		     DLong psym=0, bool append=FALSE);
   
   void gkw_axis_margin(EnvT *e, string axis,DFloat &start, DFloat &end);
 
@@ -108,9 +109,11 @@ namespace lib {
   //set the noerase flag
   void gkw_noerase(EnvT * e, GDLGStream * a,bool noe=0);
   //set the symbol shape
-  void gkw_psym(EnvT *e, GDLGStream *a, bool &line, DLong &psym);
+  void gkw_psym(EnvT *e, DLong &psym);
   //set the symbol size
   void gkw_symsize(EnvT * e, GDLGStream * a);
+  //set the character size, special version authorizing 'SIZE' keyword
+  void gkw_charsize_xyouts(EnvT * e, GDLGStream * a, DFloat& charsize);
   //set the character size
   void gkw_charsize(EnvT * e, GDLGStream * a, DFloat& charsize, bool kw=true);
   //set the line thickness
@@ -120,7 +123,7 @@ namespace lib {
   //title
   void gkw_title(EnvT* e, GDLGStream *a, PLFLT ad);
   //set the !axis.crange vector
-  void set_axis_crange(string axis, DDouble Start, DDouble End);
+  void set_axis_crange(string axis, DDouble Start, DDouble End, bool log);
   //get the !axis.crange vector
   void get_axis_crange(string axis, DDouble &Start, DDouble &End);
   void get_axis_margin(string axis, DFloat &low, DFloat &high);
@@ -143,6 +146,7 @@ namespace lib {
 
   void GetSFromPlotStructs(DDouble **sx, DDouble **sy);
   void GetWFromPlotStructs(DFloat **wx, DFloat **wy);
+  void getWorldCoordinatesFromPLPLOT(GDLGStream *a, DDouble nx, DDouble ny, DDouble *wx, DDouble *wy);
   void DataCoordLimits(DDouble *sx, DDouble *sy, DFloat *wx, DFloat *wy, 
     DDouble *xStart, DDouble *xEnd, DDouble *yStart, DDouble *yEnd, bool);
 
@@ -170,7 +174,7 @@ namespace lib {
     void Clipping( DDoubleGDL* clippingD, 
                  DDouble& xStart, DDouble& xEnd, DDouble& minVal, DDouble& maxVal);
     void handle_pmulti_position(EnvT *e, GDLGStream *a);
-    void UpdateSWPlotStructs(GDLGStream* actStream, DDouble xStart, DDouble xEnd, DDouble yStart, DDouble yEnd);
+    void UpdateSWPlotStructs(GDLGStream* actStream, DDouble xStart, DDouble xEnd, DDouble yStart, DDouble yEnd, bool xLog, bool yLog);
 
 } // namespace
 

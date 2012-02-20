@@ -24,6 +24,7 @@
 
 #include "math_fun_ac.hpp"
 #include "gsl_matrix.hpp"
+#include "gsl_fun.hpp"
 
 using namespace std;
 
@@ -48,8 +49,20 @@ void LibInit_ac()
   new DLibPro(lib::ludc_pro,string("LUDC"),2,ludcKey);
   const string lusolKey[]={"COLUMN","DOUBLE",KLISTEND};
   new DLibFun(lib::lusol_fun,string("LUSOL"),3,lusolKey);
-  const string determKey[]={"DOUBLE",KLISTEND};
+  const string determKey[]={"DOUBLE","CHECK","ZERO",KLISTEND};
   new DLibFun(lib::determ_fun,string("DETERM"),1,determKey);
+
+  const string trisolKey[]={"DOUBLE",KLISTEND};
+  new DLibFun(lib::trisol_fun,string("TRISOL"),4,trisolKey);
+
+  // QSIMP/QROMB/QROMO (we used same code for QSIMP and QROMB)
+  const string qsimpKey[]={"DOUBLE","EPS","JMAX",KLISTEND};
+  new DLibFun(lib::qromb_fun,string("QSIMP"),3,qsimpKey);
+  const string qrombKey[]={"DOUBLE","EPS","JMAX","K",KLISTEND};
+  new DLibFun(lib::qromb_fun,string("QROMB"),3,qrombKey);
+  const string qromoKey[]={"DOUBLE","EPS","JMAX","K","MIDEXP",
+			   "MIDINF","MIDPNT","MIDSQL","MIDSQU",KLISTEND};
+  new DLibFun(lib::qromo_fun,string("QROMO"),3,qromoKey);
 
 #endif
   

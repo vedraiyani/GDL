@@ -26,6 +26,9 @@
 #include "gsl_fun.hpp"
 #include "dinterpreter.hpp"
 
+// ms: must not be inlcuded here
+//#include "libinit_ac.cpp"
+
 #include <gsl/gsl_sys.h>
 #include <gsl/gsl_linalg.h>
 #include <gsl/gsl_fft_real.h>
@@ -43,6 +46,9 @@
 // newton/broyden
 #include <gsl/gsl_multiroots.h>
 #include <gsl/gsl_vector.h>
+
+// numerical integration (alternative to Qromb)
+#include <gsl/gsl_integration.h>
 
 // constant
 #include <gsl/gsl_const_mksa.h>
@@ -877,29 +883,52 @@ namespace lib {
 		       dimension dim, 
 		       DDoubleGDL* binomialKey, DDoubleGDL* poissonKey)
   {
+    int debug=0;
+
+    // testing Exclusive Keywords ...
+    int exclusiveKW= e->KeywordPresent(e->KeywordIx("GAMMA"));
+    exclusiveKW=exclusiveKW+ e->KeywordPresent(e->KeywordIx("NORMAL"));
+    exclusiveKW=exclusiveKW+ e->KeywordPresent(e->KeywordIx("BINOMIAL"));
+    exclusiveKW=exclusiveKW+ e->KeywordPresent(e->KeywordIx("POISSON"));
+    exclusiveKW=exclusiveKW+ e->KeywordPresent(e->KeywordIx("UNIFORM"));
+
+    if (exclusiveKW > 1) e->Throw("Conflicting keywords.");
+
     SizeT nEl = res->N_Elements();
 
-    if( e->KeywordSet(1)) {// GAMMA
+    if (e->KeywordPresent(e->KeywordIx("GAMMA"))) {
       DLong n;
       e->AssureLongScalarKWIfPresent( "GAMMA", n);
+      if (debug) cout << "(Int) Gamma Value: "<< n << endl;
+      if (n == 0) {
+	DDouble test_n;
+	e->AssureDoubleScalarKWIfPresent( "GAMMA", test_n);
+	if (debug) cout << "(Double) Gamma Value: "<< test_n << endl;
+	if (test_n > 0.0) n=1;
+      }
+      if (n <= 0)
+	e->Throw("Value of (Int/Long) GAMMA is out of allowed range: Gamma = 1, 2, 3, ...");    
+      if (debug) cout << "(Effective) Gamma Value: "<< n << endl;
+
       for( SizeT i=0; i<nEl; ++i) (*res)[ i] = 
 				    (T2) gsl_ran_gamma_int (r,n);
-    } else if( e->KeywordSet(3)) { // NORMAL
-      SizeT nEl = res->N_Elements();
-      for( SizeT i=0; i<nEl; ++i) (*res)[ i] =
-				    (T2) gsl_ran_ugaussian (r);
-    } else if( e->KeywordSet(4)) { // BINOMIAL
+      return 0;
+    }
+
+    if (e->KeywordPresent(e->KeywordIx("BINOMIAL"))) {
       if (binomialKey != NULL) {
 	DULong  n = (DULong)  (*binomialKey)[0];
 	DDouble p = (DDouble) (*binomialKey)[1];
-	SizeT nEl = res->N_Elements();
+	if (debug) cout << "Binomial Values (n,p): "<< n << " " << p << endl;
 	for( SizeT i=0; i<nEl; ++i) (*res)[ i] =
 				      (T2) gsl_ran_binomial (r, p, n);
       }
-    } else if( e->KeywordSet(5)) { // POISSON
+      return 0;
+    } 
+
+    if( e->KeywordSet("POISSON")) { // POISSON
       if (poissonKey != NULL) {
 	DDouble mu = (DDouble) (*poissonKey)[0];
-	SizeT nEl = res->N_Elements();
 	if (mu < 100000) {
 	  for( SizeT i=0; i<nEl; ++i) (*res)[ i] =
 					(T2) gsl_ran_poisson (r, mu);
@@ -910,19 +939,20 @@ namespace lib {
 	  for( SizeT i=0; i<nEl; ++i) (*res)[ i] += mu;
 	}
       }
-    } else if( e->KeywordSet(6)) { // UNIFORM
-      SizeT nEl = res->N_Elements();
-      for( SizeT i=0; i<nEl; ++i) (*res)[ i] =
-				    (T2) gsl_rng_uniform (r);
-    } else if ( e->GetProName() == "RANDOMU") {
-      for( SizeT i=0; i<nEl; ++i) (*res)[ i] = 
-				    (T2) gsl_rng_uniform (r);
-    } else if ( e->GetProName() == "RANDOMN") {
-      for( SizeT i=0; i<nEl; ++i) (*res)[ i] = 
-				    (T2) gsl_ran_ugaussian (r);
+      return 0;
     }
 
-    return 0;
+    if (e->KeywordSet("UNIFORM") || ((e->GetProName() == "RANDOMU") && !e->KeywordSet("NORMAL"))) {
+      for( SizeT i=0; i<nEl; ++i) (*res)[ i] =
+				    (T2) gsl_rng_uniform (r);
+      return 0;
+    } 
+
+    if (e->KeywordSet("NORMAL") || ((e->GetProName() == "RANDOMN") && !e->KeywordSet("UNIFORM"))) {
+      for( SizeT i=0; i<nEl; ++i) (*res)[ i] = 
+				    (T2) gsl_ran_ugaussian (r);
+      return 0;
+    }
   }
 
 
@@ -1005,12 +1035,8 @@ namespace lib {
 	if( binomialKey != NULL)
 	{
 	    SizeT nBinomialKey = binomialKey->N_Elements();
-	    if (nBinomialKey != 2) {
+	    if (nBinomialKey != 2)
 	      e->Throw("Keyword array parameter BINOMIAL must have 2 elements.");
-	    } else {
-	      e->Throw("AC 2011-11-30 : BINOMIAL: code is wrong now.");
-	    }
-
 	    if (((*binomialKey)[1] < 0.0) || ((*binomialKey)[1] > 1.0))
 	      e->Throw(" Value of BINOMIAL[1] is out of allowed range: 0.0 <= p <= 1.0");
 	}
@@ -2204,6 +2230,7 @@ namespace lib {
       }
   }
 
+
   // gsl_multiroot_function-compatible function serving as a wrapper to the 
   // user-defined function passed (by name) as the second arg. to NEWTON or BROYDEN
   class n_b_param 
@@ -2227,10 +2254,12 @@ namespace lib {
     // TODO: no guarding if res is an optimized constant
     // NO!!! the return value of call_fun() is always owned by the caller (constants are Dup()ed)
    auto_ptr<BaseGDL> res_guard(res);
-    // sanity checks
-    if (res->Rank() != 1 || res->N_Elements() != x->size) 
-    {
-      p->errmsg = "user-defined function must evaluate to a vector of the size of its argument";
+   // sanity checks
+   //   if (res->Rank() != 1 || res->N_Elements() != x->size) 
+   //AC for iCosmo
+   if (res->N_Elements() != x->size) 
+     {
+       p->errmsg = "user-defined function must evaluate to a vector of the size of its argument";
       return GSL_EBADFUNC;
     }
     DDoubleGDL* dres;
@@ -2295,8 +2324,9 @@ res_guard.reset (dres);
     SizeT nParam = e->NParam();
 
     // 1-st argument : initial guess vector
-    BaseGDL* p0 = e->GetParDefined(0);   
-    if (p0->Rank() != 1) e->Throw("the first argument is expected to be a vector");
+    BaseGDL* p0 = e->GetParDefined(0);
+    //AC for iCosmo
+    //if (p0->Rank() != 1) e->Throw("the first argument is expected to be a vector");
     BaseGDL* par = p0->Convert2(DOUBLE, BaseGDL::COPY);
     auto_ptr<BaseGDL> par_guard(par);
 
@@ -2397,6 +2427,244 @@ res_guard.reset (dres);
       BaseGDL::CONVERT
     );
   }
+
+  // -------------------------------------------------------------------------
+  // GSL don't have implementations of QROMB and QROMO but alternatives
+
+  // AC, 10 Jan 2011, to have it for iCosmos
+
+  class qromb_param 
+  { 
+    public: 
+    EnvT* envt; 
+    EnvUDT* nenvt; 
+    DDoubleGDL* arg; 
+    string errmsg; 
+  };
+
+  double qromb_function(double x, void* params)
+  {
+    qromb_param *p = static_cast<qromb_param*>(params);
+    (*(p->arg))[0]=x;
+    BaseGDL* res;
+    res = p->envt->Interpreter()->call_fun(static_cast<DSubUD*>(p->nenvt->GetPro())->GetTree());
+
+    return (*static_cast<DDoubleGDL*>(res))[0]; 
+  }
+
+  // AC: the library routine is registered in libinit_ac.cpp
+  BaseGDL* qromb_fun(EnvT* e)
+  {
+    int debug=0;
+
+    // sanity check (for number of parameters)
+    SizeT nParam = e->NParam();
+
+    // 2-nd argument : initial bound
+    BaseGDL* p1 = e->GetParDefined(1);
+    BaseGDL* par1 = p1->Convert2(DOUBLE, BaseGDL::COPY);
+    auto_ptr<BaseGDL> par1_guard(par1);
+
+    // 3-th argument : final bound
+    BaseGDL* p2 = e->GetParDefined(2);
+    BaseGDL* par2 = p2->Convert2(DOUBLE, BaseGDL::COPY);
+    auto_ptr<BaseGDL> par2_guard(par2);
+
+    // 1-st argument : name of user function defining the system
+    DString fun;
+    e->AssureScalarPar<DStringGDL>(0, fun);
+    fun = StrUpCase(fun);
+    if (LibFunIx(fun) != -1)
+      e->Throw("only user-defined functions allowed (library-routine name given)");
+
+    // GDL magick
+    StackGuard<EnvStackT> guard(e->Interpreter()->CallStack());
+    EnvUDT* newEnv = new EnvUDT(e, funList[GDLInterpreter::GetFunIx(fun)], NULL);
+    newEnv->SetNextPar(&par1);
+    e->Interpreter()->CallStack().push_back(newEnv);
+
+    // GSL function parameter initialization  
+    qromb_param param;
+    param.envt = e;
+    param.nenvt = newEnv;
+    param.arg = static_cast<DDoubleGDL*>(par1); 
+    
+    // GSL function initialization
+    gsl_function F; 
+    F.function = &qromb_function;
+    F.params = &param;
+  
+    double result, error;
+    double first, last;
+
+    SizeT nEl1=par1->N_Elements();
+    SizeT nEl2=par2->N_Elements();
+    SizeT nEl=nEl1;
+    DDoubleGDL* res;
+
+    if (nEl1 == 1 || nEl2 == 1) {
+      if (nEl1 == 1) {
+	nEl=nEl2;
+	res=new DDoubleGDL(par2->Dim(), BaseGDL::NOZERO);
+      }
+      if (nEl2 == 1) {
+	res=new DDoubleGDL(par1->Dim(), BaseGDL::NOZERO);
+	nEl=nEl1;
+      }
+    } else {
+      if (nEl1 <= nEl2) {
+	res=new DDoubleGDL(par1->Dim(), BaseGDL::NOZERO);      
+      } else {
+	res=new DDoubleGDL(par2->Dim(), BaseGDL::NOZERO);
+	nEl=nEl2;
+      }
+    }  
+    
+    gsl_integration_workspace *w = gsl_integration_workspace_alloc (1000);
+
+    first=(*static_cast<DDoubleGDL*>(par1))[0];
+    last =(*static_cast<DDoubleGDL*>(par2))[0];
+    
+    for( SizeT i=0; i<nEl; i++) {
+      if (nEl1 > 1) {first=(*static_cast<DDoubleGDL*>(par1))[i];}
+      if (nEl2 > 1) {last =(*static_cast<DDoubleGDL*>(par2))[i];}
+
+      if (debug) cout << "Boundaries : "<< first << " " << last <<endl;
+
+      gsl_integration_qag (&F, first, last, 0, 1e-7, GSL_INTEG_GAUSS61,
+			   1000, w, &result, &error); 
+
+      if (debug) cout << "Result : " << result << endl;
+
+      (*res)[i]=result;
+    }
+
+    gsl_integration_workspace_free (w);
+ 
+    if (e->KeywordSet("DOUBLE") || p1->Type() == DOUBLE || p2->Type() == DOUBLE)
+      {
+	return res;
+      }
+    else
+      {
+	return res->Convert2(FLOAT, BaseGDL::CONVERT);
+      }
+  }
+
+  // AC: the library routine is registered in libinit_ac.cpp
+  BaseGDL* qromo_fun(EnvT* e)
+  {
+    int debug=0;
+
+    // sanity check (for number of parameters)
+    SizeT nParam = e->NParam();
+
+    // 2-nd argument : initial bound
+    BaseGDL* p1 = e->GetParDefined(1);
+    BaseGDL* par1 = p1->Convert2(DOUBLE, BaseGDL::COPY);
+    auto_ptr<BaseGDL> par1_guard(par1);
+
+    //   if (!e->KeywordSet("MIDEXP")) {
+    // 3-th argument : final bound
+    BaseGDL* p2 = e->GetParDefined(2);
+    BaseGDL* par2 = p2->Convert2(DOUBLE, BaseGDL::COPY);
+    auto_ptr<BaseGDL> par2_guard(par2);
+    
+    // 1-st argument : name of user function defining the system
+    DString fun;
+    e->AssureScalarPar<DStringGDL>(0, fun);
+    fun = StrUpCase(fun);
+    if (LibFunIx(fun) != -1)
+      e->Throw("only user-defined functions allowed (library-routine name given)");
+
+    // GDL magick
+    StackGuard<EnvStackT> guard(e->Interpreter()->CallStack());
+    EnvUDT* newEnv = new EnvUDT(e, funList[GDLInterpreter::GetFunIx(fun)], NULL);
+    newEnv->SetNextPar(&par1);
+    e->Interpreter()->CallStack().push_back(newEnv);
+
+    // GSL function parameter initialization  
+    qromb_param param;
+    param.envt = e;
+    param.nenvt = newEnv;
+    param.arg = static_cast<DDoubleGDL*>(par1); 
+    
+    // GSL function initialization
+    gsl_function F; 
+    F.function = &qromb_function;
+    F.params = &param;
+  
+    double result, error;
+    double first, last;
+
+    SizeT nEl1=par1->N_Elements();
+    //SizeT nEl2=nEl1;
+    //if (!e->KeywordSet("MIDEXP"))
+    SizeT nEl2=par2->N_Elements();
+    SizeT nEl=nEl1;
+    DDoubleGDL* res;
+
+    if (nEl1 == 1 || nEl2 == 1) {
+      if (nEl1 == 1) {
+	nEl=nEl2;
+	res=new DDoubleGDL(par2->Dim(), BaseGDL::NOZERO);
+      }
+      if (nEl2 == 1) {
+	res=new DDoubleGDL(par1->Dim(), BaseGDL::NOZERO);
+	nEl=nEl1;
+      }
+    } else {
+      if (nEl1 <= nEl2) {
+	res=new DDoubleGDL(par1->Dim(), BaseGDL::NOZERO);      
+      } else {
+	res=new DDoubleGDL(par2->Dim(), BaseGDL::NOZERO);
+	nEl=nEl2;
+      }
+    }  
+    
+    gsl_integration_workspace *w = gsl_integration_workspace_alloc (1000);
+
+    first=(*static_cast<DDoubleGDL*>(par1))[0];
+    if (!e->KeywordSet("MIDEXP")) last =(*static_cast<DDoubleGDL*>(par2))[0];
+    
+    for( SizeT i=0; i<nEl; i++) {
+      if (nEl1 > 1) {first=(*static_cast<DDoubleGDL*>(par1))[i];}
+      if (nEl2 > 1) {last =(*static_cast<DDoubleGDL*>(par2))[i];}
+
+      if (debug) cout << "Boundaries : "<< first << " " << last <<endl;
+      
+      // MIDEXP, MIDINF, MIDPNT, MIDSQL, MIDSQU
+
+      // intregation on open range [first,+inf[
+      if (e->KeywordSet("MIDEXP"))
+	{
+	  gsl_integration_qagiu(&F, first, 0, 1e-7, 1000, w, &result, &error);
+	} 
+      else
+	{	
+	  if (nEl2 > 1) {last =(*static_cast<DDoubleGDL*>(par2))[i];}	  
+	  // intregation on open range ]first,last[
+	  gsl_integration_qags(&F, first, last, 0, 1e-7, 1000, w, &result, &error);
+	}
+
+      if (debug) cout << "Result : " << result << endl;
+      
+      (*res)[i]=result;
+    }
+
+    gsl_integration_workspace_free (w);
+ 
+    if (e->KeywordSet("DOUBLE") || p1->Type() == DOUBLE || p2->Type() == DOUBLE)
+      {
+	return res;
+      }
+    else
+      {
+	return res->Convert2(FLOAT, BaseGDL::CONVERT);
+      }
+  }
+
+
 
   /*
    * SA: TODO:

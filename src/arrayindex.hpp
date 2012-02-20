@@ -241,6 +241,7 @@ public:
   void Init() 
   {
     sInit = varPtr->Data()->LoopIndex();
+    s = sInit;
   }
 
   void Clear()
@@ -493,11 +494,12 @@ public:
 //     return res;
 //   }
 
-  void Init( BaseGDL* ix_)
+  void Init( BaseGDL* ix_)   
   {
     if( ix_->Rank() == 0) // type ONE
     {
       ix_->Scalar2RangeT(sInit);
+      s = sInit; // in case of assoc NIter is not called
       // int ret = ix_->Scalar2RangeT(s);
       // from GDL 0.9 on negative indices are fine
       // 	if( ret == -1) // index < 0
@@ -547,7 +549,7 @@ public:
 
       if( s < 0)
 	throw GDLException(NULL,"Subscript out of range [-i].",true,false);
-      if( s >= varDim)
+      if( s >= varDim && s > 0)
 	throw GDLException(NULL,"Subscript out of range [i].",true,false);
       return 1;
     }
@@ -674,7 +676,7 @@ public:
 	  s = sInit;
 	if( s < 0)
 	  throw GDLException(NULL,"Subscript out of range [-i].",true,false);
-	if( s >= varDim)
+	if( s >= varDim && s > 0)
 	  throw GDLException(NULL,"Subscript out of range [i].",true,false);
 	return 1;
       }
@@ -824,7 +826,7 @@ public:
 
   SizeT NIter( SizeT varDim)
   {
-    if( sInit >= varDim)
+    if( sInit >= varDim) // && s > 0)
       throw GDLException(NULL,"Subscript out of range [s:*].",true,false);
     if( sInit < 0)
     {
@@ -1023,7 +1025,7 @@ public:
       throw 
 	GDLException(NULL,"Subscript range values of the form low:high "
 		"must be < size, with low <= high",true,false);
-    if( e >= varDim)
+    if( e >= varDim) // && e > 0)
 		throw GDLException(NULL,"Subscript out of range [s:e].",true,false);
     return (e - s + 1);
   }
@@ -1191,7 +1193,7 @@ public:
     else
       s= sInit;
 
-    if( s >= varDim)
+    if( s >= varDim) // && s > 0)
       throw GDLException(NULL,"Subscript out of range [s:*:stride].",true,false);
     return (varDim - s + stride - 1)/stride;
   }
@@ -1402,7 +1404,7 @@ public:
 			GDLException(NULL,"Subscript range values of the form low:high "
 				"must be < size, with low <= high",true,false);
     
-    if( e >= varDim)
+    if( e >= varDim) // && e > 0)
       {
 		throw GDLException(NULL,"Subscript out of range [s:E:st].",true,false);
       }

@@ -1,4 +1,4 @@
-;$Id: read_jpeg.pro,v 1.9 2011/11/30 12:02:49 alaingdl Exp $
+;$Id: read_jpeg.pro,v 1.13 2012/02/07 23:23:25 alaingdl Exp $
 
 pro READ_JPEG, filename, unit=unit, image, colortable, buffer=buffer, $
                colors=colors, dither=dither, grayscale=grayscale, order=order, $
@@ -49,16 +49,19 @@ ON_ERROR, 2
 ;         READ_JPEG, file, image
 ;
 ; MODIFICATION HISTORY:
-;    Written by: Christopher Lee 2004-05-17
-;    2006-May-02, Joel Gales    : Add convert to byte if 16-bit image
-;    2011-Aug-18, Alain Coulais : More checks on inputs, verify if
+;  Written by: Christopher Lee 2004-05-17
+;  2006-May-02, Joel Gales    : Add convert to byte if 16-bit image
+;  2011-Aug-18, Alain Coulais : More checks on inputs, verify if
 ;       compiled with ImageMagick support !
-;    2011-Nov-09, Alain Coulais : correction for bug 3435468
+;  2011-Nov-09, Alain Coulais : correction for bug 3435468
 ;       Grayscale (2D case)
+;  2012-Feb-07, Alain Coulais : new test cases in testsuite:
+;   test_read_standard_images.pro : 2 JPEG and 4 PNG (2 with transparency)
+;   The transpose for 2D image is no more need.
 ;
 ;-
 ; LICENCE:
-; Copyright (C) 2004, 2011
+; Copyright (C) 2004, 2011, 2012
 ; This program is free software; you can redistribute it and/or modify  
 ; it under the terms of the GNU General Public License as published by  
 ; the Free Software Foundation; either version 2 of the License, or     
@@ -88,6 +91,16 @@ if (STRLEN(filename) EQ 0) then MESSAGE, "Null filename not allowed."
 if ((FILE_INFO(filename)).exists EQ 0) then MESSAGE, "Error opening file. File: "+filename
 if (FILE_TEST(filename, /regular) EQ 0) then MESSAGE, "Not a regular File: "+filename
 ;
+; testing whether the format is as expected
+;
+if ~MAGICK_PING(filename, 'JPEG') then begin
+   MESSAGE, /continue, "JPEG error: Not a JPEG file:"
+   if MAGICK_PING(filename, 'PNG') then MESSAGE, "seems to be a PNG file"
+   if MAGICK_PING(filename, 'GIF') then MESSAGE, "seems to be a GIF file"
+   if MAGICK_PING(filename, 'PDF') then MESSAGE, "seems to be a PDF file"
+   MESSAGE, "unknown/untested format file"   
+endif
+;
 if KEYWORD_SET(unit) then MESSAGE, "Keyword UNIT not supported"
 if KEYWORD_SET(buffer) then MESSAGE, "Keyword BUFFER not supported"
 ;
@@ -111,6 +124,18 @@ if (MAGICK_INDEXEDCOLOR(mid)) then begin
     image=MAGICK_READINDEXES(mid)
     MAGICK_READCOLORMAPRGB, mid, red, green, blue
     colortable=[[red],[green],[blue]]
+    ;;
+    ;; try to catch a problem in ImageMagick
+    ;; (should be renormalized in, but not, as is on 28/01/2012)
+    ;; bug report 3471918 (see min/max)
+    if (KEYWORD_SET(grayscale)) then begin
+       temp=image
+       for ii=0, N_ELEMENTS(red)-1 do begin
+          ok=WHERE(image EQ ii, nbp)
+          if nbp GT 0 then temp[OK]=red[ii]
+       endfor
+       image=temp
+    endif
 endif else begin
     image=MAGICK_READ(mid)
 endelse
@@ -128,9 +153,10 @@ endif
 ;
 if (not KEYWORD_SET(unit)) then MAGICK_CLOSE, mid
 ;
-if (sz[0] EQ 2) then begin
-   image=ROTATE(image,7)
-endif
+; this is no more need, code changed in MAGICK_READINDEXES
+;if (sz[0] EQ 2) then begin
+;   image=ROTATE(image,7)
+;endif
 if (sz[0] EQ 3) then begin
    ;; "rotate" image to agree with IDL (JMG 08/18/04)
    tmp = image[0,*,*]

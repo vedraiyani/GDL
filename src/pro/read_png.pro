@@ -1,8 +1,10 @@
-;$Id: read_png.pro,v 1.4 2011/11/16 00:51:17 alaingdl Exp $
+;$Id: read_png.pro,v 1.8 2012/02/15 15:09:52 alaingdl Exp $
 ;
 pro READ_PNG, filename, image, red, green, blue, $
               order=order, verbose=verbose, transparent=transparent, $
               help=help, test=test
+;
+ON_ERROR, 2
 ;
 image=READ_PNG(filename, red, green, blue, $
               order=order, verbose=verbose, transparent=transparent, $
@@ -56,18 +58,27 @@ ON_ERROR, 2
 ;
 ;
 ; MODIFICATION HISTORY:
-; 	Written by: Christopher Lee 2004-05-23
-;       2011-Aug-18, Alain Coulais : More checks on inputs; now verify if
-;       compiled with ImageMagick support !
+;  Written by: Christopher Lee 2004-05-23
+;  2011-Aug-18, Alain Coulais : More checks on inputs; now verify if
+;      compiled with ImageMagick support !
+;  2012-Feb-02, Alain Coulais :  the effective order of reading was bad ...
+;      now it is OK on all tested PNG images, including images with transparency
+;      see 3 examples:
+;  * testsuite/Saturn.jpg default conversion by Image Magick in PNG
+;  * http://www.gnu.org/graphics/meditate_fel.png (big, no transparency)
+;  * http://www.gnu.org/graphics/meditate.png (transparency)
+;
+;  2012-Feb-07, Alain Coulais : new test cases in testsuite:
+;   test_read_standard_images.pro : 2 JPEG and 4 PNG (2 with transparency)
+;   The transpose for 2D image is no more need.
 ;
 ;-
 ; LICENCE:
-; Copyright (C) 2004,
+; Copyright (C) 2004, 2011, 2012
 ; This program is free software; you can redistribute it and/or modify  
 ; it under the terms of the GNU General Public License as published by  
 ; the Free Software Foundation; either version 2 of the License, or     
 ; (at your option) any later version.                                   
-;
 ;
 ;-
 ;
@@ -86,10 +97,23 @@ if (MAGICK_EXISTS() EQ 0) then begin
 endif
 ;
 if (N_PARAMS() EQ 0) then MESSAGE, "Incorrect number of arguments."
+if ~((N_PARAMS() EQ 1) OR (N_PARAMS() EQ 4)) then $
+   MESSAGE, "Only 1 or 4 arguments allowed."
 ;
+if (SIZE(filename,/type) NE 7) then MESSAGE, "String expression required in this context: filename"
 if (STRLEN(filename) EQ 0) then MESSAGE, "Null filename not allowed."
 if ((FILE_INFO(filename)).exists EQ 0) then MESSAGE, "Error opening file. File: "+filename
 if (FILE_TEST(filename, /regular) EQ 0) then MESSAGE, "Not a regular File: "+filename
+;
+; testing whether the format is as expected
+;
+if ~MAGICK_PING(filename, 'PNG') then begin
+   MESSAGE, /continue, "PNG error: Not a PNG file:"
+   if MAGICK_PING(filename, 'JPEG') then MESSAGE, "seems to be a JPEG file"
+   if MAGICK_PING(filename, 'GIF') then MESSAGE, "seems to be a GIF file"
+   if MAGICK_PING(filename, 'PDF') then MESSAGE, "seems to be a PDF file"
+   MESSAGE, "unknown/untested format file"   
+endif
 ;
 mid=MAGICK_OPEN(filename)
 ;
@@ -102,7 +126,9 @@ if (magick_IndexedColor(mid)) then begin
     MAGICK_READCOLORMAPRGB, mid, red, green, blue
     colortable=[[red],[green],[blue]]
 endif else begin
-    image=MAGICK_READ(mid)
+   ;; AC 2012-Feb-02 the effective order of reading was bad ...
+   ;; now it is OK on all tested PNG images, including images with transparency
+   image=MAGICK_READ(mid, rgb=1)
 endelse
 ;
 MAGICK_CLOSE, mid

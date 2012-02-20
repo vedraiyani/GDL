@@ -29,7 +29,7 @@ namespace lib {
   BaseGDL* lngamma_fun( EnvT* e);
   BaseGDL* igamma_fun( EnvT* e);
   BaseGDL* beta_fun( EnvT* e);
-  BaseGDL* expint_fun( EnvT* e);
+  BaseGDL* expint_fun( EnvT* e);
   BaseGDL* gaussint_fun( EnvT* e);
 
 } // namespace

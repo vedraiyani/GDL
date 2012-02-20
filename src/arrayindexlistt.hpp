@@ -199,7 +199,8 @@ public:
     assert( allIx == NULL);
 
     // for assoc variables last index is the record
-    if( var->IsAssoc()) return;
+    // we cannot return here as sInit is not yet copied to s
+    //if( var->IsAssoc()) return;
 
     // ArrayIndexScalar[VP] are not initialized
     // they need the NIter call, but
@@ -233,6 +234,8 @@ public:
   // returns 1-dim index for all elements
   AllIxBaseT* BuildIx()
   {
+    if( allIx != NULL) // can happen if called from DotAccessDescT::DoAssign()
+      return allIx;
     assert( allIx == NULL);
 //     if( allIx != NULL)
 // 		return allIx;
@@ -1563,6 +1566,9 @@ if( dynamic_cast<ArrayIndexIndexed*>(ixList[ixList.size()-1]) ||
   // returns 1-dim index for all elements
   AllIxBaseT* BuildIx() // ArrayIndexListMultiT
   {
+    if( allIx != NULL) // can happen if called from DotAccessDescT::DoAssign()
+      return allIx;
+
     assert( allIx == NULL);
 
     if( accessType == ALLINDEXED) //  nIterLimitGt1 is not properly set
@@ -1989,6 +1995,9 @@ class ArrayIndexListMultiNoneIndexedT: public ArrayIndexListMultiT
   // returns 1-dim index for all elements
   AllIxBaseT* BuildIx()
   {
+    if( allIx != NULL) // can happen if called from DotAccessDescT::DoAssign()
+      return allIx;
+
 	assert( allIx == NULL);  
 // 	if( allIx != NULL)
 // 		return allIx;
