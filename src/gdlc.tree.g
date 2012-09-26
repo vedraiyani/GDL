@@ -158,6 +158,7 @@ options {
     }
 
   bool ActiveProCompiled() const { return comp.ActiveProCompiled();} 
+  int NCompileErrors() const { return comp.NCompileErrors();} 
 }
 
 // file parsing
@@ -292,11 +293,14 @@ procedure_def!
             ) 
             (parameter_declaration)?
             (statement_list
-                {
+                {      
                     comp.SetTree( returnAST);
                 }
             )?
             {
+                if( NCompileErrors() > 0)
+                    throw GDLException( i2s(NCompileErrors()) + " compilation error(s) in module " + name->getText() + ".");
+               
                 comp.EndPro();
             }
         )
@@ -321,6 +325,9 @@ function_def!
                 }
             )?
             {
+                if( NCompileErrors() > 0)
+                    throw GDLException( i2s(NCompileErrors()) + " compilation error(s) in module " + name->getText() + ".");
+               
                 comp.EndFun();
             }
         )
@@ -717,8 +724,7 @@ key_parameter!//
                 {
                     int t = #k->getType();
                     if( t == FCALL_LIB || t == MFCALL_LIB || //t == FCALL_LIB_N_ELEMENTS ||
-
-                        t == MFCALL_PARENT_LIB //||
+                        t == MFCALL_PARENT_LIB  || t == QUESTION //||
 //                          t == FCALL_LIB_RETNEW || t == MFCALL_LIB_RETNEW || 
 //                          t == MFCALL_PARENT_LIB_RETNEW //||
 //                          t == ARRARYEXPR_MFCALL_LIB // MFCALL_LIB or VAR or DEREF 
@@ -741,7 +747,7 @@ key_parameter!//
         )
     ;
 
-pos_parameter! [bool varNum]
+pos_parameter! [bool varNum] // varNum: is variable number of parameters subroutine (e. g. PRINT)
 {
     RefDNode variable;
 }
@@ -770,7 +776,7 @@ pos_parameter! [bool varNum]
                 int t = #e->getType();
                 // Note: Right now there are no MFCALL_LIB or MFCALL_PARENT_LIB nodes
                 if( t == FCALL_LIB || t == MFCALL_LIB || //t == FCALL_LIB_N_ELEMENTS ||
-                    t == MFCALL_PARENT_LIB //||
+                    t == MFCALL_PARENT_LIB || t == QUESTION //||
 //                      t == FCALL_LIB_RETNEW || t == MFCALL_LIB_RETNEW || 
 //                      t == MFCALL_PARENT_LIB_RETNEW
 //                      t == ARRARYEXPR_MFCALL_LIB // MFCALL_LIB or VAR or DEREF 
@@ -1512,6 +1518,12 @@ RefDNode mark;
 	| CONSTANT
 	| dummy=array_def
 	| struct_def
+    | g:GDLNULL
+        {
+            #g->setType(SYSVAR);
+            #g->setText("NULL");
+            comp.SysVar(#g); // sets var to NULL
+        }
 	;
 
 op_expr

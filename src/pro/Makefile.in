@@ -144,7 +144,6 @@ CXXFLAGS = @CXXFLAGS@
 CYGPATH_W = @CYGPATH_W@
 DEFS = @DEFS@
 DEPDIR = @DEPDIR@
-DLLTOOL = @DLLTOOL@
 DSYMUTIL = @DSYMUTIL@
 DUMPBIN = @DUMPBIN@
 ECHO_C = @ECHO_C@
@@ -158,6 +157,7 @@ EXT_LIBS = @EXT_LIBS@
 FGREP = @FGREP@
 GDLDATADIR = @GDLDATADIR@
 GREP = @GREP@
+GraphicsMagickConfig = @GraphicsMagickConfig@
 HAVE_64BIT_OS = @HAVE_64BIT_OS@
 INSTALL = @INSTALL@
 INSTALL_DATA = @INSTALL_DATA@
@@ -173,7 +173,6 @@ LIPO = @LIPO@
 LN_S = @LN_S@
 LTLIBOBJS = @LTLIBOBJS@
 MAKEINFO = @MAKEINFO@
-MANIFEST_TOOL = @MANIFEST_TOOL@
 MKDIR_P = @MKDIR_P@
 MagickConfig = @MagickConfig@
 NM = @NM@
@@ -206,7 +205,6 @@ abs_builddir = @abs_builddir@
 abs_srcdir = @abs_srcdir@
 abs_top_builddir = @abs_top_builddir@
 abs_top_srcdir = @abs_top_srcdir@
-ac_ct_AR = @ac_ct_AR@
 ac_ct_CC = @ac_ct_CC@
 ac_ct_CXX = @ac_ct_CXX@
 ac_ct_DUMPBIN = @ac_ct_DUMPBIN@
@@ -240,6 +238,7 @@ libdir = @libdir@
 libexecdir = @libexecdir@
 localedir = @localedir@
 localstatedir = @localstatedir@
+lt_ECHO = @lt_ECHO@
 mandir = @mandir@
 mkdir_p = @mkdir_p@
 nc_config = @nc_config@
@@ -261,7 +260,7 @@ top_build_prefix = @top_build_prefix@
 top_builddir = @top_builddir@
 top_srcdir = @top_srcdir@
 wxConfig = @wxConfig@
-SUBDIRS = dicom
+SUBDIRS = dicom envi
 prolibdir = $(GDLDATADIR)/lib
 prolib_DATA = \
   appleman.pro \
@@ -290,6 +289,7 @@ prolib_DATA = \
   get_login_info.pro \
   helpform.pro \
   hist_2d.pro \
+  hist_equal.pro \
   hist_nd.pro \
   identity.pro \
   idl_validname.pro \
@@ -341,15 +341,16 @@ prolib_DATA = \
   read_xwd.pro \
   real_part.pro \
   restore.pro \
+  rot.pro \
   rstrpos.pro \
   save.pro \
-  scope_varfetch.pro \
   showfont.pro \
   skewness.pro \
   skip_lun.pro \
   smooth.pro \
   spl_init_old.pro \
   spl_interp_old.pro \
+  standardize.pro \
   stddev.pro \
   str_sep.pro \
   strmatch.pro \

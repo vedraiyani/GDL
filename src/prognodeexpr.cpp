@@ -28,6 +28,8 @@
 #include "arrayindexlistt.hpp"
 #include "envt.hpp"
 #include "gdlexception.hpp"
+#include "nullgdl.hpp"
+#include "basic_fun.hpp"
 
 using namespace std;
 
@@ -68,12 +70,21 @@ BaseGDL* ProgNode::EvalNC()
 		      "Internal error. "
 		      "ProgNode::EvalNC() called.",true,false);
 }
+BaseGDL* ProgNode::EvalNCNull()
+{
+  return this->EvalNC();
+}
 
 BaseGDL** ProgNode::LEval()
 {
   throw GDLException( this,
 		      "Internal error. "
 		      "ProgNode::LEval() called.",true,false);
+}
+BaseGDL** ProgNode::EvalRefCheck( BaseGDL*& rEval) // default like Eval()
+{
+  rEval = this->Eval();
+  return NULL;
 }
 
 RetCode   ProgNode::Run()
@@ -108,18 +119,18 @@ void ProgNode::AdjustTypes(auto_ptr<BaseGDL>& a, auto_ptr<BaseGDL>& b)
   if( aTy == bTy) return;
 
   // Will be checked by Convert2() function
-//   if( DTypeOrder[aTy] > 100 || DTypeOrder[bTy] > 100) // STRUCT, PTR, OBJ
+//   if( DTypeOrder[aTy] > 100 || DTypeOrder[bTy] > 100) // GDL_STRUCT, GDL_PTR, OBJ
 //     {
 //       //exception
 //       throw GDLException( "Expressions of this type cannot be converted.");
 //     }
   
-  // COMPLEX op DOUBLE = COMPLEXDBL
-  if( (aTy == COMPLEX && bTy == DOUBLE) ||
-      (bTy == COMPLEX && aTy == DOUBLE))
+  // GDL_COMPLEX op GDL_DOUBLE = GDL_COMPLEXDBL
+  if( (aTy == GDL_COMPLEX && bTy == GDL_DOUBLE) ||
+      (bTy == GDL_COMPLEX && aTy == GDL_DOUBLE))
     {
-      a.reset( a.release()->Convert2( COMPLEXDBL));
-      b.reset( b.release()->Convert2( COMPLEXDBL));
+      a.reset( a.release()->Convert2( GDL_COMPLEXDBL));
+      b.reset( b.release()->Convert2( GDL_COMPLEXDBL));
       return;
     }
 
@@ -163,7 +174,7 @@ void BinaryExprNC::AdjustTypesNC(auto_ptr<BaseGDL>& g1, BaseGDL*& e1,
   if( aTy == bTy) return;
 
   // Will be checked by Convert2() function
-//   if( DTypeOrder[aTy] > 100 || DTypeOrder[bTy] > 100) // STRUCT, PTR, OBJ
+//   if( DTypeOrder[aTy] > 100 || DTypeOrder[bTy] > 100) // GDL_STRUCT, GDL_PTR, OBJ
 //     {
 //       throw GDLException( "Expressions of this type cannot be converted.");
 //     }
@@ -171,12 +182,12 @@ void BinaryExprNC::AdjustTypesNC(auto_ptr<BaseGDL>& g1, BaseGDL*& e1,
   // Change > to >= JMG
   if( DTypeOrder[aTy] >= DTypeOrder[bTy])
     {
-  // COMPLEX op DOUBLE = COMPLEXDBL
-  if( (aTy == COMPLEX && bTy == DOUBLE))
+  // GDL_COMPLEX op GDL_DOUBLE = GDL_COMPLEXDBL
+  if( (aTy == GDL_COMPLEX && bTy == GDL_DOUBLE))
     {
-      e2 = e2->Convert2( COMPLEXDBL, BaseGDL::COPY);
+      e2 = e2->Convert2( GDL_COMPLEXDBL, BaseGDL::COPY);
       g2.reset( e2); // delete former e2
-      e1 = e1->Convert2( COMPLEXDBL, BaseGDL::COPY);
+      e1 = e1->Convert2( GDL_COMPLEXDBL, BaseGDL::COPY);
       g1.reset( e1); // delete former e1
       return;
     }
@@ -187,12 +198,100 @@ void BinaryExprNC::AdjustTypesNC(auto_ptr<BaseGDL>& g1, BaseGDL*& e1,
     }
   else
     {
-  // COMPLEX op DOUBLE = COMPLEXDBL
-  if( (bTy == COMPLEX && aTy == DOUBLE))
+  // GDL_COMPLEX op GDL_DOUBLE = GDL_COMPLEXDBL
+  if( (bTy == GDL_COMPLEX && aTy == GDL_DOUBLE))
     {
-      e2 = e2->Convert2( COMPLEXDBL, BaseGDL::COPY);
+      e2 = e2->Convert2( GDL_COMPLEXDBL, BaseGDL::COPY);
       g2.reset( e2); // delete former e2
-      e1 = e1->Convert2( COMPLEXDBL, BaseGDL::COPY);
+      e1 = e1->Convert2( GDL_COMPLEXDBL, BaseGDL::COPY);
+      g1.reset( e1); // delete former e1
+      return;
+    }
+
+      // convert e1 to e2
+      e1 = e1->Convert2( bTy, BaseGDL::COPY);
+      g1.reset( e1); // delete former e1
+    }
+}
+
+// only called from EqOp and NeOp
+void BinaryExprNC::AdjustTypesNCNull(auto_ptr<BaseGDL>& g1, BaseGDL*& e1,
+				 auto_ptr<BaseGDL>& g2, BaseGDL*& e2)
+{
+  if( op1NC)
+    {
+      e1 = op1->EvalNCNull();
+    }
+  else
+    {
+      e1 = op1->Eval();
+      g1.reset( e1);
+    }
+  if( op2NC)
+    {
+      e2 = op2->EvalNCNull();
+    }
+  else
+    {
+      e2 = op2->Eval();
+      g2.reset( e2);
+    }
+    
+  if( e1 == NULL && e2 == NULL)
+  {
+    // provoke error
+    e1 = op1->EvalNC();
+    e2 = op2->EvalNC();
+    assert( false); // code should never reach here
+  }
+  
+  // if at least one is !NULL make sure this is e1 
+  if( e1 == NullGDL::GetSingleInstance())
+    return;
+  if( e2 == NullGDL::GetSingleInstance())
+  {
+    // e1 is not !NULL (but might be NULL)
+    BaseGDL* tmp = e1;
+    e1 = e2;
+    e2 = tmp;
+    return;
+  }
+  
+  DType aTy=e1->Type();
+  DType bTy=e2->Type();
+  if( aTy == bTy) return;
+
+  // Will be checked by Convert2() function
+//   if( DTypeOrder[aTy] > 100 || DTypeOrder[bTy] > 100) // GDL_STRUCT, GDL_PTR, OBJ
+//     {
+//       throw GDLException( "Expressions of this type cannot be converted.");
+//     }
+
+  // Change > to >= JMG
+  if( DTypeOrder[aTy] >= DTypeOrder[bTy])
+    {
+  // GDL_COMPLEX op GDL_DOUBLE = GDL_COMPLEXDBL
+  if( (aTy == GDL_COMPLEX && bTy == GDL_DOUBLE))
+    {
+      e2 = e2->Convert2( GDL_COMPLEXDBL, BaseGDL::COPY);
+      g2.reset( e2); // delete former e2
+      e1 = e1->Convert2( GDL_COMPLEXDBL, BaseGDL::COPY);
+      g1.reset( e1); // delete former e1
+      return;
+    }
+
+      // convert e2 to e1
+      e2 = e2->Convert2( aTy, BaseGDL::COPY);
+      g2.reset( e2); // delete former e2
+    }
+  else
+    {
+  // GDL_COMPLEX op GDL_DOUBLE = GDL_COMPLEXDBL
+  if( (bTy == GDL_COMPLEX && aTy == GDL_DOUBLE))
+    {
+      e2 = e2->Convert2( GDL_COMPLEXDBL, BaseGDL::COPY);
+      g2.reset( e2); // delete former e2
+      e1 = e1->Convert2( GDL_COMPLEXDBL, BaseGDL::COPY);
       g1.reset( e1); // delete former e1
       return;
     }
@@ -223,7 +322,7 @@ BaseGDL* VARPTRNode::Eval()
 }
 BaseGDL* SYSVARNode::Eval()
 {
-	return this->EvalNC()->Dup();	
+	return this->EvalNC()->Dup();
 }
 
 BaseGDL* VARNode::EvalNC()
@@ -233,6 +332,14 @@ BaseGDL* VARNode::EvalNC()
 	if ( res == NULL )
 		throw GDLException ( this, "Variable is undefined: "+
 		                     callStack.back()->GetString ( this->varIx ),true,false );
+	return res;
+}
+BaseGDL* VARNode::EvalNCNull()
+{
+	EnvStackT& callStack=interpreter->CallStack();
+	BaseGDL* res=static_cast<EnvUDT*> ( callStack.back() )->GetKW ( this->varIx );
+// 	if ( res == NULL )
+// 	  res = NullGDL::GetSingleInstance();
 	return res;
 }
 
@@ -245,6 +352,13 @@ BaseGDL* VARPTRNode::EvalNC()
 	  throw GDLException( this, "Variable is undefined: "+
 			      callStack.back()->GetString( res),true,false);
 	}
+      return res;
+}
+BaseGDL* VARPTRNode::EvalNCNull()
+{
+      BaseGDL* res=this->var->Data();
+//       if( res == NULL)
+// 	  res = NullGDL::GetSingleInstance();
       return res;
 }
 
@@ -268,6 +382,11 @@ BaseGDL* SYSVARNode::EvalNC()
     }
   // system variables are always defined
   return this->var->Data(); 
+}
+
+BaseGDL** SYSVARNode::EvalRefCheck( BaseGDL*& rEval)
+{
+  return this->LEval();
 }
 
 BaseGDL** SYSVARNode::LEval()
@@ -320,7 +439,7 @@ BaseGDL* DEREFNode::EvalNC()
     e1_guard.reset(e1);
   }
 
-  if( e1 == NULL || e1->Type() != PTR)
+  if( e1 == NULL || e1->Type() != GDL_PTR)
     throw GDLException( this, "Pointer type required"
 			" in this context: "+interpreter->Name(e1),true,false);
   DPtrGDL* ptr=static_cast<DPtrGDL*>(e1);
@@ -339,6 +458,11 @@ BaseGDL* DEREFNode::EvalNC()
     {
       throw GDLException( this, "Invalid pointer: "+interpreter->Name(e1),true,false);
     }
+}
+
+BaseGDL** DEREFNode::EvalRefCheck( BaseGDL*& rEval)
+{
+  return this->LEval();
 }
 
 BaseGDL** DEREFNode::LEval()
@@ -376,14 +500,14 @@ BaseGDL** DEREFNode::LEval()
       actEnv->Guard( e1); 
     }
 
-  if( e1 == NULL || e1->Type() != PTR)
+  if( e1 == NULL || e1->Type() != GDL_PTR)
   throw GDLException( evalExpr, "Pointer type required"
 		      " in this context: "+interpreter->Name(e1),true,false);
 
   DPtrGDL* ptr=static_cast<DPtrGDL*>(e1);
 
   DPtr sc; 
-  if( !ptr->Scalar(sc))
+  if( !ptr->StrictScalar(sc))
   throw GDLException( this, "Expression must be a "
   "scalar in this context: "+interpreter->Name(e1),true,false);
   if( sc == 0)
@@ -430,11 +554,32 @@ BaseGDL* QUESTIONNode::Eval()
   return op3->Eval(); // right->right
 }
 
+ProgNodeP QUESTIONNode::AsParameter()
+{
+  auto_ptr<BaseGDL> e1_guard;
+  BaseGDL* e1;
+  if( NonCopyNode( op1->getType()))
+  {
+	e1 = op1->EvalNC();
+  }
+  else
+  {
+	e1 = op1->Eval();
+    e1_guard.reset(e1);
+  }
+//  auto_ptr<BaseGDL> e1( op1->Eval());
+  if( e1->True())
+    {
+      return op2;
+    }
+  return op3;
+}
+
 // unary operators
 BaseGDL* UMINUSNode::Eval()
 {
   BaseGDL* e1 = down->Eval();
-  return e1->UMinus(); // might delete e1 (STRING)
+  return e1->UMinus(); // might delete e1 (GDL_STRING)
 }
 BaseGDL* NOT_OPNode::Eval()
 {
@@ -745,10 +890,10 @@ BaseGDL* MATRIX_OP1Node::Eval()
   DType maxTy=(DTypeOrder[aTy] >= DTypeOrder[bTy])? aTy: bTy;
 
   DType cTy=maxTy;
-  if( maxTy == BYTE || maxTy == INT)
-    cTy=LONG;
-  else if( maxTy == UINT)
-    cTy=ULONG;
+  if( maxTy == GDL_BYTE || maxTy == GDL_INT)
+    cTy=GDL_LONG;
+  else if( maxTy == GDL_UINT)
+    cTy=GDL_ULONG;
 
   if( aTy != cTy)
     e1.reset( e1.release()->Convert2( cTy));
@@ -766,10 +911,10 @@ BaseGDL* MATRIX_OP2Node::Eval()
   DType maxTy=(DTypeOrder[aTy] >= DTypeOrder[bTy])? aTy: bTy;
 
   DType cTy=maxTy;
-  if( maxTy == BYTE || maxTy == INT)
-    cTy=LONG;
-  else if( maxTy == UINT)
-    cTy=ULONG;
+  if( maxTy == GDL_BYTE || maxTy == GDL_INT)
+    cTy=GDL_LONG;
+  else if( maxTy == GDL_UINT)
+    cTy=GDL_ULONG;
 
   if( aTy != cTy) 
     e1.reset( e1.release()->Convert2( cTy));
@@ -846,34 +991,34 @@ BaseGDL* POWNode::Eval()
   // special handling for aTy == complex && bTy != complex
   DType aTy=e1->Type();
   DType bTy=e2->Type();
- if( aTy == STRING)
+ if( aTy == GDL_STRING)
    {
-     e1.reset( e1->Convert2( FLOAT, BaseGDL::COPY));
-     aTy = FLOAT;
+     e1.reset( e1->Convert2( GDL_FLOAT, BaseGDL::COPY));
+     aTy = GDL_FLOAT;
    }
- if( bTy == STRING)
+ if( bTy == GDL_STRING)
    {
-     e2.reset( e2->Convert2( FLOAT, BaseGDL::COPY));
-     bTy = FLOAT;
+     e2.reset( e2->Convert2( GDL_FLOAT, BaseGDL::COPY));
+     bTy = GDL_FLOAT;
    }
   if( ComplexType( aTy))
     {
       if( IntType( bTy))
 	{
-	  e2.reset( e2.release()->Convert2( LONG));
+	  e2.reset( e2.release()->Convert2( GDL_LONG));
 	  res = e1->Pow( e2.get());
 	  if( res == e1.get())
 	    e1.release();
 	  return res;
 	}
-      if( aTy == COMPLEX)
+      if( aTy == GDL_COMPLEX)
 	{
-	  if( bTy == DOUBLE)
+	  if( bTy == GDL_DOUBLE)
 	    {
-	      e1.reset( e1.release()->Convert2( COMPLEXDBL));
-	      aTy = COMPLEXDBL;
+	      e1.reset( e1.release()->Convert2( GDL_COMPLEXDBL));
+	      aTy = GDL_COMPLEXDBL;
 	    }
-	  else if( bTy == FLOAT)
+	  else if( bTy == GDL_FLOAT)
 	    {
 	      res = e1->Pow( e2.get());
 	      if( res == e1.get())
@@ -881,14 +1026,14 @@ BaseGDL* POWNode::Eval()
 	      return res;
 	    }
 	}
-      if( aTy == COMPLEXDBL)
+      if( aTy == GDL_COMPLEXDBL)
 	{
-	  if( bTy == FLOAT)
+	  if( bTy == GDL_FLOAT)
 	    {
-	      e2.reset( e2.release()->Convert2( DOUBLE));
-	      bTy = DOUBLE;
+	      e2.reset( e2.release()->Convert2( GDL_DOUBLE));
+	      bTy = GDL_DOUBLE;
 	    }
-	  if( bTy == DOUBLE)
+	  if( bTy == GDL_DOUBLE)
 	    {
 	      res = e1->Pow( e2.get());
 	      if( res == e1.get())
@@ -900,7 +1045,7 @@ BaseGDL* POWNode::Eval()
 
   if( IntType( bTy) && FloatType( aTy))
     {
-      e2.reset( e2.release()->Convert2( LONG));
+      e2.reset( e2.release()->Convert2( GDL_LONG));
 
       res = e1->PowInt( e2.get());
       if( res == e1.get())
@@ -916,7 +1061,7 @@ BaseGDL* POWNode::Eval()
 //   if( IntType( bTy) && (DTypeOrder[ bTy] > DTypeOrder[ aTy]))
     convertBackT = aTy;
   else
-    convertBackT = UNDEF;
+    convertBackT = GDL_UNDEF;
   
   //  first operand determines type JMG
   //  AdjustTypes(e2,e1); // order crucial here (for converting back)
@@ -944,7 +1089,7 @@ BaseGDL* POWNode::Eval()
 	  res= e2->PowInv(e1.get()); // smaller + larger
 	  e2.release();
 	}
-  if( convertBackT != UNDEF)
+  if( convertBackT != GDL_UNDEF)
     {
       res = res->Convert2( convertBackT, BaseGDL::CONVERT);
     }
@@ -1191,7 +1336,7 @@ BaseGDL* EQ_OPNCNode::Eval()
   auto_ptr<BaseGDL> g1;
   auto_ptr<BaseGDL> g2;
   BaseGDL *e1, *e2;
-  AdjustTypesNC( g1, e1, g2, e2);
+  AdjustTypesNCNull( g1, e1, g2, e2);
   res=e1->EqOp(e2);
   return res;
 }
@@ -1200,7 +1345,7 @@ BaseGDL* NE_OPNCNode::Eval()
   auto_ptr<BaseGDL> g1;
   auto_ptr<BaseGDL> g2;
   BaseGDL *e1, *e2;
-  AdjustTypesNC( g1, e1, g2, e2);
+  AdjustTypesNCNull( g1, e1, g2, e2);
   res=e1->NeOp(e2);
   return res;
 }
@@ -1269,12 +1414,12 @@ BaseGDL* PLUSNC12Node::Eval()
   auto_ptr<BaseGDL> g2;
   if( DTypeOrder[aTy] >= DTypeOrder[bTy])
     {
-      // COMPLEX op DOUBLE = COMPLEXDBL
-      if(aTy == COMPLEX && bTy == DOUBLE)
+      // GDL_COMPLEX op GDL_DOUBLE = GDL_COMPLEXDBL
+      if(aTy == GDL_COMPLEX && bTy == GDL_DOUBLE)
       {
-	  e2 = e2->Convert2( COMPLEXDBL, BaseGDL::COPY);
+	  e2 = e2->Convert2( GDL_COMPLEXDBL, BaseGDL::COPY);
 	  g2.reset( e2);
-	  e1 = e1->Convert2( COMPLEXDBL, BaseGDL::COPY);
+	  e1 = e1->Convert2( GDL_COMPLEXDBL, BaseGDL::COPY);
 	  g1.reset( e1);
       }
       else
@@ -1286,12 +1431,12 @@ BaseGDL* PLUSNC12Node::Eval()
     }
   else
     {
-      // COMPLEX op DOUBLE = COMPLEXDBL
-      if( (bTy == COMPLEX && aTy == DOUBLE))
+      // GDL_COMPLEX op GDL_DOUBLE = GDL_COMPLEXDBL
+      if( (bTy == GDL_COMPLEX && aTy == GDL_DOUBLE))
 	{
-	  e2 = e2->Convert2( COMPLEXDBL, BaseGDL::COPY);
+	  e2 = e2->Convert2( GDL_COMPLEXDBL, BaseGDL::COPY);
 	  g2.reset( e2);
-	  e1 = e1->Convert2( COMPLEXDBL, BaseGDL::COPY);
+	  e1 = e1->Convert2( GDL_COMPLEXDBL, BaseGDL::COPY);
 	  g1.reset( e1);
 	}
       else
@@ -1468,12 +1613,12 @@ BaseGDL* MINUSNC12Node::Eval()
   auto_ptr<BaseGDL> g2;
   if( DTypeOrder[aTy] >= DTypeOrder[bTy])
     {
-      // COMPLEX op DOUBLE = COMPLEXDBL
-      if( aTy == COMPLEX && bTy == DOUBLE)
+      // GDL_COMPLEX op GDL_DOUBLE = GDL_COMPLEXDBL
+      if( aTy == GDL_COMPLEX && bTy == GDL_DOUBLE)
       {
-	  e2 = e2->Convert2( COMPLEXDBL, BaseGDL::COPY);
+	  e2 = e2->Convert2( GDL_COMPLEXDBL, BaseGDL::COPY);
 	  g2.reset( e2);
-	  e1 = e1->Convert2( COMPLEXDBL, BaseGDL::COPY);
+	  e1 = e1->Convert2( GDL_COMPLEXDBL, BaseGDL::COPY);
 	  g1.reset( e1);
       }
       else
@@ -1485,12 +1630,12 @@ BaseGDL* MINUSNC12Node::Eval()
     }
   else
     {
-      // COMPLEX op DOUBLE = COMPLEXDBL
-      if( (bTy == COMPLEX && aTy == DOUBLE))
+      // GDL_COMPLEX op GDL_DOUBLE = GDL_COMPLEXDBL
+      if( (bTy == GDL_COMPLEX && aTy == GDL_DOUBLE))
 	{
-	  e2 = e2->Convert2( COMPLEXDBL, BaseGDL::COPY);
+	  e2 = e2->Convert2( GDL_COMPLEXDBL, BaseGDL::COPY);
 	  g2.reset( e2);
-	  e1 = e1->Convert2( COMPLEXDBL, BaseGDL::COPY);
+	  e1 = e1->Convert2( GDL_COMPLEXDBL, BaseGDL::COPY);
 	  g1.reset( e1);
 	}
       else
@@ -1736,12 +1881,12 @@ BaseGDL* ASTERIXNC12Node::Eval()
   auto_ptr<BaseGDL> g2;
   if( DTypeOrder[aTy] >= DTypeOrder[bTy])
     {
-      // COMPLEX op DOUBLE = COMPLEXDBL
-      if( aTy == COMPLEX && bTy == DOUBLE)
+      // GDL_COMPLEX op GDL_DOUBLE = GDL_COMPLEXDBL
+      if( aTy == GDL_COMPLEX && bTy == GDL_DOUBLE)
       {
-	  e2 = e2->Convert2( COMPLEXDBL, BaseGDL::COPY);
+	  e2 = e2->Convert2( GDL_COMPLEXDBL, BaseGDL::COPY);
 	  g2.reset( e2);
-	  e1 = e1->Convert2( COMPLEXDBL, BaseGDL::COPY);
+	  e1 = e1->Convert2( GDL_COMPLEXDBL, BaseGDL::COPY);
 	  g1.reset( e1);
       }
       else
@@ -1753,12 +1898,12 @@ BaseGDL* ASTERIXNC12Node::Eval()
     }
   else
     {
-      // COMPLEX op DOUBLE = COMPLEXDBL
-      if( (bTy == COMPLEX && aTy == DOUBLE))
+      // GDL_COMPLEX op GDL_DOUBLE = GDL_COMPLEXDBL
+      if( (bTy == GDL_COMPLEX && aTy == GDL_DOUBLE))
 	{
-	  e2 = e2->Convert2( COMPLEXDBL, BaseGDL::COPY);
+	  e2 = e2->Convert2( GDL_COMPLEXDBL, BaseGDL::COPY);
 	  g2.reset( e2);
-	  e1 = e1->Convert2( COMPLEXDBL, BaseGDL::COPY);
+	  e1 = e1->Convert2( GDL_COMPLEXDBL, BaseGDL::COPY);
 	  g1.reset( e1);
 	}
       else
@@ -1954,10 +2099,10 @@ BaseGDL* MATRIX_OP1NCNode::Eval()
    }
 
  DType cTy=maxTy;
- if( maxTy == BYTE || maxTy == INT)
-   cTy=LONG;
- else if( maxTy == UINT)
-   cTy=ULONG;
+ if( maxTy == GDL_BYTE || maxTy == GDL_INT)
+   cTy=GDL_LONG;
+ else if( maxTy == GDL_UINT)
+   cTy=GDL_ULONG;
 
  if( aTy != cTy)
    {
@@ -2006,10 +2151,10 @@ BaseGDL* MATRIX_OP2NCNode::Eval()
    }
 
  DType cTy=maxTy;
- if( maxTy == BYTE || maxTy == INT)
-   cTy=LONG;
- else if( maxTy == UINT)
-   cTy=ULONG;
+ if( maxTy == GDL_BYTE || maxTy == GDL_INT)
+   cTy=GDL_LONG;
+ else if( maxTy == GDL_UINT)
+   cTy=GDL_ULONG;
 
  if( aTy != cTy)
    {
@@ -2056,12 +2201,12 @@ BaseGDL* SLASHNC12Node::Eval()
   auto_ptr<BaseGDL> g2;
   if( DTypeOrder[aTy] >= DTypeOrder[bTy])
     {
-      // COMPLEX op DOUBLE = COMPLEXDBL
-      if( aTy == COMPLEX && bTy == DOUBLE)
+      // GDL_COMPLEX op GDL_DOUBLE = GDL_COMPLEXDBL
+      if( aTy == GDL_COMPLEX && bTy == GDL_DOUBLE)
       {
-	  e2 = e2->Convert2( COMPLEXDBL, BaseGDL::COPY);
+	  e2 = e2->Convert2( GDL_COMPLEXDBL, BaseGDL::COPY);
 	  g2.reset( e2);
-	  e1 = e1->Convert2( COMPLEXDBL, BaseGDL::COPY);
+	  e1 = e1->Convert2( GDL_COMPLEXDBL, BaseGDL::COPY);
 	  g1.reset( e1);
       }
       else
@@ -2073,12 +2218,12 @@ BaseGDL* SLASHNC12Node::Eval()
     }
   else
     {
-      // COMPLEX op DOUBLE = COMPLEXDBL
-      if( (bTy == COMPLEX && aTy == DOUBLE))
+      // GDL_COMPLEX op GDL_DOUBLE = GDL_COMPLEXDBL
+      if( (bTy == GDL_COMPLEX && aTy == GDL_DOUBLE))
 	{
-	  e2 = e2->Convert2( COMPLEXDBL, BaseGDL::COPY);
+	  e2 = e2->Convert2( GDL_COMPLEXDBL, BaseGDL::COPY);
 	  g2.reset( e2);
-	  e1 = e1->Convert2( COMPLEXDBL, BaseGDL::COPY);
+	  e1 = e1->Convert2( GDL_COMPLEXDBL, BaseGDL::COPY);
 	  g1.reset( e1);
 	}
       else
@@ -2271,26 +2416,26 @@ BaseGDL* POWNCNode::Eval()
   DType aTy=e1->Type();
   DType bTy=e2->Type();
 
-  if( aTy == STRING)
+  if( aTy == GDL_STRING)
     {
-      e1 = e1->Convert2( FLOAT, BaseGDL::COPY);
+      e1 = e1->Convert2( GDL_FLOAT, BaseGDL::COPY);
       g1.reset( e1); // deletes old e1
-      aTy = FLOAT;
+      aTy = GDL_FLOAT;
     }
-  if( bTy == STRING)
+  if( bTy == GDL_STRING)
     {
-      e2 = e2->Convert2( FLOAT, BaseGDL::COPY);
+      e2 = e2->Convert2( GDL_FLOAT, BaseGDL::COPY);
       g2.reset( e2); // deletes old e2
-      bTy = FLOAT;
+      bTy = GDL_FLOAT;
     }
 
   if( ComplexType(aTy))
     {
       if( IntType( bTy))
 	{
-	  if( bTy != LONG)
+	  if( bTy != GDL_LONG)
 	    {
-	      e2 = e2->Convert2( LONG, BaseGDL::COPY);
+	      e2 = e2->Convert2( GDL_LONG, BaseGDL::COPY);
 	      g2.reset( e2);
 	    }
 	  if( g1.get() == NULL) 
@@ -2305,15 +2450,15 @@ BaseGDL* POWNCNode::Eval()
 	      return res;
 	    }
 	}
-      if( aTy == COMPLEX)
+      if( aTy == GDL_COMPLEX)
 	{
-	  if( bTy == DOUBLE)
+	  if( bTy == GDL_DOUBLE)
 	    {
-	      e1 = e1->Convert2( COMPLEXDBL, BaseGDL::COPY);
+	      e1 = e1->Convert2( GDL_COMPLEXDBL, BaseGDL::COPY);
 	      g1.reset( e1); 
-	      aTy = COMPLEXDBL;
+	      aTy = GDL_COMPLEXDBL;
 	    }
-	  else if( bTy == FLOAT)
+	  else if( bTy == GDL_FLOAT)
 	    {
 	      if( g1.get() == NULL) 
 		{
@@ -2328,15 +2473,15 @@ BaseGDL* POWNCNode::Eval()
 		}
 	    }
 	}
-      if( aTy == COMPLEXDBL)
+      if( aTy == GDL_COMPLEXDBL)
 	{
-	  if( bTy == FLOAT)
+	  if( bTy == GDL_FLOAT)
 	    {
-	      e2 = e2->Convert2( DOUBLE, BaseGDL::COPY);
+	      e2 = e2->Convert2( GDL_DOUBLE, BaseGDL::COPY);
 	      g2.reset( e2);
-	      bTy = DOUBLE;
+	      bTy = GDL_DOUBLE;
 	    }
-	  if( bTy == DOUBLE)
+	  if( bTy == GDL_DOUBLE)
 	    {
 	      if( g1.get() == NULL) 
 		{
@@ -2355,9 +2500,9 @@ BaseGDL* POWNCNode::Eval()
 
   if( IntType( bTy) && FloatType( aTy))
     {
-      if( bTy != LONG)
+      if( bTy != GDL_LONG)
 	{
-	  e2 = e2->Convert2( LONG, BaseGDL::COPY);
+	  e2 = e2->Convert2( GDL_LONG, BaseGDL::COPY);
 	  g2.reset( e2);
 	}
       if( g1.get() == NULL)
@@ -2377,7 +2522,7 @@ BaseGDL* POWNCNode::Eval()
   if( IntType( bTy) && (DTypeOrder[ bTy] > DTypeOrder[ aTy]))
     convertBackT = aTy;
   else
-    convertBackT = UNDEF;
+    convertBackT = GDL_UNDEF;
 
   if( aTy != bTy) 
     {
@@ -2466,7 +2611,7 @@ if( e1->StrictScalar())
 		res= e2->PowInv(e1); // smaller + larger
 	}	 
       }
-  if( convertBackT != UNDEF)
+  if( convertBackT != GDL_UNDEF)
     {
       res = res->Convert2( convertBackT, BaseGDL::CONVERT);
     }
@@ -2595,6 +2740,20 @@ if( e1->StrictScalar())
     }
   }
 
+  BaseGDL** FCALL_LIBNode::EvalRefCheck( BaseGDL*& rEval)
+  {
+    EnvT* newEnv=new EnvT( this, this->libFun);//libFunList[fl->funIx]);
+
+    ProgNode::interpreter->parameter_def_nocheck(this->getFirstChild(), newEnv);
+	auto_ptr<EnvT> guardEnv( newEnv);
+
+    // make the call
+    rEval = static_cast<DLibFun*>(newEnv->GetPro())->Fun()(newEnv);
+    BaseGDL** res = ProgNode::interpreter->CallStackBack()->GetPtrTo( rEval);
+    return res; // NULL ok, rEval set properly
+
+  }
+  
   BaseGDL** FCALL_LIBNode::LEval()
   {
 //     // better than auto_ptr: auto_ptr wouldn't remove newEnv from the stack
@@ -2605,19 +2764,33 @@ if( e1->StrictScalar())
 //     EnvUDT* callerEnv = ProgNode::interpreter->CallStackBack();
 
     ProgNode::interpreter->parameter_def_nocheck(this->getFirstChild(), newEnv);
-	auto_ptr<EnvT> guardEnv( newEnv);
+    auto_ptr<EnvT> guardEnv( newEnv);
 
 //     // push id.pro onto call stack
 //     ProgNode::interpreter->CallStack().push_back(newEnv);
     // make the call
-    BaseGDL* libRes =	static_cast<DLibFun*>(newEnv->GetPro())->Fun()(newEnv);
+    static DSub* scopeVarfetchPro = libFunList[ LibFunIx("SCOPE_VARFETCH")];
+    if( scopeVarfetchPro == newEnv->GetPro())
+    {
+      BaseGDL**  sV = lib::scope_varfetch_reference( newEnv);
+      if( sV != NULL)
+	return sV;
+      // should never happen
+      throw GDLException( this, "SCOPE_VARFETCH returned no l-value: "+this->getText());
+    }
+    BaseGDL* libRes = static_cast<DLibFun*>(newEnv->GetPro())->Fun()(newEnv);
     BaseGDL** res = ProgNode::interpreter->CallStackBack()->GetPtrTo( libRes);
     if( res == NULL)
-	    throw GDLException( this, "Library function must return a "
+    {
+      GDLDelete( libRes);
+      
+      throw GDLException( this, "Library function must return a "
 	    "l-value in this context: "+this->getText());
+    }
     return res;
   }
 
+  // returns new or existing variable
   BaseGDL* FCALL_LIBNode::EvalFCALL_LIB()
   {
 //     // better than auto_ptr: auto_ptr wouldn't remove newEnv from the stack
@@ -2663,12 +2836,47 @@ if( e1->StrictScalar())
     //       throw GDLException( _t, "");
 
     if( callStackBack->Contains( res))
-	    res = res->Dup();
+	return res = res->Dup();
+
+//     static DSub* scopeVarfetchPro = libFunList[ LibFunIx("SCOPE_VARFETCH")];
+//     if( scopeVarfetchPro == newEnv->GetPro())
+//       return res->Dup();
 
     //ProgNode::interpreter->SetRetTree( this->getNextSibling());
     return res;
   }
 
+  BaseGDL** MFCALLNode::EvalRefCheck( BaseGDL*& rEval)
+  {
+    StackGuard<EnvStackT> guard(ProgNode::interpreter->CallStack());
+		
+    ProgNodeP _t = this->getFirstChild();
+
+    BaseGDL* self=_t->Eval(); //ProgNode::interpreter->expr(_t);
+    auto_ptr<BaseGDL> self_guard(self);
+    
+    _t = _t->getNextSibling();
+    //match(antlr::RefAST(_t),IDENTIFIER);
+
+    EnvUDT* newEnv=new EnvUDT( self, _t);
+    
+    self_guard.release();
+    
+    _t = _t->getNextSibling();
+    
+    ProgNode::interpreter->parameter_def(_t, newEnv);
+  	
+    // push environment onto call stack
+    ProgNode::interpreter->CallStack().push_back(newEnv);
+    
+    // make the call
+    rEval=ProgNode::interpreter->call_fun(static_cast<DSubUD*>(newEnv->GetPro())->GetTree());
+    
+    BaseGDL** res = ProgNode::interpreter->CallStackBack()->GetPtrTo( rEval);
+    return res; // NULL ok, rEval set properly
+    
+  }  
+  
   BaseGDL** MFCALLNode::LEval()
   {
         // better than auto_ptr: auto_ptr wouldn't remove newEnv from the stack
@@ -2731,6 +2939,37 @@ if( e1->StrictScalar())
     return res;
   }
 
+  BaseGDL** MFCALL_PARENTNode::EvalRefCheck( BaseGDL*& rEval)
+  {
+    StackGuard<EnvStackT> guard(ProgNode::interpreter->CallStack());
+//  match(antlr::RefAST(_t),MFCALL_PARENT);
+    ProgNodeP _t = this->getFirstChild();
+    BaseGDL* self=_t->Eval(); //ProgNode::interpreter->expr(_t);
+    auto_ptr<BaseGDL> self_guard(self);
+    
+    _t = _t->getNextSibling();
+    ProgNodeP parent = _t;
+// 		match(antlr::RefAST(_t),IDENTIFIER);
+    _t = _t->getNextSibling();
+    ProgNodeP p = _t;
+// 		match(antlr::RefAST(_t),IDENTIFIER);
+    _t = _t->getNextSibling();
+
+    EnvUDT* newEnv=new EnvUDT( self, p,	parent->getText());
+    
+    self_guard.release();
+    
+    ProgNode::interpreter->parameter_def(_t, newEnv);
+  	
+    // push environment onto call stack
+    ProgNode::interpreter->CallStack().push_back(newEnv);
+    
+    // make the call
+    rEval=ProgNode::interpreter->call_fun(static_cast<DSubUD*>(newEnv->GetPro())->GetTree());
+    BaseGDL** res = ProgNode::interpreter->CallStackBack()->GetPtrTo( rEval);
+    return res; // NULL ok, rEval set properly    
+  }
+  
   BaseGDL** MFCALL_PARENTNode::LEval()
   {
       // better than auto_ptr: auto_ptr wouldn't remove newEnv from the stack
@@ -2798,6 +3037,24 @@ if( e1->StrictScalar())
     return res;
   }
 
+  BaseGDL** FCALLNode::EvalRefCheck( BaseGDL*& rEval)
+  {
+    StackGuard<EnvStackT> guard(ProgNode::interpreter->CallStack());
+    ProgNode::interpreter->SetFunIx( this);
+    
+    EnvUDT* newEnv=new EnvUDT( this, funList[this->funIx]);
+    
+    ProgNode::interpreter->parameter_def(this->getFirstChild(), newEnv);
+
+    // push environment onto call stack
+    ProgNode::interpreter->CallStack().push_back(newEnv);
+    
+    // make the call
+    rEval=ProgNode::interpreter->call_fun(static_cast<DSubUD*>(newEnv->GetPro())->GetTree());
+    BaseGDL** res = ProgNode::interpreter->CallStackBack()->GetPtrTo( rEval);
+    return res; // NULL ok, rEval set properly    
+  }
+  
   BaseGDL** FCALLNode::LEval()
   {
       // better than auto_ptr: auto_ptr wouldn't remove newEnv from the stack
@@ -2845,7 +3102,65 @@ if( e1->StrictScalar())
 
   
   
-  
+BaseGDL** ARRAYEXPR_MFCALLNode::EvalRefCheck( BaseGDL*& rEval)
+  {
+    StackGuard<EnvStackT> guard(ProgNode::interpreter->CallStack());
+//		match(antlr::RefAST(_t),ARRAYEXPR_MFCALL);
+    ProgNodeP mark = this->getFirstChild();
+
+    ProgNodeP _t = mark->getNextSibling(); // skip DOT
+
+    BaseGDL* self=_t->Eval(); //ProgNode::interpreter->expr(_t);
+    auto_ptr<BaseGDL> self_guard(self);
+
+    ProgNodeP mp2 = _t->getNextSibling();
+    //match(antlr::RefAST(_t),IDENTIFIER);
+
+    _t = mp2->getNextSibling();
+
+    BaseGDL** res;
+
+    EnvUDT* newEnv;
+    try {
+	    newEnv=new EnvUDT( self, mp2);
+	    self_guard.release();
+    }
+    catch( GDLException& ex)
+    {
+	    goto tryARRAYEXPR;
+    }
+
+    ProgNode::interpreter->parameter_def(_t, newEnv);
+
+    // push environment onto call stack
+    ProgNode::interpreter->CallStack().push_back(newEnv);
+    
+    // make the call
+    rEval=
+	    ProgNode::interpreter->
+		    call_fun(static_cast<DSubUD*>(newEnv->GetPro())->GetTree());
+    res = ProgNode::interpreter->CallStackBack()->GetPtrTo( rEval);
+    return res; // NULL ok, rEval set properly    
+    
+    tryARRAYEXPR:;
+    //_t = mark;
+    
+    ProgNodeP dot = mark;
+    // 	match(antlr::RefAST(_t),DOT);
+    _t = mark->getFirstChild();
+	    
+    SizeT nDot=dot->nDot;
+    auto_ptr<DotAccessDescT> aD( new DotAccessDescT(nDot+1));
+	    
+    ProgNode::interpreter->r_dot_array_expr(_t, aD.get());
+    _t = _t->getNextSibling();
+    for (; _t != NULL;) {
+    ProgNode::interpreter->tag_array_expr(_t, aD.get());
+    _t = _t->getNextSibling();
+    }
+    rEval= aD->Resolve();
+    return NULL;  // always r-value
+  }
   
 // from  l_arrayexpr_mfcall_as_mfcall
 BaseGDL** ARRAYEXPR_MFCALLNode::LEval()
@@ -2950,11 +3265,19 @@ BaseGDL** ARRAYEXPR_MFCALLNode::LEval()
 //     StackGuard<EnvStackT> guard(ProgNode::interpreter->CallStack());
 //   }
 
+BaseGDL** VARNode::EvalRefCheck( BaseGDL*& rEval)
+  {
+    return this->LEval();
+  }
   BaseGDL** VARNode::LEval()
 	{
 //   	ProgNode::interpreter->SetRetTree( this->getNextSibling());
 	return &ProgNode::interpreter->CallStackBack()->GetKW(this->varIx);
 	}
+BaseGDL** VARPTRNode::EvalRefCheck( BaseGDL*& rEval)
+  {
+    return this->LEval();
+  }
   BaseGDL** VARPTRNode::LEval()
 	{
 //   	ProgNode::interpreter->SetRetTree( this->getNextSibling());
@@ -2962,10 +3285,14 @@ BaseGDL** ARRAYEXPR_MFCALLNode::LEval()
 	}
 
 
-  BaseGDL** EXPRNode::LEval()
+BaseGDL** EXPRNode::EvalRefCheck( BaseGDL*& rEval)
   {
-    return this->getFirstChild()->LExpr( NULL); //interpreter->l_expr( this->getFirstChild(), NULL);
+    return this->LEval();
   }
+BaseGDL** EXPRNode::LEval()
+{
+  return this->getFirstChild()->LExpr( NULL); //interpreter->l_expr( this->getFirstChild(), NULL);
+}
 
 BaseGDL* DOTNode::Eval()
 {
@@ -3001,7 +3328,7 @@ BaseGDL* DOTNode::Eval()
     // check here for object and get struct
     //structR=dynamic_cast<DStructGDL*>(r);
     // this is much faster than a dynamic_cast
-    if( r->Type() != STRUCT)
+    if( r->Type() != GDL_STRUCT)
 // 		else
 // 			structR = NULL;
 // 		if( structR == NULL)
@@ -3043,7 +3370,7 @@ BaseGDL* DOTNode::Eval()
 
 	  // check here for object and get struct
 	  // this is much faster than a dynamic_cast
-	  if( r->Type() != STRUCT)
+	  if( r->Type() != GDL_STRUCT)
 // 		else
 // 			structR = NULL;
 // 		if( structR == NULL)

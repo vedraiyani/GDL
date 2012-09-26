@@ -1242,7 +1242,7 @@ ostream& DStructGDL::ToStream(ostream& o, SizeT w, SizeT* actPosPtr)
 // 	  if( actEl == NULL)
 // 	    throw 
 // 	      GDLException("Internal error: Output of UNDEF struct element.");
-	  if( actEl->Type() == STRING)
+	  if( actEl->Type() == GDL_STRING)
 	    o << CheckNL( w, actPosPtr, 1) << " ";
 	    
 	  bool isArr = (actEl->Dim().Rank() != 0);
@@ -1265,7 +1265,7 @@ ostream& DStructGDL::ToStream(ostream& o, SizeT w, SizeT* actPosPtr)
 //    if( actEl == NULL)
 //      throw 
 //        GDLException("Internal error: Output of UNDEF struct element.");
-      if( actEl->Type() == STRING)
+      if( actEl->Type() == GDL_STRING)
 	o << CheckNL( w, actPosPtr, 1) << " ";
       
       actEl->ToStream( o, w, actPosPtr);
@@ -1279,6 +1279,7 @@ ostream& DStructGDL::ToStream(ostream& o, SizeT w, SizeT* actPosPtr)
 int xdr_convert(XDR *xdrs, DByte *buf)
 {
   //  return (xdr_u_char(xdrs, buf));
+    return 0;
 }
 
 int xdr_convert(XDR *xdrs, DInt *buf)
@@ -1377,7 +1378,8 @@ ostream& Data_<Sp>::Write( ostream& os, bool swapEndian,
       long fac = 1;
       if (sizeof(Ty) == 2) fac = 2;
 
-      char buf[ cCount*fac];
+      //char buf[ cCount*fac];
+      char *buf = (char *)malloc(sizeof(char) * cCount*fac);
       memset(buf, 0, cCount*fac);
 
       xdrmem_create(xdrs, buf, sizeof(buf), XDR_ENCODE);
@@ -1390,7 +1392,7 @@ ostream& Data_<Sp>::Write( ostream& os, bool swapEndian,
       }
  
       os.write(buf,cCount*fac);
-
+      free(buf);
       xdr_destroy(xdrs);
     }
   else
@@ -1428,16 +1430,34 @@ istream& Data_<Sp>::Read( istream& os, bool swapEndian,
       char* cData = reinterpret_cast<char*>(&(*this)[0]);
       SizeT cCount = count * sizeof(Ty);
 
-      char swap[ sizeof(Ty)];
-      for( SizeT i=0; i<cCount; i += sizeof(Ty))
-	{
-	  os.read(swap,sizeof(Ty));
+      if( !Data_<Sp>::IS_COMPLEX)
+      {
+	char swapBuf[ sizeof(Ty)];
+	for( SizeT i=0; i<cCount; i += sizeof(Ty))
+	  {
+	    os.read(swapBuf,sizeof(Ty));
 
-	  SizeT src = i+sizeof(Ty)-1;
+	    SizeT src = i+sizeof(Ty)-1;
 
-	  for( SizeT dst=0; dst<sizeof(Ty); dst++)
-	    cData[ src--] = swap[dst];
-	}
+	    for( SizeT dst=0; dst<sizeof(Ty); dst++)
+	      cData[ src--] = swapBuf[dst];
+	  }
+      }
+      else
+      {
+	//char swapBuf[ sizeof(Ty)/2];
+	char *swapBuf = (char*)malloc(sizeof(char)*sizeof(Ty)/2);
+	for( SizeT i=0; i<cCount; i += sizeof(Ty)/2)
+	  {
+	    os.read(swapBuf,sizeof(Ty)/2);
+
+	    SizeT src = i+sizeof(Ty)/2-1;
+
+	    for( SizeT dst=0; dst<sizeof(Ty)/2; dst++)
+	      cData[ src--] = swapBuf[dst];
+	  }
+	free(swapBuf);
+      }
     }
   else if (xdrs != NULL)
     {
@@ -1446,7 +1466,8 @@ istream& Data_<Sp>::Read( istream& os, bool swapEndian,
       long fac = 1;
       if (sizeof(Ty) == 2) fac = 2;
 
-      char buf[ cCount*fac];
+      //char buf[ cCount*fac];
+      char *buf = (char*)malloc(sizeof(char)*cCount*fac);
       memset(buf, 0, cCount*fac);
 
       xdrmem_create(xdrs, buf, sizeof(buf), XDR_DECODE);
@@ -1458,7 +1479,7 @@ istream& Data_<Sp>::Read( istream& os, bool swapEndian,
 
       for( SizeT i=0; i<count; i++)
 	memcpy(&cData[i*sizeof(Ty)], &buf[i*sizeof(Ty)*fac], sizeof(Ty));
-
+      free(buf);
       xdr_destroy(xdrs);
     }
   else if (compress)
@@ -1510,7 +1531,7 @@ ostream& Data_<SpDString>::Write( ostream& os, bool swapEndian,
       if (xdrs != NULL)
 	{
 	  int bufsize = 8 + 4 * (((*this)[i].size() - 1) / 4 + 1);
-	  char buf[ bufsize];
+	  char *buf = (char *)malloc(bufsize * sizeof(char));
 
 	  // IDL adds an addition string length
 	  xdrmem_create(xdrs, &buf[0], 4, XDR_ENCODE);
@@ -1523,6 +1544,7 @@ ostream& Data_<SpDString>::Write( ostream& os, bool swapEndian,
 	  xdr_string(xdrs, &bufptr, (*this)[i].size());
 	  xdr_destroy(xdrs);
 	  os.write( buf, bufsize);
+	  free(buf);
 	}
       else
 	{

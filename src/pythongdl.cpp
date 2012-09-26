@@ -75,15 +75,15 @@ bool GetScript( PyObject *argTuple, DString& name)
 
   PyObject* proPy = PyTuple_GetItem(argTuple, 0);
   BaseGDL* proGDL = FromPython( proPy); // throws
-  if( proGDL->Type() != STRING)
+  if( proGDL->Type() != GDL_STRING)
     {
       PyErr_SetString( gdlError, "Script must be a tuple of strings.");
-      delete proGDL;
+      GDLDelete(proGDL);
       return false;
     }
 
   name = StrUpCase((*(static_cast< DStringGDL*>( proGDL)))[ 0]);
-  delete proGDL;
+  GDLDelete(proGDL);
   
   return true;
 }
@@ -105,15 +105,15 @@ bool GetFirstString( PyObject *argTuple, DString& name)
 
   PyObject* proPy = PyTuple_GetItem(argTuple, 0);
   BaseGDL* proGDL = FromPython( proPy); // throws
-  if( proGDL->Type() != STRING || proGDL->N_Elements() != 1)
+  if( proGDL->Type() != GDL_STRING || proGDL->N_Elements() != 1)
     {
       PyErr_SetString( gdlError, "First argument must be a scalar string");
-      delete proGDL;
+      GDLDelete(proGDL);
       return false;
     }
 
   name = (*(static_cast< DStringGDL*>( proGDL)))[ 0];
-  delete proGDL;
+  GDLDelete(proGDL);
   
   return true;
 }
@@ -224,7 +224,7 @@ bool CopyArgFromPython( vector<BaseGDL*>& parRef,
 	}
     }
   
-  e.Extra(); // expand _EXTRA
+  e.ResolveExtra(); // expand _EXTRA
 
   return true;
 }
@@ -383,8 +383,13 @@ PyObject *GDLSub( PyObject *self, PyObject *argTuple, PyObject *kwDict,
 
     // make the call
     StackSizeGuard<EnvStackT> guard( GDLInterpreter::CallStack());
-    GDLInterpreter::CallStack().push_back( e);
-
+    
+    if( !libCall)
+    {
+      GDLInterpreter::CallStack().push_back( static_cast<EnvUDT*>(e));
+      e_guard.release();
+    }
+    
     BaseGDL* retValGDL = NULL;
     auto_ptr<BaseGDL> retValGDL_guard;
     if( functionCall)

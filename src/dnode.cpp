@@ -100,7 +100,7 @@ DNode::~DNode()
     // delete cData in case this node is a constant
     if( (getType() == GDLTokenTypes::CONSTANT) && cData != NULL)
       {
-	delete cData;
+	GDLDelete(cData);
       }
     if( (getType() == GDLTokenTypes::ARRAYIX))
       {
@@ -300,7 +300,11 @@ void DNode::Text2ULong64(int base)
 void DNode::Text2Float()
 {
   const char* cStr=text.c_str();
+#ifdef _MSC_VER
   DFloat val=strtod(cStr,NULL);
+#else
+  DFloat val=strtof(cStr,NULL);
+#endif
   cData=new DFloatGDL(val);
 }
 void DNode::Text2Double()

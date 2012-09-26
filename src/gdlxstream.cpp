@@ -167,7 +167,7 @@ void GDLXStream::Clear( DLong bColor)
   GDLCT* actCT = Graphics::GetCT();
   actCT->Get( bColor, rb, gb, bb);
 
-  // Convert to PLINT from BYTE
+  // Convert to PLINT from GDL_BYTE
   r1 = (PLINT) rb;
   g1 = (PLINT) gb;
   b1 = (PLINT) bb;
@@ -192,6 +192,24 @@ void GDLXStream::Lower()
   XwDev *dev = (XwDev *) pls->dev;
   XwDisplay *xwd = (XwDisplay *) dev->xwd;
   XLowerWindow(dev->xwd->display, dev->window);
+}
+
+// note by AC on 2012-Aug-16    Help/suggestions welcome
+// I don't know how to find the sub-window number (third parametre
+// in call XIconifyWindow())
+
+void GDLXStream::Iconic()
+{
+  XwDev *dev = (XwDev *) pls->dev;
+  XwDisplay *xwd = (XwDisplay *) dev->xwd;
+  XIconifyWindow(dev->xwd->display, dev->window,0);
+}
+
+void GDLXStream::DeIconic()
+{
+  XwDev *dev = (XwDev *) pls->dev;
+  XwDisplay *xwd = (XwDisplay *) dev->xwd;
+  XMapWindow(dev->xwd->display, dev->window);
 }
 
 #endif

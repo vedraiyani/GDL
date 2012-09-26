@@ -20,23 +20,27 @@
 #include "objects.hpp"
 #include "extrat.hpp"
 #include "envt.hpp"
+#include "nullgdl.hpp"
 
 using namespace std;
 
-void ExtraT::Resolve()
+void ExtraT::ResolveExtra(EnvBaseT* callerIn)
 {
   // if the subroutine has _REF_EXTRA, explicit keywords override
   // if the subroutine has _EXTRA, _EXTRA keywords override
 
   // 1. extract own keywords from _EXTRA data (override explicit ones)
   // put all others to extra data
-  BaseGDL* thisExtra= (env != NULL)? *env : loc;
+  BaseGDL* extraVal= (envExtraVal != NULL)? *envExtraVal : locExtraVal;
 
   DSub* pro=thisEnv->pro;
 
   DSub::ExtraType extraType= pro->Extra();
 
-  DStructGDL* extraStruct= dynamic_cast<DStructGDL*>(thisExtra);
+//   EnvBaseT* callerDebug=thisEnv->Caller();
+//   DSub::ExtraType extraTypeDebug= callerDebug->pro->Extra();
+
+  DStructGDL* extraStruct= dynamic_cast<DStructGDL*>(extraVal);
   if( extraStruct != NULL) // _EXTRA
     {
       DStructDesc* desc=extraStruct->Desc();
@@ -63,8 +67,8 @@ void ExtraT::Resolve()
           listName.push_back(tName);
           listEnv.push_back(extraStruct->Get(t)); // always local
         }
-        else if (strict)
-        { // pro has no (_REF)_EXTRA) and _STRICT_EXTRA -> error
+        else if (strict || callerIn != NULL) // always strict if callerIn is set
+        { // pro has no (_REF)_EXTRA and _STRICT_EXTRA -> error
           // ... unless keyword is a warnkey!
           // search warn keyword
           IDList::iterator wf=find_if(pro->warnKey.begin(),
@@ -82,16 +86,21 @@ void ExtraT::Resolve()
     }
   else // _REF_EXTRA
     {
-      DStringGDL* extraString= dynamic_cast<DStringGDL*>(thisExtra);
+      DStringGDL* extraString= dynamic_cast<DStringGDL*>(extraVal);
       if( extraString != NULL)
 	{
-	  EnvBaseT* caller=thisEnv->Caller();
+	  EnvBaseT* caller;
+	  if( callerIn == NULL)
+	    caller = thisEnv->Caller();
+	  else
+	    caller = callerIn;
 
-	  // STRING only works, if the *caller* has _REF_EXTRA
+	  // GDL_STRING only works, if the *caller* has _REF_EXTRA
 	  if( caller->pro->Extra() == DSub::REFEXTRA)
 	    {
 	      // caller's extra member holds the actual data
 	      assert( caller->extra != NULL);
+
 	      ExtraT& cExtra=*caller->extra;
 
 	      SizeT nStr=extraString->N_Elements();
@@ -153,9 +162,11 @@ void ExtraT::Resolve()
 	  for( SizeT i=0; i<nEl; i++)
 	    (*extraString)[i] = listName[i];
 
-	  assert( thisEnv->env.Loc(static_cast<SizeT>(pro->extraIx)) == NULL);
-	  assert( thisEnv->env.Env(static_cast<SizeT>(pro->extraIx)) == NULL);
+// 	  assert( thisEnv->env.Loc(static_cast<SizeT>(pro->extraIx)) == NULL /*|| thisEnv->env.Loc(static_cast<SizeT>(pro->extraIx)) == NullGDL::GetSingleInstance()*/);
+// 	  assert( thisEnv->env.Env(static_cast<SizeT>(pro->extraIx)) == NULL );
 
+	  delete thisEnv->env.Loc(static_cast<SizeT>(pro->extraIx));
+	  
  	  thisEnv->env.Set( static_cast<SizeT>(pro->extraIx), 
  			      static_cast<BaseGDL*>(extraString));
 // 	  thisEnv->env.Reset( static_cast<SizeT>(pro->extraIx), 

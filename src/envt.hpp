@@ -112,6 +112,7 @@ public:
 
   // for CLEANUP calls due to reference counting
   void PushNewEmptyEnvUD(  DSub* newPro, BaseGDL** newObj = NULL);
+  void PushNewEmptyEnvUDWithExtra(  DSub* newPro, BaseGDL** newObj = NULL);
   
   void AddEnv( DPtrListT& ptrAccessible, DPtrListT& objAccessible);
   void AddToDestroy( DPtrListT& ptrAccessible, DPtrListT& objAccessible);
@@ -179,7 +180,7 @@ proUD->SetCompileOpt( cOpt);
   void RemoveLoc( BaseGDL* p) { env.RemoveLoc( p);}
 
   // called after parameter definition
-  void Extra();
+  void ResolveExtra();
   friend class ExtraT;
 
   // used by compiler and from EnvT (for variable number of paramters)
@@ -532,20 +533,20 @@ public:
   // throws if not defined (ie. never returns NULL)
   BaseGDL*& GetParDefined(SizeT i); //, const std::string& subName = "");
 
-  // throw for STRING, STRUCT, PTR and OBJECT
+  // throw for GDL_STRING, GDL_STRUCT, GDL_PTR and GDL_OBJECT
   BaseGDL*& GetNumericParDefined( SizeT ix)
   {
     BaseGDL*& p0 = GetParDefined( ix);
     if( NumericType( p0->Type()))
 	return p0;
 
-    if( p0->Type() == STRING)
+    if( p0->Type() == GDL_STRING)
       Throw( "String expression not allowed in this context: "+GetParString(ix));
-    if( p0->Type() == STRUCT)
+    if( p0->Type() == GDL_STRUCT)
       Throw( "Struct expression not allowed in this context: "+GetParString(ix));
-    if( p0->Type() == PTR)
+    if( p0->Type() == GDL_PTR)
       Throw( "Pointer expression not allowed in this context: "+GetParString(ix));
-    if( p0->Type() == OBJECT)
+    if( p0->Type() == GDL_OBJECT)
       Throw( "Object reference not allowed in this context: "+GetParString(ix));
 
     assert( false);
@@ -778,7 +779,7 @@ public:
 
   // to be extended on demand for other data types  
 
-  // SA: used by STRING() for VMS-compat hack
+  // SA: used by GDL_STRING() for VMS-compat hack
   void ShiftParNumbering(int n);
 };
 

@@ -355,6 +355,125 @@ namespace lib {
 #endif
   }
 
+	// WIDGET CW_BGROUP
+	BaseGDL* widget_bgroup( EnvT* e)
+	{
+#ifndef HAVE_LIBWXWIDGETS
+    e->Throw("GDL was compiled without support for wxWidgets");
+#else
+		//SizeT nParam = e->NParam();
+		DLongGDL* p0L = e->GetParAs<DLongGDL>( 0);
+    WidgetIDT parentID = (*p0L)[0];
+
+		DStringGDL* names = e->GetParAs<DStringGDL>(1);
+
+    GDLWidget *widget = GDLWidget::GetWidget( parentID);
+
+		DLong xsize = -1;
+		static int xsizeIx = e->KeywordIx( "XSIZE");
+    e->AssureLongScalarKWIfPresent( xsizeIx, xsize);
+
+		DLong ysize = -1;
+		static int ysizeIx = e->KeywordIx( "YSIZE");
+    e->AssureLongScalarKWIfPresent( ysizeIx, ysize);
+
+    static int buttonuvalueIx = e->KeywordIx( "BUTTON_UVALUE");
+		DString buttonuvalue = "";
+    e->AssureStringScalarKWIfPresent(buttonuvalueIx, buttonuvalue);
+
+    static int uvalueIx = e->KeywordIx( "UVALUE");
+    BaseGDL* uvalue = e->GetKW( uvalueIx);
+    if( uvalue != NULL)
+      uvalue = uvalue->Dup();
+
+    static int labelIx = e->KeywordIx( "LABEL_TOP");
+    DString labeltop = "";
+    e->AssureStringScalarKWIfPresent( labelIx, labeltop);
+
+		GDLWidgetBGroup::BGroupMode mode = GDLWidgetBGroup::NORMAL;
+		static int modeIx = e->KeywordIx( "EXCLUSIVE");
+		if(e->KeywordSet( modeIx)){
+			mode = GDLWidgetBGroup::EXCLUSIVE;
+		}else{
+			modeIx = e->KeywordIx( "NONEXCLUSIVE");
+			if(e->KeywordSet(modeIx)){
+				mode = GDLWidgetBGroup::NONEXCLUSIVE;
+			}
+		}
+
+		GDLWidgetBGroup::BGroupReturn ret = GDLWidgetBGroup::RETURN_ID;
+		static int retIx = e->KeywordIx( "RETURN_INDEX");
+		if(e->KeywordSet( retIx)){
+			ret = GDLWidgetBGroup::RETURN_INDEX;
+		}else{
+			retIx = e->KeywordIx( "RETURN_NAME");
+			if(e->KeywordSet(retIx)){
+				ret = GDLWidgetBGroup::RETURN_NAME;
+			}
+		}
+
+		DLong rows = -1;
+		static int rowIx = e->KeywordIx("ROW");
+		e->AssureLongScalarKWIfPresent( rowIx, rows);
+
+		DLong cols = -1;
+		static int colIx = e->KeywordIx("COLUMN");
+		e->AssureLongScalarKWIfPresent( colIx, cols);
+
+    GDLWidgetBGroup* group = new GDLWidgetBGroup( parentID, names,
+																									uvalue, buttonuvalue,
+																									xsize, ysize, labeltop,
+																									rows, cols, mode, ret);
+    group->SetWidgetType("GROUP");
+
+    return new DLongGDL( group->WidgetID());
+
+#endif
+	}
+
+
+
+
+	// WIDGET_LIST
+	BaseGDL* widget_list( EnvT* e)
+	{
+#ifndef HAVE_LIBWXWIDGETS
+    e->Throw("GDL was compiled without support for wxWidgets");
+#else
+    DLongGDL* p0L = e->GetParAs<DLongGDL>( 0);
+    WidgetIDT parentID = (*p0L)[0];
+    GDLWidget *widget = GDLWidget::GetWidget( parentID);
+
+		DLong xsize = -1;
+		static int xsizeIx = e->KeywordIx( "XSIZE");
+    e->AssureLongScalarKWIfPresent( xsizeIx, xsize);
+
+		DLong ysize = -1;
+		static int ysizeIx = e->KeywordIx( "YSIZE");
+    e->AssureLongScalarKWIfPresent( ysizeIx, ysize);
+
+		static int valueIx = e->KeywordIx( "VALUE");
+    BaseGDL* value = e->GetKW( valueIx);
+    if( value != NULL)
+      value = value->Dup();
+
+    static int uvalueIx = e->KeywordIx( "UVALUE");
+    BaseGDL* uvalue = e->GetKW( uvalueIx);
+    if( uvalue != NULL)
+      uvalue = uvalue->Dup();
+
+		static int multipleIx = e->KeywordIx( "MULTIPLE");
+		bool multiple = e->KeywordSet( multipleIx);
+
+    DLong style = multiple ? wxLB_MULTIPLE : wxLB_SINGLE;
+    GDLWidgetList* list = new GDLWidgetList( parentID, uvalue, value,
+																						 xsize, ysize,
+																						 style);
+    list->SetWidgetType( "LIST");
+
+    return new DLongGDL( list->WidgetID());
+#endif
+	}
 
   // WIDGET_DROPLIST
   BaseGDL* widget_droplist( EnvT* e)
@@ -421,8 +540,14 @@ namespace lib {
     if( uvalue != NULL)
       uvalue = uvalue->Dup();
 
-    GDLWidgetText* text = new GDLWidgetText( parentID, uvalue, value, xsize);
- 
+		DLong edit = 0;
+		static int editableIx = e->KeywordIx("EDITABLE");
+		e->AssureLongScalarKWIfPresent( editableIx, edit);
+		bool editable = edit == 1;
+
+    GDLWidgetText* text = new GDLWidgetText( parentID, uvalue, value,
+    xsize, editable);
+
     text->SetWidgetType( "TEXT");
 
     return new DLongGDL( text->WidgetID());
@@ -823,7 +948,7 @@ namespace lib {
 
     if ( getuvalue) {
       BaseGDL** uvalueKW = &e->GetKW( getuvalueIx);
-      delete (*uvalueKW);
+      GDLDelete((*uvalueKW));
 
       BaseGDL *widval = widget->GetUvalue();
       //      *uvalueKW = widget->GetUvalue();
@@ -831,11 +956,11 @@ namespace lib {
 
       /*
       if ( *uvalueKW != NULL) {
-	if( (*uvalueKW)->Type() == STRING)
+	if( (*uvalueKW)->Type() == GDL_STRING)
 	  *uvalueKW = new DStringGDL( (*( DStringGDL*) (*uvalueKW))[0]);
-	if( (*uvalueKW)->Type() == LONG)
+	if( (*uvalueKW)->Type() == GDL_LONG)
 	  *uvalueKW = new DLongGDL( (*( DLongGDL*) (*uvalueKW))[0]);
-	if( (*uvalueKW)->Type() == STRUCT) {
+	if( (*uvalueKW)->Type() == GDL_STRUCT) {
 	  DStructGDL* s = static_cast<DStructGDL*>( *uvalueKW);
 	  //	  DStructGDL* parStruct = dynamic_cast<DStructGDL*>( *uvalueKW);
 	  cout << s->Desc()->Name() << endl;
@@ -847,7 +972,7 @@ namespace lib {
 
     if ( setuvalue) {
       BaseGDL* uvalue = e->GetKW( setuvalueIx);
-      if( uvalue->Type() == STRUCT) {
+      if( uvalue->Type() == GDL_STRUCT) {
 	//	cout << "Structure uvalue" << endl;
 	//DStructGDL* s1 = static_cast<DStructGDL*>( uvalue);
 	//cout << s1->Desc()->Name() << endl;
@@ -932,7 +1057,7 @@ namespace lib {
 
     if ( getvalue) {
       BaseGDL** valueKW = &e->GetKW( getvalueIx);
-      delete (*valueKW);
+      GDLDelete((*valueKW));
 
       DString getFuncName = widget->GetFuncValue();
       if ( getFuncName != "") {
@@ -959,13 +1084,13 @@ namespace lib {
       } else {
 	// "Regular" getvalue
 	BaseGDL** valueKW = &e->GetKW( getvalueIx);
-	delete (*valueKW);
+	GDLDelete((*valueKW));
 
 	*valueKW = widget->GetVvalue();
 	if ( *valueKW != NULL) {
-	  if( (*valueKW)->Type() == STRING)
+	  if( (*valueKW)->Type() == GDL_STRING)
 	    *valueKW = new DStringGDL( (*( DStringGDL*) (*valueKW))[0]);
-	  if( (*valueKW)->Type() == LONG)
+	  if( (*valueKW)->Type() == GDL_LONG)
 	    *valueKW = new DLongGDL( (*( DLongGDL*) (*valueKW))[0]);
 	} else {
 	  DLongGDL* res = new DLongGDL( 0);

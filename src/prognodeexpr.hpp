@@ -60,6 +60,8 @@ public:
 
   void AdjustTypesNC( std::auto_ptr<BaseGDL>& g1, BaseGDL*& e1, 
 		      std::auto_ptr<BaseGDL>& g2, BaseGDL*& e2);
+  void AdjustTypesNCNull( std::auto_ptr<BaseGDL>& g1, BaseGDL*& e1, 
+		      std::auto_ptr<BaseGDL>& g2, BaseGDL*& e2);
 
   //  int getType() { return GDLTokenTypes::EXPR;}
 };
@@ -128,6 +130,7 @@ class FCALL_LIBNode: public LeafNode
 public:
   FCALL_LIBNode( const RefDNode& refNode): LeafNode( refNode)
   {}
+  BaseGDL** EvalRefCheck( BaseGDL*& rEval);
   BaseGDL** LEval();
   BaseGDL* Eval();
   BaseGDL* EvalFCALL_LIB(); // might return a non new value
@@ -142,6 +145,7 @@ class MFCALLNode: public LeafNode
 public:
   MFCALLNode( const RefDNode& refNode): LeafNode( refNode)
   {}
+  BaseGDL** EvalRefCheck( BaseGDL*& rEval);
   BaseGDL** LEval();
   BaseGDL* Eval();
   BaseGDL** LExpr( BaseGDL* right);
@@ -155,6 +159,7 @@ class MFCALL_PARENTNode: public LeafNode
 public:
   MFCALL_PARENTNode( const RefDNode& refNode): LeafNode( refNode)
   {}
+  BaseGDL** EvalRefCheck( BaseGDL*& rEval);
   BaseGDL** LEval();
   BaseGDL* Eval();
   BaseGDL** LExpr( BaseGDL* right);
@@ -168,6 +173,7 @@ class FCALLNode: public LeafNode
 public:
   FCALLNode( const RefDNode& refNode): LeafNode( refNode)
   {}
+  BaseGDL** EvalRefCheck( BaseGDL*& rEval);
   BaseGDL** LExpr( BaseGDL* right);
   BaseGDL** LEval();
   BaseGDL* Eval();
@@ -181,6 +187,7 @@ class ARRAYEXPR_MFCALLNode: public LeafNode
 public:
   ARRAYEXPR_MFCALLNode( const RefDNode& refNode): LeafNode( refNode)
   {}
+  BaseGDL** EvalRefCheck( BaseGDL*& rEval);
   BaseGDL** LEval(); //{ ThrowGDLException( "Internal errorr: ARRAYEXPR_MFCALLNode called.");}
   BaseGDL* Eval();
   BaseGDL** LExpr( BaseGDL* right);
@@ -194,8 +201,10 @@ class VARNode: public LeafNode
 public:
   VARNode( const RefDNode& refNode): LeafNode( refNode)
   {}
+  BaseGDL** EvalRefCheck( BaseGDL*& rEval);
   BaseGDL** LEval();
   BaseGDL* EvalNC();
+  BaseGDL* EvalNCNull();
   BaseGDL* Eval();
   BaseGDL** LExpr( BaseGDL* right);  
 //   BaseGDL** LExprGrab( BaseGDL* right);  
@@ -205,8 +214,10 @@ class VARPTRNode: public LeafNode
 public:
   VARPTRNode( const RefDNode& refNode): LeafNode( refNode)
   {}
+  BaseGDL** EvalRefCheck( BaseGDL*& rEval);
   BaseGDL** LEval();
   BaseGDL* EvalNC();
+  BaseGDL* EvalNCNull();
   BaseGDL* Eval();
   BaseGDL** LExpr( BaseGDL* right);
 //   BaseGDL** LExprGrab( BaseGDL* right);  
@@ -216,6 +227,7 @@ class SYSVARNode: public LeafNode
 public:
   SYSVARNode( const RefDNode& refNode): LeafNode( refNode)
   {}
+  BaseGDL** EvalRefCheck( BaseGDL*& rEval);
   BaseGDL** LEval();
   BaseGDL* EvalNC();
   BaseGDL* Eval();
@@ -227,6 +239,7 @@ class DEREFNode: public LeafNode
 public:
   DEREFNode( const RefDNode& refNode): LeafNode( refNode)
   {}
+  BaseGDL** EvalRefCheck( BaseGDL*& rEval);
   BaseGDL** LEval();
   BaseGDL* EvalNC();
   BaseGDL* Eval();
@@ -289,6 +302,7 @@ class QUESTIONNode: public TrinaryExpr
 { public:
   QUESTIONNode( const RefDNode& refNode): TrinaryExpr( refNode){}
   BaseGDL* Eval();
+  ProgNodeP AsParameter(); // as parameter or keyword
   BaseGDL** LExpr(BaseGDL* right);
 //   BaseGDL** LExprGrab(BaseGDL* right);
 };

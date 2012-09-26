@@ -27,17 +27,21 @@
 
 #include <sys/stat.h>
 #include <sys/types.h>
+#ifndef _MSC_VER
 #include <sys/wait.h>
+#endif
 
 #ifdef __APPLE__
 # include <crt_externs.h>
 # define environ (*_NSGetEnviron())
 #else
+#ifdef _MSC_VER
+#define R_OK    4       /* Test for read permission.  */
+#define W_OK    2       /* Test for write permission.  */
+#define F_OK    0       /* Test for existence.  */
+#else
 #include <unistd.h>
 #endif
-
-#ifdef HAVE_LIBWXWIDGETS
-#include <wx/wx.h>
 #endif
 
 #ifdef _OPENMP
@@ -56,6 +60,10 @@
 #  include <ext/stdio_filebuf.h> // TODO: is it portable across compilers?
 #endif
 #include <signal.h>
+
+#ifdef HAVE_LIBWXWIDGETS
+#include <wx/wx.h>
+#endif
 
 namespace lib {
  
@@ -167,7 +175,7 @@ namespace lib {
     if( !doIndentation) os << "= ";
 
     // Data display
-    if( par->Type() == STRUCT)
+    if( par->Type() == GDL_STRUCT)
       {
         DStructGDL* s = static_cast<DStructGDL*>( par);
         os << "-> ";
@@ -176,7 +184,7 @@ namespace lib {
       }
     else if( par->Dim( 0) == 0)
       {
-        if (par->Type() == STRING)
+        if (par->Type() == GDL_STRING)
 	  {
             // trim string larger than 45 characters
             DString dataString = (*static_cast<DStringGDL*>(par))[0];
@@ -361,7 +369,7 @@ namespace lib {
 	  {
 	    BaseGDL*& par=e->GetPar( i);
 	    DString parString = e->Caller()->GetString( par, true);
-	    if( !par || !isKWSetStructures || par->Type() != STRUCT) {
+	    if( !par || !isKWSetStructures || par->Type() != GDL_STRUCT) {
 	      nlines++;
 	    } else {
 	      DStructGDL* s = static_cast<DStructGDL*>( par);
@@ -382,7 +390,7 @@ namespace lib {
 
       // Setup output return variable
       outputKW = &e->GetKW( outputIx);
-      delete (*outputKW);
+      GDLDelete((*outputKW));
       dimension dim(&nlines, (size_t) 1);
       *outputKW = new DStringGDL(dim, BaseGDL::NOZERO);
     }
@@ -534,7 +542,7 @@ namespace lib {
 	BaseGDL*& par=e->GetPar( i);
 	DString parString = e->Caller()->GetString( par, true);
 	// NON-STRUCTURES
-	if( !par || !isKWSetStructures || par->Type() != STRUCT)
+	if( !par || !isKWSetStructures || par->Type() != GDL_STRUCT)
           {
 	    // If no OUTPUT keyword send to stdout
 	    if (outputKW == NULL) {
@@ -713,7 +721,11 @@ namespace lib {
 			AppendIfNeeded(pathToGDL_history, "/");
 			pathToGDL_history += ".gdl";
 			// Create eventially the ".gdl" path in Home
+#ifdef _MSC_VER
+			result = mkdir(pathToGDL_history.c_str());
+#else
 			result = mkdir(pathToGDL_history.c_str(), 0700);
+#endif
 			if (debug)
 			{
 				if (result == 0) cout << "Creation of ~/.gdl PATH "<< endl;
@@ -754,7 +766,7 @@ namespace lib {
       e->Throw( "Expression must be a scalar in this context: "+
 		e->GetString( status));
 
-    DLongGDL* statusL=static_cast<DLongGDL*>(status->Convert2( LONG, 
+    DLongGDL* statusL=static_cast<DLongGDL*>(status->Convert2( GDL_LONG, 
 							       BaseGDL::COPY));
     
     DLong exit_status;
@@ -895,7 +907,7 @@ namespace lib {
 
     BaseGDL** retLun = &e->GetPar( 0);
     
-    delete (*retLun); 
+    GDLDelete((*retLun)); 
     //            if( *retLun != e->Caller()->Object()) delete (*retLun); 
     
     *retLun = new DLongGDL( lun);
@@ -1025,7 +1037,7 @@ namespace lib {
       
       BaseGDL** err = &e->GetKW( errorIx);
       
-      delete (*err); 
+      GDLDelete((*err)); 
 //    if( *err != e->Caller()->Object()) delete (*err); 
       
       *err = new DLongGDL( 1);
@@ -1037,7 +1049,7 @@ namespace lib {
 	BaseGDL** err = &e->GetKW( errorIx);
       
 // 	if( *err != e->Caller()->Object()) delete (*err); 
-	delete (*err); 
+	GDLDelete((*err)); 
       
 	*err = new DLongGDL( 0);
       }
@@ -1079,19 +1091,19 @@ namespace lib {
 
     DUInt port;
     BaseGDL* p2 = e->GetParDefined( 2);
-    if (p2->Type() == STRING) {
+    if (p2->Type() == GDL_STRING) {
       // look up /etc/services
-    } else if (p2->Type() == UINT) {
+    } else if (p2->Type() == GDL_UINT) {
       e->AssureScalarPar<DUIntGDL>( 2, port);
-    } else if (p2->Type() == INT) {
+    } else if (p2->Type() == GDL_INT) {
       DInt p;
       e->AssureScalarPar<DIntGDL>( 2, p);
       port = p;
-    } else if (p2->Type() == LONG) {
+    } else if (p2->Type() == GDL_LONG) {
       DLong p;
       e->AssureScalarPar<DLongGDL>( 2, p);
       port = p;
-    } else if (p2->Type() == ULONG) {
+    } else if (p2->Type() == GDL_ULONG) {
       DULong p;
       e->AssureScalarPar<DULongGDL>( 2, p);
       port = p;
@@ -1138,7 +1150,7 @@ namespace lib {
       
       BaseGDL** err = &e->GetKW( errorIx);
       
-      delete (*err); 
+      GDLDelete((*err)); 
 //    if( *err != e->Caller()->Object()) delete (*err); 
       
       *err = new DLongGDL( 1);
@@ -1150,7 +1162,7 @@ namespace lib {
 	BaseGDL** err = &e->GetKW( errorIx);
       
 // 	if( *err != e->Caller()->Object()) delete (*err); 
-	delete (*err); 
+	GDLDelete((*err)); 
       
 	*err = new DLongGDL( 0);
       }
@@ -1512,7 +1524,7 @@ TRACEOMP( __FILE__, __LINE__)
 #pragma omp parallel if (nEl >= CpuTPOOL_MIN_ELTS && (CpuTPOOL_MAX_ELTS == 0 || CpuTPOOL_MAX_ELTS <= nEl))
 {
 #pragma omp for
-    for( SizeT i=0; i<nEl; ++i)
+    for( int i=0; i<nEl; ++i)
 	StrPut((*dest)[ i], source, pos);
 }
   }
@@ -1616,7 +1628,7 @@ TRACEOMP( __FILE__, __LINE__)
     else
       {
 	// not read only
-	delete oldVar;
+	GDLDelete(oldVar);
 	sysVar->Data() = newVar->Dup();
 
 	// only on first definition
@@ -1678,7 +1690,7 @@ TRACEOMP( __FILE__, __LINE__)
 
   void byteorderDo( EnvT* e, BaseGDL* pIn, SizeT swapSz, DLong p)
 {
-	if( pIn->Type() == STRUCT)
+	if( pIn->Type() == GDL_STRUCT)
 	{
 		DStructGDL* dS=static_cast<DStructGDL*>( pIn);
 		if( dS->Desc()->ContainsStringPtrObject())
@@ -1687,7 +1699,7 @@ TRACEOMP( __FILE__, __LINE__)
 		{
 			BaseGDL* par = dS->GetTag( t);
 			
-			if( par->Type() == STRUCT && par->N_Elements() == 1)
+			if( par->Type() == GDL_STRUCT && par->N_Elements() == 1)
 			{
 				// do tag by tag for scalar struct as memory might not be contigous (
 				byteorderDo( e, par, swapSz, p);
@@ -1718,11 +1730,11 @@ TRACEOMP( __FILE__, __LINE__)
 	}
 	else
 	{
-		if( pIn->Type() == STRING)
+		if( pIn->Type() == GDL_STRING)
 		e->Throw( "STRING type not allowed in this context: "+e->GetParString(p));		    
-		if( pIn->Type() == OBJECT)
+		if( pIn->Type() == GDL_OBJECT)
 		e->Throw( "Object type not allowed in this context: "+e->GetParString(p));		    
-		if( pIn->Type() == PTR)
+		if( pIn->Type() == GDL_PTR)
 		e->Throw( "PTR type not allowed in this context: "+e->GetParString(p));		    
 	
 		BaseGDL*& par = pIn;
@@ -1802,13 +1814,13 @@ TRACEOMP( __FILE__, __LINE__)
 
  	byteorderDo( e, par, swapSz, p);
 
-/*	if( par->Type() == STRING)
+/*	if( par->Type() == GDL_STRING)
 	  e->Throw( "STRING type not allowed in this context: "+e->GetParString(p));		    
-	if( par->Type() == OBJECT)
+	if( par->Type() == GDL_OBJECT)
 	  e->Throw( "Object type not allowed in this context: "+e->GetParString(p));		    
-	if( par->Type() == PTR)
+	if( par->Type() == GDL_PTR)
 	  e->Throw( "PTR type not allowed in this context: "+e->GetParString(p));		    
-	if( par->Type() == STRUCT)
+	if( par->Type() == GDL_STRUCT)
 	{
 		if( static_cast<DStructGDL*>( par)->Desc()->ContainsStringPtrObject())
 		  e->Throw( "Structs must not contain PTR, OBJECT or STRING tags: "+e->GetParString(p));		    
@@ -1860,7 +1872,7 @@ TRACEOMP( __FILE__, __LINE__)
       DString strArg = strEnv.substr(pos+1, len - pos - 1);
       strEnv = strEnv.substr(0, pos);
       // putenv() is POSIX unlike setenv()
-      #if defined(__hpux__)
+      #if defined(__hpux__) || defined(_MSC_VER)
       int ret = putenv((strEnv+"="+strArg).c_str());
       #else
       int ret = setenv(strEnv.c_str(), strArg.c_str(), 1);
@@ -1934,6 +1946,8 @@ TRACEOMP( __FILE__, __LINE__)
       }
   }
 
+#ifndef _MSC_VER
+ 
   // helper function for spawn_pro
   static void child_sighandler(int x){
     pid_t pid;
@@ -2109,7 +2123,7 @@ TRACEOMP( __FILE__, __LINE__)
              e->Throw( "SPAWN: Failed to open new LUN: Unit already open. Unit: "+i2s( unit_lun));
            fileUnits[ unit_lun-1].PutVarLenVMS( false);
  
-           // Here we invoke the black arts of converting from a C FILE*/fd to an fstream object
+           // Here we invoke the black arts of converting from a C FILE*fd to an fstream object
            __gnu_cxx::stdio_filebuf<char> *frb_p;
            frb_p = new __gnu_cxx::stdio_filebuf<char>(coutF, std::ios_base::in);
  
@@ -2208,6 +2222,7 @@ TRACEOMP( __FILE__, __LINE__)
         }
       }
   }
+#endif
 
   void replicate_inplace_pro( EnvT* e)
   {
@@ -2373,7 +2388,9 @@ TRACEOMP( __FILE__, __LINE__)
       e->Throw("Value of Julian date (" + i2s((*p0)[i]) + ") is out of allowed range.");
 
     // preparing output (loop order important when all parameters point the same variable)
-    BaseGDL** ret[nParam - 1];
+    //BaseGDL** ret[nParam - 1];
+    BaseGDL*** ret;
+    ret = (BaseGDL***)malloc((nParam-1)*sizeof(BaseGDL**));
     for (int i = nParam - 2; i >= 0; i--) if (global[i]) 
     {
       ret[i] = &e->GetPar(i + 1);
@@ -2381,7 +2398,7 @@ TRACEOMP( __FILE__, __LINE__)
       if 
       (
         *ret[i] == NULL || 
-        (*ret[i])->Type() != (i < 5 ? LONG : DOUBLE) || 
+        (*ret[i])->Type() != (i < 5 ? GDL_LONG : GDL_DOUBLE) || 
         (*ret[i])->N_Elements() != nEl 
       )
       {
@@ -2453,7 +2470,7 @@ TRACEOMP( __FILE__, __LINE__)
       if (global[6 - 1]) 
         (*static_cast<DDoubleGDL*>(*ret[6 - 1]))[i] = F * 86400;
     }
-    
+    free((void *)ret);
   }
   
 } // namespace

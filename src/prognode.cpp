@@ -24,6 +24,7 @@ email                : m_schellens@users.sf.net
 #include "dinterpreter.hpp"
 
 #include "objects.hpp"
+#include "nullgdl.hpp"
 
 using namespace std;
 
@@ -75,7 +76,7 @@ ProgNode::~ProgNode()
   // delete cData in case this node is a constant
   if( (getType() == GDLTokenTypes::CONSTANT))
      {
-      delete cData;
+      GDLDelete(cData);
      }
   if( (getType() == GDLTokenTypes::ARRAYIX))
     {
@@ -186,7 +187,7 @@ BaseGDL* ASSIGN_ARRAYEXPR_MFCALLNode::Eval()
 
 	  if( res != (*l))
 	    {
-	      delete *l;
+	      GDLDelete(*l);
 	      *l = res->Dup();
 
 	      if( r_guard.get() == res) // owner
@@ -242,7 +243,7 @@ BaseGDL* ASSIGN_REPLACENode::Eval()
 
     if( res != (*l))
     {
-      delete *l;
+      GDLDelete(*l);
       *l = res->Dup();
 
       if( r_guard.get() == res) // owner
@@ -259,7 +260,7 @@ BaseGDL* ASSIGN_REPLACENode::Eval()
 BaseGDL* ARRAYDEFNode::Eval()
 {
   // GDLInterpreter::
-  DType  cType=UNDEF; // conversion type
+  DType  cType=GDL_UNDEF; // conversion type
   SizeT maxRank=0;
   ExprListT            exprList;
   BaseGDL*           cTypeData;
@@ -275,15 +276,18 @@ BaseGDL* ARRAYDEFNode::Eval()
     //WRONG    _t = ProgNode::interpreter->_retTree;
 			
     // add first (this way it will get cleaned up anyway)
+    if( e == NullGDL::GetSingleInstance())
+      continue;
+      
     exprList.push_back(e);
 			
     DType ty=e->Type();
-    if( ty == UNDEF)
+    if( ty == GDL_UNDEF)
       {
 	throw GDLException( _t, "Variable is undefined: "+
 			    ProgNode::interpreter->Name(e),true,false);
       }
-    if( cType == UNDEF) 
+    if( cType == GDL_UNDEF) 
       {
 	cType=ty;
 	cTypeData=e;
@@ -306,7 +310,7 @@ BaseGDL* ARRAYDEFNode::Eval()
 		cTypeData=e;
 	      }
 	  }
-	if( ty == STRUCT)
+	if( ty == GDL_STRUCT)
 	  {
 	    // check for struct compatibility
 	    DStructDesc* newS=
@@ -336,6 +340,9 @@ BaseGDL* ARRAYDEFNode::Eval()
   }
   _t = this->getNextSibling();
 	
+  if( exprList.empty())
+    return NullGDL::GetSingleInstance();
+  
   BaseGDL* res=cTypeData->CatArray(exprList,this->arrayDepth,maxRank);
 	
 //   ProgNode::interpreter->_retTree = _t;
@@ -510,7 +517,7 @@ BaseGDL* NSTRUCNode::Eval()
 	{
 	  oStructDesc->AssureIdentical(nStructDesc);
 	  instance->DStructGDL::SetDesc(oStructDesc);
-	  //delete nStructDesc; // auto_ptr
+	  //GDLDelete(nStructDesc); // auto_ptr
 	}
     }
   else
@@ -560,6 +567,7 @@ void KEYDEF_REFNode::Parameter( EnvBaseT* actEnv)
 //   ProgNodeP knameR = _t;
   // 			match(antlr::RefAST(_t),IDENTIFIER);
 //   _t = _t->getNextSibling();
+  
   BaseGDL** kvalRef=_t->getNextSibling()->LEval();
   //ProgNode::interpreter->ref_parameter(_t->getNextSibling(), actEnv);
 
@@ -576,7 +584,7 @@ void KEYDEF_REF_EXPRNode::Parameter( EnvBaseT* actEnv)
   // 			match(antlr::RefAST(_t),IDENTIFIER);
 //   _t = _t->getNextSibling();
   BaseGDL* kval= _t->getNextSibling()->Eval();//expr(_t);
-  delete kval;
+  GDLDelete(kval);
 //   _t = ProgNode::interpreter->_retTree;
   BaseGDL** kvalRef=_t->getNextSibling()->getNextSibling()->LEval();
 //   BaseGDL** kvalRef=ProgNode::interpreter->_retTree->LEval();
@@ -608,6 +616,32 @@ void KEYDEF_REF_CHECKNode::Parameter( EnvBaseT* actEnv)
 //   ProgNodeP knameCk = _t;
   // 			match(antlr::RefAST(_t),IDENTIFIER);
 //   _t = _t->getNextSibling();
+  ProgNodeP p = this->getFirstChild()->getNextSibling();
+
+  if( p->getType() == GDLTokenTypes::QUESTION)
+  {
+    QUESTIONNode* q = static_cast<QUESTIONNode*>( p);
+    ProgNodeP branch = q->AsParameter();
+    
+    while( branch->getType() == GDLTokenTypes::QUESTION)
+    {
+      QUESTIONNode* qRecursive = static_cast<QUESTIONNode*>( branch);
+      branch = qRecursive->AsParameter();
+    }
+    
+    BaseGDL* rVal;
+    BaseGDL** lVal = branch->EvalRefCheck( rVal);
+    if( lVal != NULL)
+    {   // pass reference
+      actEnv->SetKeyword(this->getFirstChild()->getText(), lVal); 
+    }
+    else
+    {   // pass value
+      actEnv->SetKeyword(this->getFirstChild()->getText(), rVal); 
+    }
+  }
+  else
+  {
   BaseGDL* kval=ProgNode::interpreter->
     lib_function_call(this->getFirstChild()->getNextSibling());
 			
@@ -620,7 +654,7 @@ void KEYDEF_REF_CHECKNode::Parameter( EnvBaseT* actEnv)
     {   // pass value
       actEnv->SetKeyword(this->getFirstChild()->getText(), kval); 
     }
-			
+  }
   ProgNode::interpreter->_retTree = this->getNextSibling();
 }
 
@@ -654,7 +688,7 @@ void REFVNNode::Parameter( EnvBaseT* actEnv)
 bool REF_EXPRNode::ParameterDirect( BaseGDL*& ref)
 {
   BaseGDL* pval= this->getFirstChild()->Eval();//expr(_t);
-  delete pval;
+  GDLDelete(pval);
   BaseGDL** pvalRef=this->getFirstChild()->getNextSibling()->LEval();
   ref = *pvalRef;
   return true;
@@ -664,7 +698,7 @@ void REF_EXPRNode::Parameter( EnvBaseT* actEnv)
   // 			match(antlr::RefAST(_t),REF_EXPR);
 //   ProgNodeP _t = this->getFirstChild();
   BaseGDL* pval= this->getFirstChild()->Eval();//expr(_t);
-  delete pval;
+  GDLDelete(pval);
 //   _t = ProgNode::interpreter->_retTree;
   BaseGDL** pvalRef=this->getFirstChild()->getNextSibling()->LEval();
 //   ProgNode::interpreter->
@@ -678,7 +712,7 @@ void REF_EXPRNode::Parameter( EnvBaseT* actEnv)
 void REF_EXPRVNNode::Parameter( EnvBaseT* actEnv)
 {
   BaseGDL* pval= this->getFirstChild()->Eval();//expr(_t);
-  delete pval;
+  GDLDelete(pval);
   BaseGDL** pvalRef=this->getFirstChild()->getNextSibling()->LEval();
   actEnv->SetNextParUncheckedVarNum(pvalRef); 
   ProgNode::interpreter->_retTree = this->getNextSibling();
@@ -687,46 +721,109 @@ void REF_EXPRVNNode::Parameter( EnvBaseT* actEnv)
 // returns true if reference, false else
 bool REF_CHECKNode::ParameterDirect( BaseGDL*& pval)
 {
-  pval=ProgNode::interpreter->lib_function_call(this->getFirstChild());		
+  ProgNodeP p = this->getFirstChild();
+  if( p->getType() == GDLTokenTypes::QUESTION)
+  {
+    // for the trinary operator we just use pass by value which should be ok, 
+    // as direct functions cannot modify their (single) parameter anyway.
+    // LEval might save a copy operation here, but considering that direct functions are
+    // probably very seldom called with the trinary operator we leave it like this for now. 
+    pval = p->Eval();
+    return false; // pass value
+  }
+  pval=ProgNode::interpreter->lib_function_call(p);
   BaseGDL** pvalRef = ProgNode::interpreter->callStack.back()->GetPtrTo( pval);
   return (pvalRef != NULL);
-  if( pvalRef != NULL)
-    {   // pass reference
-      return true;
-    }
-  else 
-    {   // pass value
-      return false;
-    }
+//   if( pvalRef != NULL)
+//     {   // pass reference
+//       return true;
+//     }
+//   else 
+//     {   // pass value
+//       return false;
+//     }
 }
 void REF_CHECKNode::Parameter( EnvBaseT* actEnv)
 {
-  BaseGDL* pval=ProgNode::interpreter->lib_function_call(this->getFirstChild());
-			
-  BaseGDL** pvalRef = ProgNode::interpreter->callStack.back()->GetPtrTo( pval);
-  if( pvalRef != NULL)
+  ProgNodeP p = this->getFirstChild();
+
+  if( p->getType() == GDLTokenTypes::QUESTION)
+  {
+    QUESTIONNode* q = static_cast<QUESTIONNode*>( p);
+    ProgNodeP branch = q->AsParameter();
+    
+    while( branch->getType() == GDLTokenTypes::QUESTION)
+    {
+      QUESTIONNode* qRecursive = static_cast<QUESTIONNode*>( branch);
+      branch = qRecursive->AsParameter();
+    }
+    
+    BaseGDL* rVal;
+    BaseGDL** lVal = branch->EvalRefCheck( rVal);
+    if( lVal != NULL)
     {   // pass reference
-      actEnv->SetNextParUnchecked( pvalRef); 
+      actEnv->SetNextParUnchecked( lVal); 
     }
-  else 
+    else
     {   // pass value
-      actEnv->SetNextParUnchecked( pval); 
+      actEnv->SetNextParUnchecked( rVal); 
     }
-			
+  }
+  else
+  {  
+    BaseGDL* pval=ProgNode::interpreter->lib_function_call(this->getFirstChild());
+			  
+    BaseGDL** pvalRef = ProgNode::interpreter->callStack.back()->GetPtrTo( pval);
+    if( pvalRef != NULL)
+      {   // pass reference
+	actEnv->SetNextParUnchecked( pvalRef); 
+      }
+    else 
+      {   // pass value
+	actEnv->SetNextParUnchecked( pval); 
+      }
+  }
   ProgNode::interpreter->_retTree = this->getNextSibling();
 }
 void REF_CHECKVNNode::Parameter( EnvBaseT* actEnv)
 {
-  BaseGDL* pval=ProgNode::interpreter->lib_function_call(this->getFirstChild());
-  BaseGDL** pvalRef = ProgNode::interpreter->callStack.back()->GetPtrTo( pval);
-  if( pvalRef != NULL)
+  ProgNodeP p = this->getFirstChild();
+
+  if( p->getType() == GDLTokenTypes::QUESTION)
+  {
+    QUESTIONNode* q = static_cast<QUESTIONNode*>( p);
+    ProgNodeP branch = q->AsParameter();
+    
+    while( branch->getType() == GDLTokenTypes::QUESTION)
+    {
+      QUESTIONNode* qRecursive = static_cast<QUESTIONNode*>( branch);
+      branch = qRecursive->AsParameter();
+    }
+    
+    BaseGDL* rVal;
+    BaseGDL** lVal = branch->EvalRefCheck( rVal);
+    if( lVal != NULL)
     {   // pass reference
-      actEnv->SetNextParUncheckedVarNum( pvalRef); 
+      actEnv->SetNextParUncheckedVarNum( lVal); 
     }
-  else 
+    else
     {   // pass value
-      actEnv->SetNextParUncheckedVarNum( pval); 
+      actEnv->SetNextParUncheckedVarNum( rVal); 
     }
+  }
+  else
+  {
+    BaseGDL* pval=ProgNode::interpreter->lib_function_call(this->getFirstChild());
+    BaseGDL** pvalRef = ProgNode::interpreter->callStack.back()->GetPtrTo( pval);
+    if( pvalRef != NULL)
+      {   // pass reference
+	actEnv->SetNextParUncheckedVarNum( pvalRef); 
+      }
+    else 
+      {   // pass value
+	actEnv->SetNextParUncheckedVarNum( pval); 
+      }
+  }
   ProgNode::interpreter->_retTree = this->getNextSibling();
 }
 
@@ -889,7 +986,7 @@ RetCode  ASSIGN_ARRAYEXPR_MFCALLNode::Run()
   
       if( r != (*l))
 	{
-	  delete *l;
+	  GDLDelete(*l);
 
 	  if( r_guard.get() == r)
 	    *l = r_guard.release();
@@ -967,8 +1064,8 @@ RetCode  ASSIGN_REPLACENode::Run()
   
   BaseGDL** l=_t->LEval();
 
-  if( r != (*l))
-    delete *l;
+  if( r != (*l)) // && (*l) != NullGDL::GetSingleInstance())
+    GDLDelete(*l);
   
   *l = r_guard.release();
 
@@ -1181,14 +1278,20 @@ RetCode   FORNode::Run()//for_statement(ProgNodeP _t) {
 //   BaseGDL* s=ProgNode::interpreter->expr( this->GetFirstChild());
   auto_ptr<BaseGDL> s_guard(s);
   
-  delete loopInfo.endLoopVar;
+  GDLDelete(loopInfo.endLoopVar);
   loopInfo.endLoopVar=this->GetFirstChild()->GetNextSibling()->Eval();
 //   loopInfo.endLoopVar=ProgNode::interpreter->expr(this->GetFirstChild()->GetNextSibling());
   
   s->ForCheck( &loopInfo.endLoopVar);
   
+  if( loopInfo.endLoopVar->Type() != s->Type()) // promote s
+    {
+      BaseGDL* sPromote = s->Convert2(loopInfo.endLoopVar->Type(), BaseGDL::COPY);
+      s_guard.reset( sPromote);
+    }
+  
   // ASSIGNMENT used here also
-  delete (*v);
+  GDLDelete((*v));
   (*v)= s_guard.release(); // s held in *v after this
   
   if( (*v)->ForCondUp( loopInfo.endLoopVar))
@@ -1234,7 +1337,7 @@ RetCode   FOR_LOOPNode::Run()
 	}
 	else
 	{
-		delete loopInfo.endLoopVar;
+		GDLDelete(loopInfo.endLoopVar);
 		loopInfo.endLoopVar = NULL;
 		ProgNode::interpreter->_retTree = this->GetNextSibling();
 	}
@@ -1256,18 +1359,25 @@ RetCode   FOR_STEPNode::Run()//for_statement(ProgNodeP _t) {
 //  BaseGDL* s=ProgNode::interpreter->expr( this->GetFirstChild());
   auto_ptr<BaseGDL> s_guard(s);
 
-  delete loopInfo.endLoopVar;
+  GDLDelete(loopInfo.endLoopVar);
   loopInfo.endLoopVar=this->GetFirstChild()->GetNextSibling()->Eval();
 //  loopInfo.endLoopVar=ProgNode::interpreter->expr(this->GetFirstChild()->GetNextSibling());
 
-  delete loopInfo.loopStepVar;
+  GDLDelete(loopInfo.loopStepVar);
   loopInfo.loopStepVar=this->GetFirstChild()->GetNextSibling()->GetNextSibling()->Eval();
 //   loopInfo.loopStepVar=ProgNode::interpreter->expr(this->GetFirstChild()->GetNextSibling()->GetNextSibling());
 
   s->ForCheck( &loopInfo.endLoopVar, &loopInfo.loopStepVar);
 
+  if( loopInfo.endLoopVar->Type() != s->Type()) // promote s
+    {
+      BaseGDL* sPromote = s->Convert2(loopInfo.endLoopVar->Type(), BaseGDL::COPY);
+      s_guard.reset( sPromote);
+      assert( loopInfo.loopStepVar->Type() == s_guard.get()->Type());
+    }
+
   // ASSIGNMENT used here also
-  delete (*v);
+  GDLDelete((*v));
   (*v)= s_guard.release(); // s held in *v after this
 
   if( loopInfo.loopStepVar->Sgn() == -1)
@@ -1330,9 +1440,9 @@ RetCode   FOR_STEP_LOOPNode::Run()
     }
   }
   
-  delete loopInfo.endLoopVar;
+  GDLDelete(loopInfo.endLoopVar);
   loopInfo.endLoopVar = NULL;
-  delete loopInfo.loopStepVar;
+  GDLDelete(loopInfo.loopStepVar);
   loopInfo.loopStepVar = NULL;
   ProgNode::interpreter->_retTree = this->GetNextSibling();
   return RC_OK;
@@ -1347,7 +1457,7 @@ RetCode   FOREACHNode::Run()
 
 	BaseGDL** v=vP->LEval(); // ProgNode::interpreter->l_simple_var(vP);
 
-	delete loopInfo.endLoopVar;
+	GDLDelete(loopInfo.endLoopVar);
 	loopInfo.endLoopVar=this->GetFirstChild()->Eval();
 //	loopInfo.endLoopVar=ProgNode::interpreter->expr(this->GetFirstChild());
 
@@ -1357,7 +1467,7 @@ RetCode   FOREACHNode::Run()
 	//SizeT nEl = loopInfo.endLoopVar->N_Elements();
 
 	// ASSIGNMENT used here also
-	delete (*v);
+	GDLDelete((*v));
 	(*v) = loopInfo.endLoopVar->NewIx( 0);
 
 	ProgNode::interpreter->_retTree = vP->GetNextSibling();
@@ -1385,14 +1495,14 @@ RetCode   FOREACH_LOOPNode::Run()
 	if( loopInfo.foreachIx < nEl)
 	{
 		// ASSIGNMENT used here also
-		delete (*v);
+		GDLDelete((*v));
 		(*v) = loopInfo.endLoopVar->NewIx( loopInfo.foreachIx);
 
 		ProgNode::interpreter->_retTree = this->GetFirstChild()->GetNextSibling();
 		return RC_OK;
 	}
 
-	delete loopInfo.endLoopVar;
+	GDLDelete(loopInfo.endLoopVar);
 	loopInfo.endLoopVar = NULL;
 	// 	loopInfo.foreachIx = -1;
 	ProgNode::interpreter->SetRetTree( this->GetNextSibling());
@@ -1412,7 +1522,7 @@ RetCode   FOREACH_INDEXNode::Run()
 	BaseGDL** v=vP->LEval(); //ProgNode::interpreter->l_simple_var(vP);
 	BaseGDL** index=indexP->LEval(); //ProgNode::interpreter->l_simple_var(indexP);
 
-	delete loopInfo.endLoopVar;
+	GDLDelete(loopInfo.endLoopVar);
 	loopInfo.endLoopVar=this->GetFirstChild()->Eval(); 
 // 	loopInfo.endLoopVar=ProgNode::interpreter->expr(this->GetFirstChild());
 
@@ -1422,11 +1532,11 @@ RetCode   FOREACH_INDEXNode::Run()
 	//SizeT nEl = loopInfo.endLoopVar->N_Elements();
 
 	// ASSIGNMENT used here also
-	delete (*v);
+	GDLDelete((*v));
 	(*v) = loopInfo.endLoopVar->NewIx( 0);
 	
 	// ASSIGNMENT used here also
-	delete (*index);
+	GDLDelete((*index));
 	(*index) = new DLongGDL( 0);
 
 	ProgNode::interpreter->_retTree = indexP->GetNextSibling();
@@ -1455,18 +1565,18 @@ RetCode   FOREACH_INDEX_LOOPNode::Run()
 	if( loopInfo.foreachIx < nEl)
 	{
 		// ASSIGNMENT used here also
-		delete (*v);
+		GDLDelete((*v));
 		(*v) = loopInfo.endLoopVar->NewIx( loopInfo.foreachIx);
 
 		// ASSIGNMENT used here also
-		delete (*index);
+		GDLDelete((*index));
 		(*index) = new DLongGDL( loopInfo.foreachIx);
 		
 		ProgNode::interpreter->_retTree = this->GetFirstChild()->GetNextSibling()->GetNextSibling();
 		return RC_OK;
 	}
 
-	delete loopInfo.endLoopVar;
+	GDLDelete(loopInfo.endLoopVar);
 	loopInfo.endLoopVar = NULL;
 	// 	loopInfo.foreachIx = -1;
 	ProgNode::interpreter->SetRetTree( this->GetNextSibling());
@@ -1807,7 +1917,7 @@ RetCode   RETFNode::Run()
 		{
 			BaseGDL* e=_t->Eval(); //ProgNode::interpreter->expr(_t);
 			interpreter->SetRetTree( _t->getNextSibling()); // ???
-			delete ProgNode::interpreter->returnValue;
+			GDLDelete(ProgNode::interpreter->returnValue);
 			ProgNode::interpreter->returnValue=e;
 
 			GDLInterpreter::CallStack().back()->RemoveLoc( e); // steal e from local list

@@ -181,8 +181,7 @@ namespace lib {
 	static int clippingix = e->KeywordIx( "CLIP"); 
 	clippingD = e->IfDefGetKWAs<DDoubleGDL>( clippingix);
       }
-
-    actStream->wid( 0);
+    
     // start drawing. Graphic Keywords accepted:CLIP(NO), COLOR(YES), LINESTYLE(YES), NOCLIP(YES),
     //                                          PSYM(YES), SYMSIZE(YES), T3D(NO), ZVALUE(NO)
     gkw_background(e, actStream, false);

@@ -322,7 +322,7 @@ void EnvBaseT::AddStruct( DPtrListT& ptrAccessible,
   SizeT nTags = desc->NTags();
   for( SizeT t=0; t<nTags; ++t)
     {
-      if( (*desc)[ t]->Type() == PTR)
+      if( (*desc)[ t]->Type() == GDL_PTR)
 	{
 	  for( SizeT e = 0; e<nEl; ++e)
 	    {
@@ -330,7 +330,7 @@ void EnvBaseT::AddStruct( DPtrListT& ptrAccessible,
 	      AddPtr( ptrAccessible, objAccessible, ptr);
 	    }
 	}
-      else if( (*desc)[ t]->Type() == STRUCT)
+      else if( (*desc)[ t]->Type() == GDL_STRUCT)
 	{
 	  for( SizeT e = 0; e<nEl; ++e)
 	    {
@@ -338,7 +338,7 @@ void EnvBaseT::AddStruct( DPtrListT& ptrAccessible,
 	      AddStruct( ptrAccessible, objAccessible, ptr);
 	    }
 	}
-     else if( (*desc)[ t]->Type() == OBJECT)
+     else if( (*desc)[ t]->Type() == GDL_OBJECT)
 	{
 	  for( SizeT e = 0; e<nEl; ++e)
 	    {
@@ -468,7 +468,7 @@ void EnvT::HeapGC( bool doPtr, bool doObj, bool verbose)
 
 	AddToDestroy( ptrAccessible, objAccessible);  
 
-    // do OBJ first as the cleanup might need the PTR be valid
+    // do OBJ first as the cleanup might need the GDL_PTR be valid
     if( doObj)
       {
 	std::vector<DObj>* heap = interpreter->GetAllObjHeapSTL();
@@ -733,7 +733,7 @@ const string EnvBaseT::GetString( BaseGDL*& p, bool calledFromHELP)
 	os << p->TypeStr() << right;
 	
 	// Data display
-	if( p->Type() == STRUCT)
+	if( p->Type() == GDL_STRUCT)
 	{
 /*		DStructGDL* s = static_cast<DStructGDL*>( p);
 		os << "-> ";
@@ -743,7 +743,7 @@ const string EnvBaseT::GetString( BaseGDL*& p, bool calledFromHELP)
 	else if( p->Dim( 0) == 0)
 	{
 		os << "(";
-		if (p->Type() == STRING)
+		if (p->Type() == GDL_STRING)
 		{
 		// trim string larger than 45 characters
 		DString dataString = (*static_cast<DStringGDL*>(p))[0];
@@ -815,7 +815,7 @@ const string EnvBaseT::GetString( BaseGDL*& p, bool calledFromHELP)
 // 	os << p->TypeStr() << right;
 // 	
 // 	// Data display
-// 	if( p->Type() == STRUCT)
+// 	if( p->Type() == GDL_STRUCT)
 // 	{
 // 		DStructGDL* s = static_cast<DStructGDL*>( p);
 // 		os << "-> ";
@@ -825,7 +825,7 @@ const string EnvBaseT::GetString( BaseGDL*& p, bool calledFromHELP)
 // 	else if( p->Dim( 0) == 0)
 // 	{
 // 		os << "(";
-// 		if (p->Type() == STRING)
+// 		if (p->Type() == GDL_STRING)
 // 		{
 // 		// trim string larger than 45 characters
 // 		DString dataString = (*static_cast<DStringGDL*>(p))[0];
@@ -907,9 +907,9 @@ void EnvBaseT::SetKeyword( const string& k, BaseGDL** const val) // reference
 }
 
 // called after parameter definition
-void EnvBaseT::Extra()
+void EnvBaseT::ResolveExtra()
 {
-  if( extra != NULL) extra->Resolve();
+  if( extra != NULL) extra->ResolveExtra( NULL);
 }
 
 EnvBaseT* EnvBaseT::Caller()
@@ -918,9 +918,13 @@ EnvBaseT* EnvBaseT::Caller()
 
   //if( callStack.size() <= 1) return NULL;
 
+  
+  
   // library environments are no longer on the call stack
   assert( callStack.back() != this);
 
+  
+  
   return callStack.back();
   
 //   if( callStack.back() != this) 
@@ -954,6 +958,8 @@ void EnvBaseT::PushNewEmptyEnvUD(  DSub* newPro, BaseGDL** newObj)
 
 // used by obj_new (basic_fun.cpp)
 // and obj_destroy (basic_pro.cpp)
+// and call_function (basic_fun.cpp)
+// and call_procedure (basic_pro.cpp)
 void EnvT::PushNewEnvUD(  DSub* newPro, SizeT skipP, BaseGDL** newObj)
 {
   EnvUDT* newEnv= new EnvUDT( this, newPro, newObj);
@@ -965,12 +971,14 @@ void EnvT::PushNewEnvUD(  DSub* newPro, SizeT skipP, BaseGDL** newObj)
       newEnv->SetNextPar( &GetPar( p)); // pass as global
     }
 
-  interpreter->CallStack().push_back( newEnv); 
+//   interpreter->CallStack().push_back( newEnv); // problem with call_function if done here s. b.
 
   // _REF_EXTRA is set to the keyword string array
   newEnv->extra = new ExtraT( newEnv);
   newEnv->extra->Set( &env[0]);
-  newEnv->extra->Resolve();
+  newEnv->extra->ResolveExtra( this); // s. a. problem caused here due to a call to EnvBaseT::Caller() in Resolve()
+
+  interpreter->CallStack().push_back( newEnv); 
 }
 // used by obj_new (basic_fun.cpp)
 // and obj_destroy (basic_pro.cpp)
@@ -992,7 +1000,7 @@ EnvT* EnvT::NewEnv(  DSub* newPro, SizeT skipP, BaseGDL** newObj)
   // _REF_EXTRA is set to the keyword string array
   newEnv->extra = new ExtraT( newEnv);
   newEnv->extra->Set( &env[0]);
-  newEnv->extra->Resolve();
+  newEnv->extra->ResolveExtra( this);
 
   return newEnv;
 }
@@ -1063,7 +1071,7 @@ void EnvT::Catch()
 			  "in this context: " + GetParString(0));
     caller->catchNode = callingNode->getNextSibling();
     caller->catchVar = &GetPar( 0);
-    delete *caller->catchVar;
+    GDLDelete(*caller->catchVar);
     *caller->catchVar = new DLongGDL( 0);
   }
 
@@ -1107,7 +1115,7 @@ const string EnvBaseT::GetString( SizeT ix)
     return subUD->GetVarName( ix);
   }
 
-// SA: used by STRING() for VMS-compat hack
+// SA: used by GDL_STRING() for VMS-compat hack
 void EnvT::ShiftParNumbering(int n)
 {
   assert(abs(n) == 1); // currently the code below works for n = +/- 1 only
@@ -1344,7 +1352,8 @@ bool EnvT::KeywordSet( SizeT ix)
 {
   BaseGDL* keyword=env[ix];
   if( keyword == NULL) return false;
-  if( !keyword->Scalar()) return false;
+  if( !keyword->Scalar()) return true;
+  if( keyword->Type() == GDL_STRUCT) return true;
   return keyword->LogTrue();
 }
 
@@ -1370,7 +1379,7 @@ BaseGDL*& EnvT::GetPar(SizeT i)
 void EnvBaseT::AssureLongScalarPar( SizeT pIx, DLong64& scalar)
 {
   BaseGDL* p = GetParDefined( pIx);
-  DLong64GDL* lp = static_cast<DLong64GDL*>(p->Convert2( LONG64, BaseGDL::COPY));
+  DLong64GDL* lp = static_cast<DLong64GDL*>(p->Convert2( GDL_LONG64, BaseGDL::COPY));
   auto_ptr<DLong64GDL> guard_lp( lp);
   if( !lp->Scalar( scalar))
     Throw("Parameter must be a scalar in this context: "+
@@ -1379,7 +1388,7 @@ void EnvBaseT::AssureLongScalarPar( SizeT pIx, DLong64& scalar)
 void EnvBaseT::AssureLongScalarPar( SizeT pIx, DLong& scalar)
 {
   BaseGDL* p = GetParDefined( pIx);
-  DLongGDL* lp = static_cast<DLongGDL*>(p->Convert2( LONG, BaseGDL::COPY));
+  DLongGDL* lp = static_cast<DLongGDL*>(p->Convert2( GDL_LONG, BaseGDL::COPY));
   auto_ptr<DLongGDL> guard_lp( lp);
   if( !lp->Scalar( scalar))
     Throw("Parameter must be a scalar in this context: "+
@@ -1419,7 +1428,7 @@ void EnvT::AssureLongScalarKW( SizeT eIx, DLong& scalar)
   if( p == NULL)
     Throw("Expression undefined: "+GetString(eIx));
   
-  DLongGDL* lp= static_cast<DLongGDL*>(p->Convert2( LONG, BaseGDL::COPY));
+  DLongGDL* lp= static_cast<DLongGDL*>(p->Convert2( GDL_LONG, BaseGDL::COPY));
   
   auto_ptr<DLongGDL> guard_lp( lp);
 
@@ -1431,7 +1440,7 @@ void EnvT::AssureLongScalarKW( SizeT eIx, DLong& scalar)
 void EnvT::AssureDoubleScalarPar( SizeT pIx, DDouble& scalar)
 {
   BaseGDL* p = GetParDefined( pIx);
-  DDoubleGDL* lp = static_cast<DDoubleGDL*>(p->Convert2( DOUBLE, BaseGDL::COPY));
+  DDoubleGDL* lp = static_cast<DDoubleGDL*>(p->Convert2( GDL_DOUBLE, BaseGDL::COPY));
   auto_ptr<DDoubleGDL> guard_lp( lp);
   if( !lp->Scalar( scalar))
     Throw("Parameter must be a scalar in this context: "+
@@ -1461,7 +1470,7 @@ void EnvT::AssureDoubleScalarKW( SizeT eIx, DDouble& scalar)
   if( p == NULL)
     Throw("Expression undefined: "+GetString(eIx));
   
-  DDoubleGDL* lp= static_cast<DDoubleGDL*>(p->Convert2( DOUBLE, BaseGDL::COPY));
+  DDoubleGDL* lp= static_cast<DDoubleGDL*>(p->Convert2( GDL_DOUBLE, BaseGDL::COPY));
   
   auto_ptr<DDoubleGDL> guard_lp( lp);
 
@@ -1474,7 +1483,7 @@ void EnvT::AssureDoubleScalarKW( SizeT eIx, DDouble& scalar)
 void EnvT::AssureFloatScalarPar( SizeT pIx, DFloat& scalar)
 {
   BaseGDL* p = GetParDefined( pIx);
-  DFloatGDL* lp = static_cast<DFloatGDL*>(p->Convert2( FLOAT, BaseGDL::COPY));
+  DFloatGDL* lp = static_cast<DFloatGDL*>(p->Convert2( GDL_FLOAT, BaseGDL::COPY));
   auto_ptr<DFloatGDL> guard_lp( lp);
   if( !lp->Scalar( scalar))
     Throw("Parameter must be a scalar in this context: "+
@@ -1504,7 +1513,7 @@ void EnvT::AssureFloatScalarKW( SizeT eIx, DFloat& scalar)
   if( p == NULL)
     Throw("Expression undefined: "+GetString(eIx));
   
-  DFloatGDL* lp= static_cast<DFloatGDL*>(p->Convert2( FLOAT, BaseGDL::COPY));
+  DFloatGDL* lp= static_cast<DFloatGDL*>(p->Convert2( GDL_FLOAT, BaseGDL::COPY));
   
   auto_ptr<DFloatGDL> guard_lp( lp);
 
@@ -1517,7 +1526,7 @@ void EnvT::AssureFloatScalarKW( SizeT eIx, DFloat& scalar)
 void EnvT::AssureStringScalarPar( SizeT pIx, DString& scalar)
 {
   BaseGDL* p = GetParDefined( pIx);
-  DStringGDL* lp = static_cast<DStringGDL*>(p->Convert2( STRING, BaseGDL::COPY));
+  DStringGDL* lp = static_cast<DStringGDL*>(p->Convert2( GDL_STRING, BaseGDL::COPY));
   auto_ptr<DStringGDL> guard_lp( lp);
   if( !lp->Scalar( scalar))
     Throw("Parameter must be a scalar in this context: "+
@@ -1546,7 +1555,7 @@ void EnvT::AssureStringScalarKW( SizeT eIx, DString& scalar)
   if( p == NULL)
     Throw("Expression undefined: "+GetString(eIx));
   
-  DStringGDL* lp= static_cast<DStringGDL*>(p->Convert2( STRING, BaseGDL::COPY));
+  DStringGDL* lp= static_cast<DStringGDL*>(p->Convert2( GDL_STRING, BaseGDL::COPY));
   auto_ptr<DStringGDL> guard_lp( lp);
 
   if( !lp->Scalar( scalar))
@@ -1559,7 +1568,7 @@ void EnvT::SetKW( SizeT ix, BaseGDL* newVal)
   // can't use Guard here as data has to be released
   auto_ptr<BaseGDL> guard( newVal);
   AssureGlobalKW( ix);
-  delete GetKW( ix);
+  GDLDelete(GetKW( ix));
   GetKW( ix) = guard.release();
 }
 void EnvT::SetPar( SizeT ix, BaseGDL* newVal)
@@ -1567,7 +1576,7 @@ void EnvT::SetPar( SizeT ix, BaseGDL* newVal)
   // can't use Guard here as data has to be released
   auto_ptr<BaseGDL> guard( newVal);
   AssureGlobalPar( ix);
-  delete GetPar( ix);
+  GDLDelete(GetPar( ix));
   GetPar( ix) = guard.release();
 }
 

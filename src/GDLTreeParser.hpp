@@ -105,6 +105,7 @@ class CUSTOM_API GDLTreeParser : public antlr::TreeParser, public GDLTreeParserT
     }
 
   bool ActiveProCompiled() const { return comp.ActiveProCompiled();} 
+  int NCompileErrors() const { return comp.NCompileErrors();} 
 public:
 	GDLTreeParser();
 	static void initializeASTFactory( antlr::ASTFactory& factory );
@@ -194,10 +195,10 @@ protected:
 private:
 	static const char* tokenNames[];
 #ifndef NO_STATIC_CONSTS
-	static const int NUM_TOKENS = 234;
+	static const int NUM_TOKENS = 235;
 #else
 	enum {
-		NUM_TOKENS = 234
+		NUM_TOKENS = 235
 	};
 #endif
 	

@@ -179,11 +179,12 @@ ncdf_var_cl.cpp
 new.cpp
 new.hpp
 newprognode.cpp
+nullgdl.cpp
+nullgdl.hpp
 objects.cpp
 objects.hpp
 ofmt.cpp
 ofmt.hpp
-plot3d_nr.cpp
 plotting_axis.cpp
 plotting_contour.cpp
 plotting_convert_coord.cpp
@@ -225,6 +226,14 @@ typetraits.cpp
 typetraits.hpp
 widget.cpp
 )
+
+if(WIN32 AND NOT CYGWIN)
+set(SOURCES
+${SOURCES}
+gtdhelper.cpp
+gtdhelper.hpp
+)
+endif(WIN32 AND NOT CYGWIN)
 
 add_subdirectory(antlr)
 

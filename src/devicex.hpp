@@ -265,6 +265,15 @@ SizeT nOp = kxLimit * kyLimit;
     if (wIx >= 0 && wIx < winList.size()) winList[ wIx]->Lower();
   }
 
+  void IconicWin( int wIx)
+  {
+    if (wIx >= 0 && wIx < winList.size()) winList[ wIx]->Iconic();
+  }
+  void DeIconicWin( int wIx)
+  {
+    if (wIx >= 0 && wIx < winList.size()) winList[ wIx]->DeIconic();
+  }
+
   // process user deleted windows
   // should be done in a thread
   void ProcessDeleted()
@@ -518,8 +527,9 @@ public:
     int wLSize = winList.size();
     if (ix >= wLSize || ix < 0 || winList[ ix] == NULL) return false;
  
-    if (show) RaiseWin(ix);
-    else LowerWin(ix);
+    if (show) RaiseWin(ix); else LowerWin(ix);
+    
+    if (iconic) IconicWin(ix); else DeIconicWin(ix);
 
     return true;
   }
@@ -832,7 +842,7 @@ public:
 
     //DByteGDL* p0B = e->GetParAs<DByteGDL>( 0);
     DByteGDL* p0B;
-    p0B =static_cast<DByteGDL*>(p0->Convert2(BYTE,BaseGDL::COPY));
+    p0B =static_cast<DByteGDL*>(p0->Convert2(GDL_BYTE,BaseGDL::COPY));
     e->Guard( p0B);
     
     int width, height;

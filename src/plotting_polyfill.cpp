@@ -19,6 +19,10 @@
 #include "plotting.hpp"
 #include "math_utl.hpp"
 
+#ifdef _MSC_VER
+#define isnan _isnan
+#endif
+
 namespace lib {
 
   using namespace std;
@@ -58,12 +62,12 @@ namespace lib {
       xVal = !mapSet
         ? e->GetParAs< DDoubleGDL>(0)
         : static_cast<DDoubleGDL*>(
-          e->GetNumericArrayParDefined(0)->Convert2(DOUBLE, BaseGDL::COPY)
+          e->GetNumericArrayParDefined(0)->Convert2(GDL_DOUBLE, BaseGDL::COPY)
         );
       yVal = !mapSet
         ? e->GetParAs< DDoubleGDL>(1)
         : static_cast<DDoubleGDL*>(
-          e->GetNumericArrayParDefined(1)->Convert2(DOUBLE, BaseGDL::COPY)
+          e->GetNumericArrayParDefined(1)->Convert2(GDL_DOUBLE, BaseGDL::COPY)
         );
 
       xEl = xVal->N_Elements();

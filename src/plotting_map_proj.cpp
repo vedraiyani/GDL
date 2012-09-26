@@ -53,7 +53,7 @@ namespace lib {
     if ( nParam == 1) {
       p0 = e->GetParDefined( 0);
       DDoubleGDL* ll = static_cast<DDoubleGDL*>
-	(p0->Convert2( DOUBLE, BaseGDL::COPY));
+	(p0->Convert2( GDL_DOUBLE, BaseGDL::COPY));
 
       dims[0] = 2;
       if (p0->Rank() == 1) {
@@ -79,9 +79,9 @@ namespace lib {
       p0 = e->GetParDefined( 0);
       p1 = e->GetParDefined( 1);
       DDoubleGDL* lon = static_cast<DDoubleGDL*>
-	(p0->Convert2( DOUBLE, BaseGDL::COPY));
+	(p0->Convert2( GDL_DOUBLE, BaseGDL::COPY));
       DDoubleGDL* lat = static_cast<DDoubleGDL*>
-	(p1->Convert2( DOUBLE, BaseGDL::COPY));
+	(p1->Convert2( GDL_DOUBLE, BaseGDL::COPY));
 
       dims[0] = 2;
       if (p0->Rank() == 0 || p0->Rank() == 1) {
@@ -105,6 +105,7 @@ namespace lib {
     }
 #else
     e->Throw("GDL was compiled without support for map projections");
+    return NULL;
 #endif
   }
 
@@ -137,7 +138,7 @@ namespace lib {
     if ( nParam == 1) {
       p0 = e->GetParDefined( 0);
       DDoubleGDL* xy = static_cast<DDoubleGDL*>
-	(p0->Convert2( DOUBLE, BaseGDL::COPY));
+	(p0->Convert2( GDL_DOUBLE, BaseGDL::COPY));
 
       dims[0] = 2;
       if (p0->Rank() == 1) {
@@ -163,9 +164,9 @@ namespace lib {
       p0 = e->GetParDefined( 0);
       p1 = e->GetParDefined( 1);
       DDoubleGDL* x = static_cast<DDoubleGDL*>
-	(p0->Convert2( DOUBLE, BaseGDL::COPY));
+	(p0->Convert2( GDL_DOUBLE, BaseGDL::COPY));
       DDoubleGDL* y = static_cast<DDoubleGDL*>
-	(p1->Convert2( DOUBLE, BaseGDL::COPY));
+	(p1->Convert2( GDL_DOUBLE, BaseGDL::COPY));
 
       dims[0] = 2;
       if (p0->Rank() == 0 || p0->Rank() == 1) {
@@ -189,6 +190,7 @@ namespace lib {
     }
 #else
     e->Throw("GDL was compiled without support for map projections");
+    return NULL;
 #endif
   }
 

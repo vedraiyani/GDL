@@ -50,6 +50,7 @@ namespace lib {
   {
 #ifndef USE_GRIB
     e->Throw("GDL was compiled without support for GRIB");
+    return NULL;
 #else
     {
       SizeT nParam = e->NParam(1);
@@ -93,6 +94,7 @@ namespace lib {
   {
 #ifndef USE_GRIB
     e->Throw("GDL was compiled without support for GRIB");
+    return NULL;
 #else
     {
       SizeT nParam = e->NParam(1);
@@ -118,6 +120,7 @@ namespace lib {
   {
 #ifndef USE_GRIB
     e->Throw("GDL was compiled without support for GRIB");
+    return NULL;
 #else
     {
       SizeT nParam = e->NParam(1);
@@ -146,6 +149,7 @@ namespace lib {
   {
 #ifndef USE_GRIB
     e->Throw("GDL was compiled without support for GRIB");
+    return NULL;
 #else
     {
       SizeT nParam = e->NParam(1);
@@ -219,6 +223,7 @@ namespace lib {
   {
 #ifndef USE_GRIB
     e->Throw("GDL was compiled without support for GRIB");
+    return NULL;
 #else
     {
       SizeT nParam = e->NParam(2);
@@ -317,7 +322,7 @@ namespace lib {
     if (err != GRIB_SUCCESS) 
       e->Throw("failed to get value[s] of: " + key + "\n%   GRIB API message: " + grib_get_error_message(err));
 
-    delete e->GetParGlobal(2);
+    GDLDelete(e->GetParGlobal(2));
     e->GetPar(2) = data;
 #endif
   }
@@ -333,10 +338,10 @@ namespace lib {
     }
     
     // substituting to make use of grib_get()
-    delete e->GetParGlobal(1);
+    GDLDelete(e->GetParGlobal(1));
     e->GetPar(1) = new DStringGDL("values");
     grib_get_pro(e);
-    delete e->GetParGlobal(3);
+    GDLDelete(e->GetParGlobal(3));
     e->GetPar(3) = e->GetPar(2);
     
     DLong gribid;
@@ -348,7 +353,7 @@ namespace lib {
     if (err != GRIB_SUCCESS) 
       e->Throw("failed to iterate over lat/lons\n%   GRIB API message: " + string(grib_get_error_message(err)));
 
-    delete e->GetPar(1);
+    GDLDelete(e->GetPar(1));
     e->GetPar(1) = new DDoubleGDL(((DDoubleGDL*)e->GetPar(3))->Size(), BaseGDL::NOZERO);
     e->GetPar(2) = new DDoubleGDL(((DDoubleGDL*)e->GetPar(3))->Size(), BaseGDL::NOZERO);
 

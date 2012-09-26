@@ -162,8 +162,10 @@ public:
   virtual BaseGDL** LExpr( BaseGDL* right);
 //   virtual BaseGDL** LExprGrab( BaseGDL* right); // take ownership of right
   virtual BaseGDL** LEval();
+  virtual BaseGDL** EvalRefCheck( BaseGDL*& rEval); // returns NULL if r-value with rEval set
   virtual BaseGDL* Eval(); // caller receives ownership
   virtual BaseGDL* EvalNC(); // non-copy used by all operators (and in other places)
+  virtual BaseGDL* EvalNCNull(); // non-copy might return NULL
   virtual RetCode    Run();
 
 //   RetCode  (*RunP)();
@@ -1342,8 +1344,8 @@ public:
   }
 };
 
-//#undef UNDEF
-//#ifdef UNDEF
+//#undef GDL_UNDEF
+//#ifdef GDL_UNDEF
 class EnvBaseT;
 
 class ParameterNode: public DefaultNode
@@ -1537,6 +1539,7 @@ class EXPRNode: public DefaultNode
 {
 public:
  EXPRNode( const RefDNode& refNode): DefaultNode( refNode) {}
+ BaseGDL** EvalRefCheck( BaseGDL*& rEval); // calls LEval()
  BaseGDL** LEval();
 };
 

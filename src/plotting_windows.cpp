@@ -66,8 +66,12 @@ namespace lib {
     e->AssureLongScalarKWIfPresent( "YPOS", yPos);
 
     DLong xSize, ySize;
+#ifdef HAVE_X
     DeviceX::DefaultXYSize(&xSize, &ySize);
-
+#else
+    xSize = 640;
+    ySize = 512;
+#endif
     e->AssureLongScalarKWIfPresent( "XSIZE", xSize);
     e->AssureLongScalarKWIfPresent( "YSIZE", ySize);
 
@@ -106,7 +110,12 @@ namespace lib {
 	if( actDevice->ActWin() == -1)
 	  {
             DLong xSize, ySize;
-            DeviceX::DefaultXYSize(&xSize, &ySize);
+            #ifdef HAVE_X
+                DeviceX::DefaultXYSize(&xSize, &ySize);
+            #else
+                xSize = 640;
+                ySize = 512;
+            #endif
 	    bool success = actDevice->WOpen( 0, "GDL 0", xSize, ySize, 0, 0);
 	    if( !success)
 	      e->Throw( "Unable to create window.");
@@ -127,13 +136,26 @@ namespace lib {
     DLong wIx = 0;
     if (nParam != 0) e->AssureLongScalarPar( 0, wIx);
     else wIx = actDevice->ActWin();
+
+    // note by AC on 2012-Aug-16
+    // On the system I tested (Ubuntu 10.4), I was not able to have
+    // the expected SHOW behavior, with IDL 7.0 and GDL :(
+    // Help/suggestions welcome
     bool show = true;
     if (nParam == 2) { 
       DIntGDL *showval = e->GetParAs<DIntGDL>(1);
       show = (*showval)[0] != 0;
     }
-    // TODO: iconify
-    if (!actDevice->WShow( wIx, show, false)) 
+
+    // note by AC on 2012-Aug-16
+    // I don't know how to find the sub-window number (third parametre
+    // in call XIconifyWindow())
+    // Help/suggestions welcome
+
+    bool iconic = false;
+    if( e->KeywordSet("ICONIC")) iconic=true;
+
+    if (!actDevice->WShow( wIx, show, iconic)) 
       e->Throw( "Window is closed and unavailable.");
   }
 
@@ -170,6 +192,7 @@ namespace lib {
   {
 #ifndef HAVE_X
     e->Throw("GDL was compiled without support for X-windows");
+    return NULL;
 #else
     SizeT nParam=e->NParam(); 
     
@@ -234,7 +257,7 @@ namespace lib {
     res = new DDoubleGDL(2, BaseGDL::NOZERO);
     (*res)[0]=screen_width;
     (*res)[1]=screen_height;
-    return res->Convert2(FLOAT, BaseGDL::CONVERT);
+    return res->Convert2(GDL_FLOAT, BaseGDL::CONVERT);
 #endif
   }
 

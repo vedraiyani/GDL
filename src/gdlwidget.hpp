@@ -112,12 +112,12 @@ public:
   BaseGDL* GetVvalue() { return vValue;}
 
   virtual void Realize( bool) {} 
-  virtual DLong GetChild( DLong) {};
+  virtual DLong GetChild( DLong) {return 0;};
   virtual void SetXmanagerActiveCommand() {};
-  virtual bool GetXmanagerActiveCommand() {};
+  virtual bool GetXmanagerActiveCommand() {return false;};
 
   virtual void SetEventPro( DString) {};
-  virtual DString GetEventPro() {};
+  virtual DString GetEventPro() {return NULL;};
 
   static bool GetXmanagerBlock();
   static bool PollEvents( DLong *, DLong *, DLong *, DLong *);
@@ -182,6 +182,32 @@ public:
   void SetSelectOff();
 };
 
+// list widget **************************************************
+class GDLWidgetList : public GDLWidget
+{
+public:
+  GDLWidgetList( WidgetIDT p, BaseGDL *uV, BaseGDL *value,
+								 DLong xSize, DLong ySize, DLong style);
+  void SetSelectOff();
+};
+
+// bgroup widget **************************************************
+class GDLWidgetBGroup: public GDLWidget
+{
+public:
+	typedef enum e_BGroupMode {NORMAL, EXCLUSIVE, NONEXCLUSIVE}
+	BGroupMode;
+	typedef enum e_BGRoupReturn {RETURN_ID, RETURN_INDEX, RETURN_NAME}
+	BGroupReturn;
+
+	GDLWidgetBGroup(WidgetIDT p, DStringGDL* names,
+									BaseGDL *uV, DStringGDL buttonuvalue,
+									DLong xSize, DLong ySize,
+									DString labeltop, DLong rows, DLong cols,
+									BGroupMode mode, BGroupReturn ret
+									);
+
+};
 
 // text widget **************************************************
 class GDLWidgetText: public GDLWidget
@@ -191,7 +217,7 @@ private:
 
 public:
   GDLWidgetText( WidgetIDT parentID, BaseGDL *uvalue, DString value,
-		 DLong xSize);
+								 DLong xSize, bool editable);
  
   void SetTextValue( DString);
 };

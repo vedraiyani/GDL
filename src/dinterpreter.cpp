@@ -18,7 +18,13 @@
 #include "includefirst.hpp"
 
 #include <iostream>
+#ifdef _MSC_VER
+#include <io.h> // isatty, windows
+#define feclearexcept(e)
+#define FE_ALL_EXCEPT
+#else
 #include <unistd.h> // isatty
+#endif
 
 //#include <wordexp.h>
 
@@ -1046,7 +1052,9 @@ string DInterpreter::GetLine()
     // make a string
     line = cline;
     
+#ifndef _MSC_VER
     free(cline);        // done here for compatibility with readline
+#endif
   
     StrTrim(line);
   } while( line == "");
@@ -1089,14 +1097,16 @@ else
 // inner loop (called via Control-C, STOP, error)
 RetCode DInterpreter::InnerInterpreterLoop(SizeT lineOffset)
 {
-
-  bool runCmd = false;
+  ProgNodeP retTreeSave = _retTree;
   for (;;) {
     feclearexcept(FE_ALL_EXCEPT);
 
 //     try
 //       {
 	DInterpreter::CommandCode ret=ExecuteLine(NULL, lineOffset);
+
+	_retTree = retTreeSave; // on return, _retTree should be kept
+
 	if( ret == CC_RETURN) return RC_RETURN;
 	if( ret == CC_CONTINUE) return RC_OK; 
 	if( ret == CC_STEP) return RC_OK;

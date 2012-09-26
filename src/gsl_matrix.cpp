@@ -71,7 +71,7 @@ namespace lib {
 
     // only one element matrix
 
-    if (p0->Type() == COMPLEXDBL || p0->Type() == COMPLEX){
+    if (p0->Type() == GDL_COMPLEXDBL || p0->Type() == GDL_COMPLEX){
       e->Throw( "Input type cannot be COMPLEX, please use LA_LUDC (not ready)");
     }
     
@@ -79,10 +79,12 @@ namespace lib {
     DDoubleGDL *p0D = e->GetParAs<DDoubleGDL>(0);
 
     gsl_matrix *mat = gsl_matrix_alloc(p0->Dim(0), p0->Dim(0));
+    GSLGuard<gsl_matrix> g1(mat,gsl_matrix_free);
    
     memcpy(mat->data, &(*p0D)[0], nEl*szdbl);
 
     gsl_permutation * p = gsl_permutation_alloc (p0->Dim(0));
+    GSLGuard<gsl_permutation> g2( p, gsl_permutation_free);
     int s;
     gsl_linalg_LU_decomp (mat, p, &s);
 
@@ -99,31 +101,31 @@ namespace lib {
     dimension dim0(dims, (SizeT) 2);
 
     BaseGDL** p0Do = &e->GetPar( 0);
-    delete (*p0Do);
+    GDLDelete((*p0Do));
     *p0Do = new DDoubleGDL(dim0, BaseGDL::NOZERO);  
     memcpy(&(*(DDoubleGDL*) *p0Do)[0], mat->data,
 	   p0->Dim(0)*p0->Dim(0)*szdbl);
 
     int double_flag=0;
-    if (p0->Type() == DOUBLE) double_flag=1;
+    if (p0->Type() == GDL_DOUBLE) double_flag=1;
     if (e->KeywordSet("DOUBLE")) double_flag=1;
     
-    // this code will always return DOUBLE because I don't know how to do :(
+    // this code will always return GDL_DOUBLE because I don't know how to do :(
     // AC 13-Feb-2012 : this is not working and I don't know how to do :(
     // if (double_flag == 0)
-    // { p0->Convert2(FLOAT, BaseGDL::CONVERT); }
+    // { p0->Convert2(GDL_FLOAT, BaseGDL::CONVERT); }
 
     // copying over p1 the permutation vector
     DLong n = p0->Dim(0);
     dimension dim1(&n, (SizeT) 1);
     BaseGDL** p1D = &e->GetPar( 1);
-    delete (*p1D);
+    GDLDelete((*p1D));
     *p1D = new DLongGDL(dim1, BaseGDL::NOZERO);
     memcpy(&(*(DLongGDL*) *p1D)[0], p->data, 
 	   p0->Dim(0)*szlng);
     
-    gsl_matrix_free(mat);
-    gsl_permutation_free(p);
+//     gsl_matrix_free(mat);
+//     gsl_permutation_free(p);
   
   }
   
@@ -178,23 +180,27 @@ namespace lib {
     if (p2->Rank() > 2)
       e->Throw( "Input must be a Vector:" + e->GetParString(2));
     
-    if (p0->Type() == COMPLEXDBL || p0->Type() == COMPLEX){
+    if (p0->Type() == GDL_COMPLEXDBL || p0->Type() == GDL_COMPLEX){
       e->Throw( "Input type cannot be COMPLEX, please use LA_LUDC (not ready)");
     }
   
     DDoubleGDL *p0D = e->GetParAs<DDoubleGDL>(0);
     gsl_matrix *mat = gsl_matrix_alloc(p0->Dim(0), p0->Dim(0));
+    GSLGuard<gsl_matrix> g1(mat,gsl_matrix_free);
     memcpy(mat->data, &(*p0D)[0], nEl*szdbl);
 
     DLongGDL* p1L =e->GetParAs<DLongGDL>(1);
     gsl_permutation *p = gsl_permutation_alloc (nEl1);
+    GSLGuard<gsl_permutation> g2(p,gsl_permutation_free);
     memcpy(p->data, &(*p1L)[0], nEl1*szlng);
       
     DDoubleGDL *p2D = e->GetParAs<DDoubleGDL>(2);
     gsl_vector *b = gsl_vector_alloc(nEl2);
+    GSLGuard<gsl_vector> g3(b,gsl_vector_free); // b was NOT freed before   
     memcpy(b->data, &(*p2D)[0], nEl1*szdbl);
     
     gsl_vector *x = gsl_vector_alloc(nEl2);
+    GSLGuard<gsl_vector> g4(x,gsl_vector_free);    
       
     // computation by GSL
     gsl_linalg_LU_solve (mat, p, b, x);
@@ -216,18 +222,19 @@ namespace lib {
     DDoubleGDL* res = new DDoubleGDL( p2->Dim(), BaseGDL::NOZERO);
     memcpy(&(*res)[0], x->data, nEl1*szdbl);
 	
-    gsl_matrix_free(mat);
-    gsl_vector_free(x);
-    gsl_permutation_free(p);
+//     gsl_matrix_free(mat);
+//     gsl_vector_free(x);
+//     gsl_permutation_free(p);
+//     b ???    
 
     int double_flag=0;
-    if (p0->Type() == DOUBLE || p2->Type() == DOUBLE) double_flag=1;
+    if (p0->Type() == GDL_DOUBLE || p2->Type() == GDL_DOUBLE) double_flag=1;
     if (e->KeywordSet("DOUBLE")) double_flag=1;
 
     if (double_flag)
       {	return res; }
     else
-      { return res->Convert2(FLOAT, BaseGDL::CONVERT); }
+      { return res->Convert2(GDL_FLOAT, BaseGDL::CONVERT); }
   }
 
   BaseGDL* determ_fun( EnvT* e) {
@@ -249,15 +256,17 @@ namespace lib {
         e->Throw( "Input must be a square matrix:" + e->GetParString(0));
     }
     
-    if (p0->Type() == COMPLEXDBL || p0->Type() == COMPLEX){
+    if (p0->Type() == GDL_COMPLEXDBL || p0->Type() == GDL_COMPLEX){
       e->Throw( "Input type cannot be COMPLEX, please use LA_DETERM (not ready)");
     }
     
     DDoubleGDL *p0D = e->GetParAs<DDoubleGDL>(0);
     gsl_matrix *mat = gsl_matrix_alloc(p0->Dim(0), p0->Dim(0));
+    GSLGuard<gsl_matrix> g1(mat,gsl_matrix_free);
     memcpy(mat->data, &(*p0D)[0], nEl*szdbl);
       
     gsl_permutation *p = gsl_permutation_alloc(p0->Dim(0));
+    GSLGuard<gsl_permutation> g2(p,gsl_permutation_free);
 
     int sign;
     double determ=0.0;
@@ -271,20 +280,20 @@ namespace lib {
       cout << "Determ : " << determ << endl;
     }
 
-    gsl_matrix_free(mat);
-    gsl_permutation_free(p);
+//     gsl_matrix_free(mat);
+//     gsl_permutation_free(p);
 
     DDoubleGDL* res = new DDoubleGDL(1, BaseGDL::NOZERO);
     (*res)[0]=determ;
 
     int double_flag=0;
-    if (p0->Type() == DOUBLE) double_flag=1;
+    if (p0->Type() == GDL_DOUBLE) double_flag=1;
     if (e->KeywordSet("DOUBLE")) double_flag=1;
 
     if (double_flag)
       {	return res; }
     else
-      { return res->Convert2(FLOAT, BaseGDL::CONVERT); }
+      { return res->Convert2(GDL_FLOAT, BaseGDL::CONVERT); }
   }
   
   BaseGDL* trisol_fun( EnvT* e) {
@@ -314,10 +323,10 @@ namespace lib {
     if (nEl3 != nEl) e->Throw( "Argument: " + e->GetParString(3)+" does not have correct size");
     
     int complex_flag=0;
-    if (p0->Type() == COMPLEXDBL || p0->Type() == COMPLEX) complex_flag=1;
-    if (p1->Type() == COMPLEXDBL || p1->Type() == COMPLEX) complex_flag=1;
-    if (p2->Type() == COMPLEXDBL || p2->Type() == COMPLEX) complex_flag=1;
-    if (p3->Type() == COMPLEXDBL || p3->Type() == COMPLEX) complex_flag=1;
+    if (p0->Type() == GDL_COMPLEXDBL || p0->Type() == GDL_COMPLEX) complex_flag=1;
+    if (p1->Type() == GDL_COMPLEXDBL || p1->Type() == GDL_COMPLEX) complex_flag=1;
+    if (p2->Type() == GDL_COMPLEXDBL || p2->Type() == GDL_COMPLEX) complex_flag=1;
+    if (p3->Type() == GDL_COMPLEXDBL || p3->Type() == GDL_COMPLEX) complex_flag=1;
     if (complex_flag) {
       e->Throw( "Input type cannot be COMPLEX, please use LA_TRISOL (not ready)");
     }
@@ -326,21 +335,26 @@ namespace lib {
     
     DDoubleGDL *p0D = e->GetParAs<DDoubleGDL>(0);
     gsl_vector *subd = gsl_vector_alloc(nEl-1);
+    GSLGuard<gsl_vector> g1(subd,gsl_vector_free);
     memcpy(subd->data, &(*p0D)[1], (nEl-1)*szdbl);
     
     DDoubleGDL *p1D= e->GetParAs<DDoubleGDL>(1);// = static_cast<DDoubleGDL*>(p1);
     gsl_vector *diag = gsl_vector_alloc(nEl);
+    GSLGuard<gsl_vector> g2(diag,gsl_vector_free);
     memcpy(diag->data, &(*p1D)[0], nEl*szdbl);
     
     DDoubleGDL *p2D= e->GetParAs<DDoubleGDL>(2); // = static_cast<DDoubleGDL*>(p2);
     gsl_vector *supd = gsl_vector_alloc(nEl-1);
+    GSLGuard<gsl_vector> g3(supd,gsl_vector_free);
     memcpy(supd->data, &(*p2D)[0], (nEl-1)*szdbl);
     
     DDoubleGDL *p3D= e->GetParAs<DDoubleGDL>(3);// = static_cast<DDoubleGDL*>(p3);
     gsl_vector *rhs = gsl_vector_alloc(nEl);
+    GSLGuard<gsl_vector> g4(rhs,gsl_vector_free);
     memcpy(rhs->data, &(*p3D)[0], nEl*szdbl);
     
     gsl_vector *x = gsl_vector_alloc(nEl);
+    GSLGuard<gsl_vector> g5(x,gsl_vector_free); // x was NOT freed before
     
     // computation by GSL  
     int error_code=-1;
@@ -358,14 +372,15 @@ namespace lib {
       gsl_vector_fprintf (stdout, x, "res: %g");
     }
     
-    gsl_vector_free(diag);
-    gsl_vector_free(subd);
-    gsl_vector_free(supd);
-    gsl_vector_free(rhs);
-    
+//     gsl_vector_free(diag);
+//     gsl_vector_free(subd);
+//     gsl_vector_free(supd);
+//     gsl_vector_free(rhs);
+//     x ???
+
     int double_flag=0;
-    if (p0->Type() == DOUBLE || p1->Type() == DOUBLE) double_flag=1;
-    if (p2->Type() == DOUBLE || p2->Type() == DOUBLE) double_flag=1;
+    if (p0->Type() == GDL_DOUBLE || p1->Type() == GDL_DOUBLE) double_flag=1;
+    if (p2->Type() == GDL_DOUBLE || p2->Type() == GDL_DOUBLE) double_flag=1;
     if (e->KeywordSet("DOUBLE")) double_flag=1;
     
     DDoubleGDL* res = new DDoubleGDL(nEl, BaseGDL::NOZERO);
@@ -374,7 +389,7 @@ namespace lib {
     if (double_flag)
       {	return res; }
     else
-      { return res->Convert2(FLOAT, BaseGDL::CONVERT); }
+      { return res->Convert2(GDL_FLOAT, BaseGDL::CONVERT); }
   }
 }
 

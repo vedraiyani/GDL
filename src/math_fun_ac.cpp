@@ -67,7 +67,7 @@
     throw GDLException(e->CallingNode(), "Variable is undefined: "+e->GetParString(0));	\
   									\
   DType t0 = e->GetParDefined(0)->Type();				\
-  //if (t0 == COMPLEX || t0 == COMPLEXDBL)				\
+  //if (t0 == GDL_COMPLEX || t0 == GDL_COMPLEXDBL)				\
   //  e->Throw("Complex not implemented (GSL limitation). ");
 
 #define AC_2P1()							\
@@ -81,7 +81,7 @@
       p1 = new DIntGDL(1, BaseGDL::NOZERO);				\
       (*p1)[0]=0;							\
       nElp1=1;								\
-      t1 = INT;								\
+      t1 = GDL_INT;								\
       p1_float = new DFloatGDL(1, BaseGDL::NOZERO);			\
       (*p1_float)[0]=0.000;						\
     }									\
@@ -98,7 +98,7 @@
   //    throw GDLException(e->CallingNode(), "Variable is undefined: "+e->GetParString(1)); \
   									\
 //  DType t1 = e->GetParDefined(1)->Type();				\
-  //  if (t1 == COMPLEX || t1 == COMPLEXDBL)				\
+  //  if (t1 == GDL_COMPLEX || t1 == GDL_COMPLEXDBL)				\
   // e->Throw("Complex not implemented (GSL limitation). ");
 
 #define GM_DF2()							\
@@ -123,13 +123,13 @@
   if (e->KeywordSet(doubleKWIx))			\
     return res;						\
   else							\
-    return res->Convert2(FLOAT, BaseGDL::CONVERT);
+    return res->Convert2(GDL_FLOAT, BaseGDL::CONVERT);
 
 #define GM_CV1()					\
   static DInt doubleKWIx = e->KeywordIx("DOUBLE");	\
 							\
-  if (t0 != DOUBLE && !e->KeywordSet(doubleKWIx))	\
-    return res->Convert2(FLOAT, BaseGDL::CONVERT);	\
+  if (t0 != GDL_DOUBLE && !e->KeywordSet(doubleKWIx))	\
+    return res->Convert2(GDL_FLOAT, BaseGDL::CONVERT);	\
   else							\
     return res;
 
@@ -156,6 +156,11 @@
 #include "initsysvar.hpp"  // Used to define Double Infinity and Double NaN
 #include "math_fun_ac.hpp"
 #include <gsl/gsl_sf_bessel.h>
+
+#ifdef _MSC_VER
+#define isfinite _finite
+#define isinf !_finite
+#endif
 
 using namespace std;
 
@@ -696,7 +701,7 @@ namespace lib {
 
   BaseGDL* sobel_fun( EnvT* e){
     e->Throw( "sorry, SOBEL not ready.");
-    //return 1;
+    return NULL;
   }
 
   BaseGDL* roberts_fun( EnvT* e){
@@ -727,6 +732,7 @@ namespace lib {
   
   BaseGDL* prewitt_fun( EnvT* e){
     e->Throw( "sorry, PREWITT not ready.");
+    return NULL;
   }
 
 } // namespace

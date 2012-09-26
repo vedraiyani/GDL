@@ -18,6 +18,7 @@
 #include "includefirst.hpp"
 
 #include "basegdl.hpp"
+#include "nullgdl.hpp"
 
 using namespace std;
 
@@ -138,9 +139,11 @@ std::istream& BaseGDL::FromStream(std::istream& i)
   return i;
 }
 
+bool BaseGDL::OutOfRangeOfInt() const { return false;}
+
 bool BaseGDL::Scalar() const { return false;}
 bool BaseGDL::StrictScalar() const { return false;}
-DType   BaseGDL::Type() const { return UNDEF;}
+DType   BaseGDL::Type() const { return GDL_UNDEF;}
 const std::string& BaseGDL::TypeStr() const
 { static const std::string s("UNDEFINED"); return s;}
 bool BaseGDL::EqType( const BaseGDL*) const
@@ -216,13 +219,20 @@ SizeT BaseGDL::GetAsIndexStrict( SizeT i) const
 { 
   throw GDLException("BaseGDL::GetAsIndexStrict called.");
 }
-
+#ifdef _MSC_VER
+bool BaseGDL::True()
+#else
 bool BaseGDL::BaseGDL::True()
+#endif
 {
   throw GDLException("Operation not defined for UNDEF 3.");
 }
 
+#ifdef _MSC_VER
+bool BaseGDL::False()
+#else
 bool BaseGDL::BaseGDL::False()
+#endif
 {
   throw GDLException("Operation not defined for UNDEF 4.");
 }
@@ -739,3 +749,10 @@ char* MemStats::StartOfMemory = reinterpret_cast<char*>(::sbrk(0));
 #endif
 
 // ---
+
+void GDLDelete( BaseGDL* toDelete)
+{
+  if( toDelete != NullGDL::GetSingleInstance())
+    delete toDelete;
+}
+

@@ -1258,7 +1258,7 @@ l_deref returns [BaseGDL** res]
             //          e1_guard.reset(e1);
         }
 
-    if( e1 == NULL || e1->Type() != PTR)
+    if( e1 == NULL || e1->Type() != GDL_PTR)
         throw GDLException( evalExpr, "Pointer type required"
                             " in this context: "+Name(e1),true,false);
 
@@ -1914,6 +1914,7 @@ l_dot_array_expr [DotAccessDescT* aD] // 1st
                 aD->Root(structR); 
             }
 	}
+    return;
 //	_retTree = _t;
 }
     : #(ARRAYEXPR rP=l_indexable_expr aL=arrayindex_list)   
@@ -3392,7 +3393,7 @@ parameter_def [EnvBaseT* actEnv]
                         while(_retTree != NULL) 
                             static_cast<ParameterNode*>(_retTree)->Parameter( actEnv);
                     }    
-                actEnv->Extra(); // expand _EXTRA        
+                actEnv->ResolveExtra(); // expand _EXTRA        
             }
     } 
     catch( GDLException& e)
@@ -3438,7 +3439,7 @@ parameter_def_nocheck [EnvBaseT* actEnv]
                 while(_retTree != NULL) 
                      static_cast<ParameterNode*>(_retTree)->Parameter( actEnv);
 
-                actEnv->Extra(); // expand _EXTRA        
+                actEnv->ResolveExtra(); // expand _EXTRA        
             }
     } 
     catch( GDLException& e)

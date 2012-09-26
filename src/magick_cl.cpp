@@ -168,7 +168,8 @@ namespace lib {
       Image a;
       try 
       {
-        a.ping(filename);
+	a.ping(filename);
+	//a.read(filename);
       }
       catch (WarningCoder &warning_ )
       {
@@ -182,12 +183,30 @@ namespace lib {
         if (a.magick() != magick) return new DLongGDL(0); 
       }
   
-      DInt has_palette, pixel_type;
-      DLong channels, num_images, image_index;
-      DString type;
-     
+      int debug=0;
+      if (debug == 1) {
+	cout << "a.type()      :" << a.type() << endl;
+	cout << "a.classType() :" << a.classType() << endl;
+	cout << "a.matte()     :" << a.matte() << endl;
+	// no useful info here:cout << "a.colorSpace()     :" << a.colorSpace() << endl;
+	// Always 8:cout << "a.depth()     :" << a.depth() << endl;
+	// Always 1: cout << "a.colorSpace() :" << a.colorSpace() << endl;
+      }
+      
+      // AC 2012-May-10
+      // http://www.graphicsmagick.org/Magick++/Image.html#type
       // relevant information that, in some cases, is provided after pinging:
-      // a.type(), a.matte(), a.classType(), a.colorSpace()
+      // a.matte(), a.classType() [and a.type() for Palette info only]
+      DLong channels=0;
+      if (a.classType() == 1) channels=3; // DirectColor
+      if (a.classType() == 2) channels=1; // PseudoColor
+      if (channels ==0) cout << "no ClassType found for current Image" << endl;
+
+      // AC 2012-May-10 this is NOT working with only a a.ping()
+      // a.type() is FULLY reliable if and only if a.read() was done before !!! 
+      //http://www.graphicsmagick.org/Magick++/Image.html#type
+      // (should be OK with a a.read())
+      /*
       channels = a.classType() == PseudoClass 
         ? 1      // color palette
         : a.type() == GrayscaleType 
@@ -195,21 +214,33 @@ namespace lib {
           : a.type() == ColorSeparationType 
             ? 4  // CMYK
             : 3; // RGB
+      */
+
+      // AC 2012-May-10 this is OK (reliable), see exemple "589 Lavandula mono"
       if (a.matte()) channels += 1;
 
       // TODO! multiple images (using the Magick++ STL interface)
+      DLong image_index, num_images;
       image_index = 0; 
       num_images = 1;
 
+      DInt pixel_type;
       pixel_type = a.depth() == 16 ? 2 : 1;
 
-      has_palette = a.classType() == PseudoClass ? 1 : 0;
+      // AC 2012-May-10 Palette only if type == 4 OR 5
+      // Despite Type is NOT useful without a a.read(), it is OK for Palette !
+      // This should be reliable (OK with ImageMagick AND GraphicsMagick)
+      DInt has_palette=0;
+      if (a.type() == 4 | a.type() == 5) has_palette=1;
 
       // TODO: 
-      // - JP2->JPEG2000 ?
+      // - JP2->JPEG2000 ?      
+      DString type;
       type = a.magick() == "PNM" ? "PPM" : 
              a.magick() == "DCM" ? "DICOM" :
              a.magick();
+
+      if (debug ==1) cout << "Type (via a.magick()) : " << type <<endl;
 
       static int infoIx = e->KeywordIx("INFO");
       if (e->KeywordPresent(infoIx))
@@ -546,7 +577,7 @@ namespace lib {
 	if(e->GetKW(1) != NULL)//SUB_RECT
 	  {
 	    BaseGDL* sr=e->GetKW(1);
-	    DULongGDL * subrect=static_cast<DULongGDL*>(sr->Convert2(ULONG,BaseGDL::COPY));
+	    DULongGDL * subrect=static_cast<DULongGDL*>(sr->Convert2(GDL_ULONG,BaseGDL::COPY));
 	    if(subrect->N_Elements() != 4)
 	      e->Throw("Not enough elements in SUB_RECT, expected 4.");
 	    lx=(*subrect)[0];//guaranteed to be >0
@@ -636,13 +667,13 @@ namespace lib {
 		    {*/
 
 		DByteGDL * bImage=
-		  static_cast<DByteGDL*>(GDLimage->Convert2(BYTE,BaseGDL::COPY));
+		  static_cast<DByteGDL*>(GDLimage->Convert2(GDL_BYTE,BaseGDL::COPY));
 		image.read(columns,rows,map, CharPixel,&(*bImage)[0]);
 		/*	      }
 	    else if(image.depth() == 16)
 	      {
 		DUIntGDL * iImage=
-		  static_cast<DUIntGDL*>(GDLimage->Convert2(UINT,BaseGDL::COPY));
+		  static_cast<DUIntGDL*>(GDLimage->Convert2(GDL_UINT,BaseGDL::COPY));
 
 		image.read(columns,rows,map, ShortPixel,&(*iImage)[0]);
 	      }
@@ -988,7 +1019,7 @@ namespace lib {
     DUInt mid;
     e->AssureScalarPar<DUIntGDL>(0,mid);    
     BaseGDL* GDLimage=e->GetParDefined(1);
-    DByteGDL * bImage=static_cast<DByteGDL*>(GDLimage->Convert2(BYTE,BaseGDL::COPY));
+    DByteGDL * bImage=static_cast<DByteGDL*>(GDLimage->Convert2(GDL_BYTE,BaseGDL::COPY));
 
     Image image=magick_image(e,mid);
 
@@ -1031,15 +1062,15 @@ SizeT nEl = columns*rows;
     Image image=magick_image(e,mid);
 
     BaseGDL* GDLCol=e->GetParDefined(1);
-    DByteGDL * Red=static_cast<DByteGDL*>(GDLCol->Convert2(BYTE,BaseGDL::COPY));
+    DByteGDL * Red=static_cast<DByteGDL*>(GDLCol->Convert2(GDL_BYTE,BaseGDL::COPY));
     //e->Guard( Red);
     auto_ptr<BaseGDL> r_guard( Red);
     GDLCol=e->GetParDefined(2);
-    DByteGDL * Green=static_cast<DByteGDL*>(GDLCol->Convert2(BYTE,BaseGDL::COPY));
+    DByteGDL * Green=static_cast<DByteGDL*>(GDLCol->Convert2(GDL_BYTE,BaseGDL::COPY));
     //e->Guard( Green);
     auto_ptr<BaseGDL> g_guard( Green);
     GDLCol=e->GetParDefined(3);
-    DByteGDL *Blue= static_cast<DByteGDL*>(GDLCol->Convert2(BYTE,BaseGDL::COPY));
+    DByteGDL *Blue= static_cast<DByteGDL*>(GDLCol->Convert2(GDL_BYTE,BaseGDL::COPY));
     //e->Guard( Blue);
     auto_ptr<BaseGDL> b_guard( Blue);
 

@@ -81,6 +81,9 @@ void LibInit()
   LibInit_ng(); 
   const char KLISTEND[] = "";
 
+  const string scope_varfetchKey[]={"LEVEL", KLISTEND};
+  new DLibFun(lib::scope_varfetch_value,string("SCOPE_VARFETCH"),-1,scope_varfetchKey);
+
   const string cpuKey[]={ "RESET","RESTORE","TPOOL_MAX_ELTS", "TPOOL_MIN_ELTS",
 					"TPOOL_NTHREADS","VECTOR_ENABLE",KLISTEND};
   new DLibPro(lib::cpu,string("CPU"),0,cpuKey);
@@ -97,9 +100,11 @@ void LibInit()
 				  "PARAMETERS", KLISTEND};
   new DLibFun(lib::routine_info,string("ROUTINE_INFO"),1,routine_infoKey);
 
+#ifndef _MSC_VER
   const string spawnKey[]={ "COUNT","EXIT_STATUS","PID",
 			    "SH","NOSHELL","UNIT",KLISTEND};
   new DLibPro(lib::spawn_pro,string("SPAWN"),3,spawnKey);
+#endif
 
   const string bytsclKey[]={"MIN","MAX","TOP","NAN",KLISTEND};
   new DLibFun(lib::bytscl,string("BYTSCL"),3,bytsclKey);
@@ -126,12 +131,14 @@ void LibInit()
   const string convolKey[]={"CENTER","EDGE_TRUNCATE","EDGE_WRAP",KLISTEND};
   new DLibFunRetNew(lib::convol,string("CONVOL"),3,convolKey);
 
+#ifndef _MSC_VER
   const string file_searchKey[]={"COUNT","EXPAND_ENVIRONMENT","EXPAND_TILDE",
 				 "FOLD_CASE","ISSUE_ACCESS_ERROR",
 				 "MARK_DIRECTORY","NOSORT","QUOTE",
 				 "MATCH_INITIAL_DOT",
 				 "MATCH_ALL_INITIAL_DOT","FULLY_QUALIFY_PATH",KLISTEND};
   new DLibFunRetNew(lib::file_search,string("FILE_SEARCH"),2,file_searchKey);
+#endif
 
   const string expand_pathKey[]={"ARRAY","ALL_DIRS","COUNT",KLISTEND};
   new DLibFunRetNew(lib::expand_path,string("EXPAND_PATH"),1,expand_pathKey);
@@ -320,7 +327,7 @@ void LibInit()
   new DLibPro(lib::writeu,string("WRITEU"),-1,writeuKey);
   new DLibPro(lib::readu,string("READU"),-1,writeuKey);
 
-  const string resolve_routineWarnKey[]={"EITHER","IS_FUNCTION","NO_RECOMPILE",KLISTEND};
+  const string resolve_routineWarnKey[]={"EITHER","IS_FUNCTION","NO_RECOMPILE","COMPILE_FULL_FILE",KLISTEND};
   const string resolve_routineKey[]={KLISTEND};
   new DLibPro(lib::resolve_routine,string("RESOLVE_ROUTINE"),1,
 	      NULL, resolve_routineWarnKey);
@@ -336,7 +343,6 @@ void LibInit()
   new DLibFun(lib::string_fun,string("STRING"),-1,stringKey,NULL);
   new DLibFun(lib::byte_fun,string("BYTE"),10,NULL,NULL);
 
-  const string fixKey[]={"TYPE","PRINT",KLISTEND};
 /*
   new DLibFunRetNew(lib::fix_fun,string("FIX"),10,fixKey,NULL,true);
   new DLibFunRetNew(lib::uint_fun,string("UINT"),10,NULL,NULL,true);
@@ -350,7 +356,9 @@ void LibInit()
   new DLibFunRetNew(lib::dcomplex_fun,string("DCOMPLEX"),MAXRANK+2,NULL,NULL,true);
 */
 // that's apparently the desired bahaviour, see bug no. 3151760
+  const string fixKey[]={"TYPE","PRINT",KLISTEND};
   new DLibFun(lib::fix_fun,string("FIX"),10,fixKey,NULL);
+
   new DLibFun(lib::uint_fun,string("UINT"),10,NULL,NULL);
   new DLibFun(lib::long_fun,string("LONG"),10,NULL,NULL);
   new DLibFun(lib::ulong_fun,string("ULONG"),10,NULL,NULL);
@@ -358,7 +366,9 @@ void LibInit()
   new DLibFun(lib::ulong64_fun,string("ULONG64"),10,NULL,NULL);
   new DLibFun(lib::float_fun,string("FLOAT"),10,NULL,NULL);
   new DLibFun(lib::double_fun,string("DOUBLE"),10,NULL,NULL);
-  new DLibFun(lib::complex_fun,string("COMPLEX"),MAXRANK+2,NULL,NULL);
+
+  const string complexKey[]={"DOUBLE",KLISTEND};
+  new DLibFun(lib::complex_fun,string("COMPLEX"),MAXRANK+2,complexKey,NULL);
   new DLibFun(lib::dcomplex_fun,string("DCOMPLEX"),MAXRANK+2,NULL,NULL);
 
   new DLibFunRetNew(lib::gdl_logical_and,string("LOGICAL_AND"),2,NULL,NULL,true);
@@ -414,10 +424,10 @@ void LibInit()
   new DLibFunRetNew(lib::strmid,string("STRMID"),3,strmidKey,NULL,true);
   new DLibFunRetNew(lib::strtrim,string("STRTRIM"),2,NULL,NULL,true);
   const string strposKey[]={"REVERSE_OFFSET","REVERSE_SEARCH",KLISTEND};
-  new DLibFunRetNew(lib::strpos,string("STRPOS"),3,strposKey,NULL,true);
-  new DLibPro(lib::strput,string("STRPUT"),3);
+  new DLibFunRetNew(lib::strpos,string("STRPOS"),3,strposKey,NULL,true,2);
+  new DLibPro(lib::strput,string("STRPUT"),3,NULL,NULL,2);
   
-  const string whereKey[]={"COMPLEMENT","NCOMPLEMENT",KLISTEND};
+  const string whereKey[]={"COMPLEMENT","NCOMPLEMENT","NULL",KLISTEND};
   new DLibFunRetNew(lib::where,string("WHERE"),2,whereKey);
 
   const string totalKey[]={"CUMULATIVE","DOUBLE","NAN","INTEGER","PRESERVE_TYPE",KLISTEND};
@@ -467,8 +477,9 @@ void LibInit()
   new DLibPro(lib::window,string("WINDOW"),1,windowKey);
   new DLibPro(lib::wdelete,string("WDELETE"),-1);
   new DLibPro(lib::wset,string("WSET"),1);
-  const string wshowWarnKey[]={"ICONIC", KLISTEND};
-  new DLibPro(lib::wshow,string("WSHOW"),2,NULL,wshowWarnKey);
+
+  const string wshowKey[]={"ICONIC", KLISTEND};
+  new DLibPro(lib::wshow,string("WSHOW"),2,wshowKey);
 
   const string cursorKey[]={"CHANGE","DOWN","NOWAIT","UP","WAIT",
 				"DATA","DEVICE","NORMAL",KLISTEND};
@@ -507,7 +518,7 @@ void LibInit()
   const string plotKey[]=
     {
      "BACKGROUND","CHARSIZE","CHARTHICK","CLIP",
-     "COLOR",     "DATA",    "DEVICE", 
+     "COLOR",     "DATA",    "DEVICE", "ISOTROPIC",
      "LINESTYLE", "NOCLIP",  "NODATA",   "NOERASE", 
      "NORMAL",    "POSITION","PSYM",     "SUBTITLE",
      "SYMSIZE",   "THICK",    "TICKLEN", "TITLE",
@@ -524,7 +535,7 @@ void LibInit()
     };
   //
   const string plotWarnKey[]= {
-    "ISOTROPIC", "FONT", "T3D", "YTICKUNITS", "XTICKLAYOUT", "YTICKLAYOUT", 
+    "FONT", "T3D", "YTICKUNITS", "XTICKLAYOUT", "YTICKLAYOUT", 
     "ZTICKLAYOUT", "XGRIDSTYLE", "YGRIDSTYLE", "XTICKUNITS", "XTICKV", "XTICK_GET", "YTICKV",
     "YTICK_GET", "XTICKNAME", "ZTICKNAME", "ZTICKUNITS", "ZTICKV",  "ZTICK_GET",
     "XTICKINTERVAL", "YTICKINTERVAL", "YTICKNAME", "ZTICKINTERVAL", 

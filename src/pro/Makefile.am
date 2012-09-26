@@ -1,4 +1,4 @@
-SUBDIRS = dicom
+SUBDIRS = dicom envi
 prolibdir = $(GDLDATADIR)/lib
 prolib_DATA = \
   appleman.pro \
@@ -27,6 +27,7 @@ prolib_DATA = \
   get_login_info.pro \
   helpform.pro \
   hist_2d.pro \
+  hist_equal.pro \
   hist_nd.pro \
   identity.pro \
   idl_validname.pro \
@@ -78,15 +79,16 @@ prolib_DATA = \
   read_xwd.pro \
   real_part.pro \
   restore.pro \
+  rot.pro \
   rstrpos.pro \
   save.pro \
-  scope_varfetch.pro \
   showfont.pro \
   skewness.pro \
   skip_lun.pro \
   smooth.pro \
   spl_init_old.pro \
   spl_interp_old.pro \
+  standardize.pro \
   stddev.pro \
   str_sep.pro \
   strmatch.pro \

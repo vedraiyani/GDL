@@ -49,23 +49,24 @@ CONFIG_CLEAN_VPATH_FILES =
 LTLIBRARIES = $(noinst_LTLIBRARIES)
 @BUILDASLIBRARY_TRUE@libgdl_la_DEPENDENCIES =  \
 @BUILDASLIBRARY_TRUE@	$(top_builddir)/src/antlr/libantlr.la
-am__libgdl_la_SOURCES_DIST = allix.hpp allix.cpp prognode.hpp \
-	prognodeexpr.hpp accessdesc.hpp arrayindex.hpp assocdata.cpp \
-	assocdata.hpp basegdl.hpp basic_fun_cl.cpp basic_fun_cl.hpp \
-	basic_fun.cpp basic_fun.hpp basic_fun_jmg.cpp \
-	basic_fun_jmg.hpp basic_op.cpp basic_op_new.cpp basic_pro.cpp \
-	basic_pro.hpp basic_pro_jmg.cpp basic_pro_jmg.hpp \
-	CFMTLexer.cpp CFMTLexer.hpp CFMTTokenTypes.hpp cformat.g \
-	color.cpp color.hpp convert2.cpp datalistt.hpp datatypes.cpp \
-	datatypes.hpp dcommon.cpp dcommon.hpp dcompiler.cpp \
-	dcompiler.hpp default_io.cpp deviceps.hpp devicesvg.hpp \
-	devicewin.hpp devicex.hpp dimension.hpp dinterpreter.cpp \
-	dinterpreter.hpp dnode.cpp dnodefactory.hpp dnode.hpp dpro.cpp \
-	dpro.hpp dstructdesc.cpp dstructdesc.hpp dstructgdl.cpp \
-	dstructgdl.hpp dvar.cpp dvar.hpp envt.cpp envt.hpp extrat.cpp \
-	extrat.hpp FMTIn.cpp FMTIn.hpp FMTInTokenTypes.hpp \
-	FMTLexer.cpp FMTLexer.hpp fmtnode.cpp fmtnode.hpp FMTOut.cpp \
-	FMTOut.hpp FMTOutTokenTypes.hpp FMTParser.cpp FMTParser.hpp \
+am__libgdl_la_SOURCES_DIST = nullgdl.hpp nullgdl.cpp allix.hpp \
+	allix.cpp prognode.hpp prognodeexpr.hpp accessdesc.hpp \
+	arrayindex.hpp assocdata.cpp assocdata.hpp basegdl.hpp \
+	basic_fun_cl.cpp basic_fun_cl.hpp basic_fun.cpp basic_fun.hpp \
+	basic_fun_jmg.cpp basic_fun_jmg.hpp basic_op.cpp \
+	basic_op_new.cpp basic_pro.cpp basic_pro.hpp basic_pro_jmg.cpp \
+	basic_pro_jmg.hpp CFMTLexer.cpp CFMTLexer.hpp \
+	CFMTTokenTypes.hpp cformat.g color.cpp color.hpp convert2.cpp \
+	datalistt.hpp datatypes.cpp datatypes.hpp dcommon.cpp \
+	dcommon.hpp dcompiler.cpp dcompiler.hpp default_io.cpp \
+	deviceps.hpp devicesvg.hpp devicewin.hpp devicex.hpp \
+	dimension.hpp dinterpreter.cpp dinterpreter.hpp dnode.cpp \
+	dnodefactory.hpp dnode.hpp dpro.cpp dpro.hpp dstructdesc.cpp \
+	dstructdesc.hpp dstructgdl.cpp dstructgdl.hpp dvar.cpp \
+	dvar.hpp envt.cpp envt.hpp extrat.cpp extrat.hpp FMTIn.cpp \
+	FMTIn.hpp FMTInTokenTypes.hpp FMTLexer.cpp FMTLexer.hpp \
+	fmtnode.cpp fmtnode.hpp FMTOut.cpp FMTOut.hpp \
+	FMTOutTokenTypes.hpp FMTParser.cpp FMTParser.hpp \
 	FMTTokenTypes.hpp format.g format.in.g format.out.g gdlc.g \
 	gdlc.i.g gdlc.tree.g gdleventhandler.cpp gdleventhandler.hpp \
 	gdlexception.cpp gdlexception.hpp gdlgstream.cpp \
@@ -97,7 +98,7 @@ am__libgdl_la_SOURCES_DIST = allix.hpp allix.cpp prognode.hpp \
 	sigfpehandler.cpp sigfpehandler.hpp devicez.hpp gdlzstream.cpp \
 	gdlzstream.hpp gdlwidget.hpp arrayindexlistt.hpp \
 	arrayindexlistnoassoct.hpp arrayindex.cpp fftw.cpp fftw.hpp \
-	mpi.cpp mpi.hpp plot3d_nr.cpp grib.cpp grib.hpp prognode.cpp \
+	mpi.cpp mpi.hpp grib.cpp grib.hpp prognode.cpp \
 	prognode_lexpr.cpp prognodeexpr.cpp strassenmatrix.hpp \
 	datatypesref.cpp lapack.cpp gshhs.cpp gshhs.hpp \
 	newprognode.cpp plotting_plot.cpp plotting_oplot.cpp \
@@ -106,10 +107,10 @@ am__libgdl_la_SOURCES_DIST = allix.hpp allix.cpp prognode.hpp \
 	plotting_xyouts.cpp plotting_polyfill.cpp plotting_windows.cpp \
 	plotting_convert_coord.cpp plotting_map_proj.cpp \
 	plotting_misc.cpp plotting_erase.cpp semshm.cpp pythongdl.cpp
-am__objects_1 = allix.lo assocdata.lo basic_fun_cl.lo basic_fun.lo \
-	basic_fun_jmg.lo basic_op.lo basic_op_new.lo basic_pro.lo \
-	basic_pro_jmg.lo CFMTLexer.lo color.lo convert2.lo \
-	datatypes.lo dcommon.lo dcompiler.lo default_io.lo \
+am__objects_1 = nullgdl.lo allix.lo assocdata.lo basic_fun_cl.lo \
+	basic_fun.lo basic_fun_jmg.lo basic_op.lo basic_op_new.lo \
+	basic_pro.lo basic_pro_jmg.lo CFMTLexer.lo color.lo \
+	convert2.lo datatypes.lo dcommon.lo dcompiler.lo default_io.lo \
 	dinterpreter.lo dnode.lo dpro.lo dstructdesc.lo dstructgdl.lo \
 	dvar.lo envt.lo extrat.lo FMTIn.lo FMTLexer.lo fmtnode.lo \
 	FMTOut.lo FMTParser.lo gdleventhandler.lo gdlexception.lo \
@@ -127,9 +128,9 @@ am__objects_1 = allix.lo assocdata.lo basic_fun_cl.lo basic_fun.lo \
 	widget.lo basegdl.lo hdf5_fun.lo libinit_mes.lo file.lo \
 	image.lo gdljournal.lo convol.lo convol_inc0.lo convol_inc1.lo \
 	convol_inc2.lo sigfpehandler.lo gdlzstream.lo arrayindex.lo \
-	fftw.lo mpi.lo plot3d_nr.lo grib.lo prognode.lo \
-	prognode_lexpr.lo prognodeexpr.lo datatypesref.lo lapack.lo \
-	gshhs.lo newprognode.lo plotting_plot.lo plotting_oplot.lo \
+	fftw.lo mpi.lo grib.lo prognode.lo prognode_lexpr.lo \
+	prognodeexpr.lo datatypesref.lo lapack.lo gshhs.lo \
+	newprognode.lo plotting_plot.lo plotting_oplot.lo \
 	plotting_device.lo plotting_cursor.lo plotting_contour.lo \
 	plotting_surface.lo plotting_axis.lo plotting_plots.lo \
 	plotting_xyouts.lo plotting_polyfill.lo plotting_windows.lo \
@@ -144,10 +145,10 @@ libgdl_la_LINK = $(LIBTOOL) --tag=CXX $(AM_LIBTOOLFLAGS) \
 @BUILDASLIBRARY_TRUE@am_libgdl_la_rpath =
 am__installdirs = "$(DESTDIR)$(bindir)"
 PROGRAMS = $(bin_PROGRAMS)
-am__gdl_SOURCES_DIST = allix.hpp allix.cpp prognode.hpp \
-	prognodeexpr.hpp accessdesc.hpp arrayindex.hpp assocdata.cpp \
-	assocdata.hpp basegdl.hpp basic_fun_cl.cpp basic_fun_cl.hpp \
-	basic_fun.cpp basic_fun.hpp basic_fun_jmg.cpp \
+am__gdl_SOURCES_DIST = nullgdl.hpp nullgdl.cpp allix.hpp allix.cpp \
+	prognode.hpp prognodeexpr.hpp accessdesc.hpp arrayindex.hpp \
+	assocdata.cpp assocdata.hpp basegdl.hpp basic_fun_cl.cpp \
+	basic_fun_cl.hpp basic_fun.cpp basic_fun.hpp basic_fun_jmg.cpp \
 	basic_fun_jmg.hpp basic_op.cpp basic_op_new.cpp basic_pro.cpp \
 	basic_pro.hpp basic_pro_jmg.cpp basic_pro_jmg.hpp \
 	CFMTLexer.cpp CFMTLexer.hpp CFMTTokenTypes.hpp cformat.g \
@@ -192,7 +193,7 @@ am__gdl_SOURCES_DIST = allix.hpp allix.cpp prognode.hpp \
 	sigfpehandler.cpp sigfpehandler.hpp devicez.hpp gdlzstream.cpp \
 	gdlzstream.hpp gdlwidget.hpp arrayindexlistt.hpp \
 	arrayindexlistnoassoct.hpp arrayindex.cpp fftw.cpp fftw.hpp \
-	mpi.cpp mpi.hpp plot3d_nr.cpp grib.cpp grib.hpp prognode.cpp \
+	mpi.cpp mpi.hpp grib.cpp grib.hpp prognode.cpp \
 	prognode_lexpr.cpp prognodeexpr.cpp strassenmatrix.hpp \
 	datatypesref.cpp lapack.cpp gshhs.cpp gshhs.hpp \
 	newprognode.cpp plotting_plot.cpp plotting_oplot.cpp \
@@ -201,30 +202,30 @@ am__gdl_SOURCES_DIST = allix.hpp allix.cpp prognode.hpp \
 	plotting_xyouts.cpp plotting_polyfill.cpp plotting_windows.cpp \
 	plotting_convert_coord.cpp plotting_map_proj.cpp \
 	plotting_misc.cpp plotting_erase.cpp semshm.cpp gdl.cpp
-am__objects_2 = gdl-allix.$(OBJEXT) gdl-assocdata.$(OBJEXT) \
-	gdl-basic_fun_cl.$(OBJEXT) gdl-basic_fun.$(OBJEXT) \
-	gdl-basic_fun_jmg.$(OBJEXT) gdl-basic_op.$(OBJEXT) \
-	gdl-basic_op_new.$(OBJEXT) gdl-basic_pro.$(OBJEXT) \
-	gdl-basic_pro_jmg.$(OBJEXT) gdl-CFMTLexer.$(OBJEXT) \
-	gdl-color.$(OBJEXT) gdl-convert2.$(OBJEXT) \
-	gdl-datatypes.$(OBJEXT) gdl-dcommon.$(OBJEXT) \
-	gdl-dcompiler.$(OBJEXT) gdl-default_io.$(OBJEXT) \
-	gdl-dinterpreter.$(OBJEXT) gdl-dnode.$(OBJEXT) \
-	gdl-dpro.$(OBJEXT) gdl-dstructdesc.$(OBJEXT) \
-	gdl-dstructgdl.$(OBJEXT) gdl-dvar.$(OBJEXT) gdl-envt.$(OBJEXT) \
-	gdl-extrat.$(OBJEXT) gdl-FMTIn.$(OBJEXT) \
-	gdl-FMTLexer.$(OBJEXT) gdl-fmtnode.$(OBJEXT) \
-	gdl-FMTOut.$(OBJEXT) gdl-FMTParser.$(OBJEXT) \
-	gdl-gdleventhandler.$(OBJEXT) gdl-gdlexception.$(OBJEXT) \
-	gdl-gdlgstream.$(OBJEXT) gdl-GDLInterpreter.$(OBJEXT) \
-	gdl-GDLLexer.$(OBJEXT) gdl-GDLParser.$(OBJEXT) \
-	gdl-gdlpsstream.$(OBJEXT) gdl-gdlsvgstream.$(OBJEXT) \
-	gdl-gdlpython.$(OBJEXT) gdl-GDLTreeParser.$(OBJEXT) \
-	gdl-gdlwinstream.$(OBJEXT) gdl-gdlxstream.$(OBJEXT) \
-	gdl-getfmtast.$(OBJEXT) gdl-graphics.$(OBJEXT) \
-	gdl-gsl_fun.$(OBJEXT) gdl-gsl_matrix.$(OBJEXT) \
-	gdl-ifmt.$(OBJEXT) gdl-initct.$(OBJEXT) \
-	gdl-initsysvar.$(OBJEXT) gdl-io.$(OBJEXT) \
+am__objects_2 = gdl-nullgdl.$(OBJEXT) gdl-allix.$(OBJEXT) \
+	gdl-assocdata.$(OBJEXT) gdl-basic_fun_cl.$(OBJEXT) \
+	gdl-basic_fun.$(OBJEXT) gdl-basic_fun_jmg.$(OBJEXT) \
+	gdl-basic_op.$(OBJEXT) gdl-basic_op_new.$(OBJEXT) \
+	gdl-basic_pro.$(OBJEXT) gdl-basic_pro_jmg.$(OBJEXT) \
+	gdl-CFMTLexer.$(OBJEXT) gdl-color.$(OBJEXT) \
+	gdl-convert2.$(OBJEXT) gdl-datatypes.$(OBJEXT) \
+	gdl-dcommon.$(OBJEXT) gdl-dcompiler.$(OBJEXT) \
+	gdl-default_io.$(OBJEXT) gdl-dinterpreter.$(OBJEXT) \
+	gdl-dnode.$(OBJEXT) gdl-dpro.$(OBJEXT) \
+	gdl-dstructdesc.$(OBJEXT) gdl-dstructgdl.$(OBJEXT) \
+	gdl-dvar.$(OBJEXT) gdl-envt.$(OBJEXT) gdl-extrat.$(OBJEXT) \
+	gdl-FMTIn.$(OBJEXT) gdl-FMTLexer.$(OBJEXT) \
+	gdl-fmtnode.$(OBJEXT) gdl-FMTOut.$(OBJEXT) \
+	gdl-FMTParser.$(OBJEXT) gdl-gdleventhandler.$(OBJEXT) \
+	gdl-gdlexception.$(OBJEXT) gdl-gdlgstream.$(OBJEXT) \
+	gdl-GDLInterpreter.$(OBJEXT) gdl-GDLLexer.$(OBJEXT) \
+	gdl-GDLParser.$(OBJEXT) gdl-gdlpsstream.$(OBJEXT) \
+	gdl-gdlsvgstream.$(OBJEXT) gdl-gdlpython.$(OBJEXT) \
+	gdl-GDLTreeParser.$(OBJEXT) gdl-gdlwinstream.$(OBJEXT) \
+	gdl-gdlxstream.$(OBJEXT) gdl-getfmtast.$(OBJEXT) \
+	gdl-graphics.$(OBJEXT) gdl-gsl_fun.$(OBJEXT) \
+	gdl-gsl_matrix.$(OBJEXT) gdl-ifmt.$(OBJEXT) \
+	gdl-initct.$(OBJEXT) gdl-initsysvar.$(OBJEXT) gdl-io.$(OBJEXT) \
 	gdl-libinit_cl.$(OBJEXT) gdl-libinit.$(OBJEXT) \
 	gdl-libinit_jmg.$(OBJEXT) gdl-math_fun.$(OBJEXT) \
 	gdl-math_fun_jmg.$(OBJEXT) gdl-math_utl.$(OBJEXT) \
@@ -247,16 +248,16 @@ am__objects_2 = gdl-allix.$(OBJEXT) gdl-assocdata.$(OBJEXT) \
 	gdl-convol_inc1.$(OBJEXT) gdl-convol_inc2.$(OBJEXT) \
 	gdl-sigfpehandler.$(OBJEXT) gdl-gdlzstream.$(OBJEXT) \
 	gdl-arrayindex.$(OBJEXT) gdl-fftw.$(OBJEXT) gdl-mpi.$(OBJEXT) \
-	gdl-plot3d_nr.$(OBJEXT) gdl-grib.$(OBJEXT) \
-	gdl-prognode.$(OBJEXT) gdl-prognode_lexpr.$(OBJEXT) \
-	gdl-prognodeexpr.$(OBJEXT) gdl-datatypesref.$(OBJEXT) \
-	gdl-lapack.$(OBJEXT) gdl-gshhs.$(OBJEXT) \
-	gdl-newprognode.$(OBJEXT) gdl-plotting_plot.$(OBJEXT) \
-	gdl-plotting_oplot.$(OBJEXT) gdl-plotting_device.$(OBJEXT) \
-	gdl-plotting_cursor.$(OBJEXT) gdl-plotting_contour.$(OBJEXT) \
-	gdl-plotting_surface.$(OBJEXT) gdl-plotting_axis.$(OBJEXT) \
-	gdl-plotting_plots.$(OBJEXT) gdl-plotting_xyouts.$(OBJEXT) \
-	gdl-plotting_polyfill.$(OBJEXT) gdl-plotting_windows.$(OBJEXT) \
+	gdl-grib.$(OBJEXT) gdl-prognode.$(OBJEXT) \
+	gdl-prognode_lexpr.$(OBJEXT) gdl-prognodeexpr.$(OBJEXT) \
+	gdl-datatypesref.$(OBJEXT) gdl-lapack.$(OBJEXT) \
+	gdl-gshhs.$(OBJEXT) gdl-newprognode.$(OBJEXT) \
+	gdl-plotting_plot.$(OBJEXT) gdl-plotting_oplot.$(OBJEXT) \
+	gdl-plotting_device.$(OBJEXT) gdl-plotting_cursor.$(OBJEXT) \
+	gdl-plotting_contour.$(OBJEXT) gdl-plotting_surface.$(OBJEXT) \
+	gdl-plotting_axis.$(OBJEXT) gdl-plotting_plots.$(OBJEXT) \
+	gdl-plotting_xyouts.$(OBJEXT) gdl-plotting_polyfill.$(OBJEXT) \
+	gdl-plotting_windows.$(OBJEXT) \
 	gdl-plotting_convert_coord.$(OBJEXT) \
 	gdl-plotting_map_proj.$(OBJEXT) gdl-plotting_misc.$(OBJEXT) \
 	gdl-plotting_erase.$(OBJEXT) gdl-semshm.$(OBJEXT)
@@ -366,6 +367,7 @@ EXT_LIBS = @EXT_LIBS@
 FGREP = @FGREP@
 GDLDATADIR = @GDLDATADIR@
 GREP = @GREP@
+GraphicsMagickConfig = @GraphicsMagickConfig@
 HAVE_64BIT_OS = @HAVE_64BIT_OS@
 INSTALL = @INSTALL@
 INSTALL_DATA = @INSTALL_DATA@
@@ -473,7 +475,7 @@ wxConfig = @wxConfig@
 # set the include path found by configure
 INCLUDES = $(EXT_INCLUDES) $(all_includes)
 SUBDIRS = antlr pro
-cpp_hpp_files = allix.hpp allix.cpp prognode.hpp prognodeexpr.hpp \
+cpp_hpp_files = nullgdl.hpp nullgdl.cpp allix.hpp allix.cpp prognode.hpp prognodeexpr.hpp \
 		accessdesc.hpp arrayindex.hpp assocdata.cpp assocdata.hpp \
 		basegdl.hpp basic_fun_cl.cpp basic_fun_cl.hpp basic_fun.cpp basic_fun.hpp \
 		basic_fun_jmg.cpp basic_fun_jmg.hpp basic_op.cpp basic_op_new.cpp basic_pro.cpp basic_pro.hpp \
@@ -515,7 +517,7 @@ cpp_hpp_files = allix.hpp allix.cpp prognode.hpp prognodeexpr.hpp \
 		convol_inc1.cpp convol_inc2.cpp sigfpehandler.cpp sigfpehandler.hpp devicez.hpp \
 		gdlzstream.cpp gdlzstream.hpp gdlwidget.hpp arrayindexlistt.hpp arrayindexlistnoassoct.hpp \
 		arrayindex.cpp \
-		fftw.cpp fftw.hpp mpi.cpp mpi.hpp plot3d_nr.cpp grib.cpp grib.hpp \
+		fftw.cpp fftw.hpp mpi.cpp mpi.hpp grib.cpp grib.hpp \
                 prognode.cpp prognode_lexpr.cpp prognodeexpr.cpp strassenmatrix.hpp datatypesref.cpp lapack.cpp \
                 gshhs.cpp gshhs.hpp newprognode.cpp plotting_plot.cpp plotting_oplot.cpp \
                 plotting_device.cpp plotting_cursor.cpp plotting_contour.cpp plotting_surface.cpp \
@@ -769,9 +771,9 @@ distclean-compile:
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/gdl-ncdf_var_cl.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/gdl-new.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/gdl-newprognode.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/gdl-nullgdl.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/gdl-objects.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/gdl-ofmt.Po@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/gdl-plot3d_nr.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/gdl-plotting.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/gdl-plotting_axis.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/gdl-plotting_contour.Po@am__quote@
@@ -848,9 +850,9 @@ distclean-compile:
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/ncdf_var_cl.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/new.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/newprognode.Plo@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/nullgdl.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/objects.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/ofmt.Plo@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/plot3d_nr.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/plotting.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/plotting_axis.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/plotting_contour.Plo@am__quote@
@@ -902,6 +904,20 @@ distclean-compile:
 @AMDEP_TRUE@@am__fastdepCXX_FALSE@	source='$<' object='$@' libtool=yes @AMDEPBACKSLASH@
 @AMDEP_TRUE@@am__fastdepCXX_FALSE@	DEPDIR=$(DEPDIR) $(CXXDEPMODE) $(depcomp) @AMDEPBACKSLASH@
 @am__fastdepCXX_FALSE@	$(LTCXXCOMPILE) -c -o $@ $<
+
+gdl-nullgdl.o: nullgdl.cpp
+@am__fastdepCXX_TRUE@	$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(gdl_CXXFLAGS) $(CXXFLAGS) -MT gdl-nullgdl.o -MD -MP -MF $(DEPDIR)/gdl-nullgdl.Tpo -c -o gdl-nullgdl.o `test -f 'nullgdl.cpp' || echo '$(srcdir)/'`nullgdl.cpp
+@am__fastdepCXX_TRUE@	$(am__mv) $(DEPDIR)/gdl-nullgdl.Tpo $(DEPDIR)/gdl-nullgdl.Po
+@AMDEP_TRUE@@am__fastdepCXX_FALSE@	source='nullgdl.cpp' object='gdl-nullgdl.o' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCXX_FALSE@	DEPDIR=$(DEPDIR) $(CXXDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCXX_FALSE@	$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(gdl_CXXFLAGS) $(CXXFLAGS) -c -o gdl-nullgdl.o `test -f 'nullgdl.cpp' || echo '$(srcdir)/'`nullgdl.cpp
+
+gdl-nullgdl.obj: nullgdl.cpp
+@am__fastdepCXX_TRUE@	$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(gdl_CXXFLAGS) $(CXXFLAGS) -MT gdl-nullgdl.obj -MD -MP -MF $(DEPDIR)/gdl-nullgdl.Tpo -c -o gdl-nullgdl.obj `if test -f 'nullgdl.cpp'; then $(CYGPATH_W) 'nullgdl.cpp'; else $(CYGPATH_W) '$(srcdir)/nullgdl.cpp'; fi`
+@am__fastdepCXX_TRUE@	$(am__mv) $(DEPDIR)/gdl-nullgdl.Tpo $(DEPDIR)/gdl-nullgdl.Po
+@AMDEP_TRUE@@am__fastdepCXX_FALSE@	source='nullgdl.cpp' object='gdl-nullgdl.obj' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCXX_FALSE@	DEPDIR=$(DEPDIR) $(CXXDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCXX_FALSE@	$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(gdl_CXXFLAGS) $(CXXFLAGS) -c -o gdl-nullgdl.obj `if test -f 'nullgdl.cpp'; then $(CYGPATH_W) 'nullgdl.cpp'; else $(CYGPATH_W) '$(srcdir)/nullgdl.cpp'; fi`
 
 gdl-allix.o: allix.cpp
 @am__fastdepCXX_TRUE@	$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(gdl_CXXFLAGS) $(CXXFLAGS) -MT gdl-allix.o -MD -MP -MF $(DEPDIR)/gdl-allix.Tpo -c -o gdl-allix.o `test -f 'allix.cpp' || echo '$(srcdir)/'`allix.cpp
@@ -2246,20 +2262,6 @@ gdl-mpi.obj: mpi.cpp
 @AMDEP_TRUE@@am__fastdepCXX_FALSE@	source='mpi.cpp' object='gdl-mpi.obj' libtool=no @AMDEPBACKSLASH@
 @AMDEP_TRUE@@am__fastdepCXX_FALSE@	DEPDIR=$(DEPDIR) $(CXXDEPMODE) $(depcomp) @AMDEPBACKSLASH@
 @am__fastdepCXX_FALSE@	$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(gdl_CXXFLAGS) $(CXXFLAGS) -c -o gdl-mpi.obj `if test -f 'mpi.cpp'; then $(CYGPATH_W) 'mpi.cpp'; else $(CYGPATH_W) '$(srcdir)/mpi.cpp'; fi`
-
-gdl-plot3d_nr.o: plot3d_nr.cpp
-@am__fastdepCXX_TRUE@	$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(gdl_CXXFLAGS) $(CXXFLAGS) -MT gdl-plot3d_nr.o -MD -MP -MF $(DEPDIR)/gdl-plot3d_nr.Tpo -c -o gdl-plot3d_nr.o `test -f 'plot3d_nr.cpp' || echo '$(srcdir)/'`plot3d_nr.cpp
-@am__fastdepCXX_TRUE@	$(am__mv) $(DEPDIR)/gdl-plot3d_nr.Tpo $(DEPDIR)/gdl-plot3d_nr.Po
-@AMDEP_TRUE@@am__fastdepCXX_FALSE@	source='plot3d_nr.cpp' object='gdl-plot3d_nr.o' libtool=no @AMDEPBACKSLASH@
-@AMDEP_TRUE@@am__fastdepCXX_FALSE@	DEPDIR=$(DEPDIR) $(CXXDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCXX_FALSE@	$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(gdl_CXXFLAGS) $(CXXFLAGS) -c -o gdl-plot3d_nr.o `test -f 'plot3d_nr.cpp' || echo '$(srcdir)/'`plot3d_nr.cpp
-
-gdl-plot3d_nr.obj: plot3d_nr.cpp
-@am__fastdepCXX_TRUE@	$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(gdl_CXXFLAGS) $(CXXFLAGS) -MT gdl-plot3d_nr.obj -MD -MP -MF $(DEPDIR)/gdl-plot3d_nr.Tpo -c -o gdl-plot3d_nr.obj `if test -f 'plot3d_nr.cpp'; then $(CYGPATH_W) 'plot3d_nr.cpp'; else $(CYGPATH_W) '$(srcdir)/plot3d_nr.cpp'; fi`
-@am__fastdepCXX_TRUE@	$(am__mv) $(DEPDIR)/gdl-plot3d_nr.Tpo $(DEPDIR)/gdl-plot3d_nr.Po
-@AMDEP_TRUE@@am__fastdepCXX_FALSE@	source='plot3d_nr.cpp' object='gdl-plot3d_nr.obj' libtool=no @AMDEPBACKSLASH@
-@AMDEP_TRUE@@am__fastdepCXX_FALSE@	DEPDIR=$(DEPDIR) $(CXXDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCXX_FALSE@	$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(gdl_CXXFLAGS) $(CXXFLAGS) -c -o gdl-plot3d_nr.obj `if test -f 'plot3d_nr.cpp'; then $(CYGPATH_W) 'plot3d_nr.cpp'; else $(CYGPATH_W) '$(srcdir)/plot3d_nr.cpp'; fi`
 
 gdl-grib.o: grib.cpp
 @am__fastdepCXX_TRUE@	$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(gdl_CXXFLAGS) $(CXXFLAGS) -MT gdl-grib.o -MD -MP -MF $(DEPDIR)/gdl-grib.Tpo -c -o gdl-grib.o `test -f 'grib.cpp' || echo '$(srcdir)/'`grib.cpp

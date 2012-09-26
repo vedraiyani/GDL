@@ -431,6 +431,9 @@ void GDLTreeParser::procedure_def(RefDNode _t) {
 	}
 	}
 	
+	if( NCompileErrors() > 0)
+	throw GDLException( i2s(NCompileErrors()) + " compilation error(s) in module " + name->getText() + ".");
+	
 	comp.EndPro();
 	
 	currentAST = __currentAST19;
@@ -670,6 +673,9 @@ void GDLTreeParser::function_def(RefDNode _t) {
 	}
 	}
 	}
+	
+	if( NCompileErrors() > 0)
+	throw GDLException( i2s(NCompileErrors()) + " compilation error(s) in module " + name->getText() + ".");
 	
 	comp.EndFun();
 	
@@ -1547,6 +1553,7 @@ void GDLTreeParser::expr(RefDNode _t) {
 	case ARRAYEXPR_MFCALL:
 	case CONSTANT:
 	case FCALL:
+	case GDLNULL:
 	case MFCALL:
 	case MFCALL_PARENT:
 	case NSTRUC_REF:
@@ -3098,6 +3105,7 @@ void GDLTreeParser::for_statement(RefDNode _t) {
 	case DEREF:
 	case EXPR:
 	case FCALL:
+	case GDLNULL:
 	case MFCALL:
 	case MFCALL_PARENT:
 	case NSTRUC_REF:
@@ -3461,6 +3469,7 @@ void GDLTreeParser::jump_statement(RefDNode _t) {
 		case DEREF:
 		case EXPR:
 		case FCALL:
+		case GDLNULL:
 		case MFCALL:
 		case MFCALL_PARENT:
 		case NSTRUC_REF:
@@ -3806,6 +3815,7 @@ void GDLTreeParser::parameter_def(RefDNode _t,
 		case DEREF:
 		case EXPR:
 		case FCALL:
+		case GDLNULL:
 		case MFCALL:
 		case MFCALL_PARENT:
 		case NSTRUC_REF:
@@ -3942,8 +3952,7 @@ void GDLTreeParser::key_parameter(RefDNode _t) {
 	{
 	int t = k_AST->getType();
 	if( t == FCALL_LIB || t == MFCALL_LIB || //t == FCALL_LIB_N_ELEMENTS ||
-	
-	t == MFCALL_PARENT_LIB //||
+	t == MFCALL_PARENT_LIB  || t == QUESTION //||
 	//                          t == FCALL_LIB_RETNEW || t == MFCALL_LIB_RETNEW || 
 	//                          t == MFCALL_PARENT_LIB_RETNEW //||
 	//                          t == ARRARYEXPR_MFCALL_LIB // MFCALL_LIB or VAR or DEREF 
@@ -4019,7 +4028,7 @@ void GDLTreeParser::pos_parameter(RefDNode _t,
 	int t = e_AST->getType();
 	// Note: Right now there are no MFCALL_LIB or MFCALL_PARENT_LIB nodes
 	if( t == FCALL_LIB || t == MFCALL_LIB || //t == FCALL_LIB_N_ELEMENTS ||
-	t == MFCALL_PARENT_LIB //||
+	t == MFCALL_PARENT_LIB || t == QUESTION //||
 	//                      t == FCALL_LIB_RETNEW || t == MFCALL_LIB_RETNEW || 
 	//                      t == MFCALL_PARENT_LIB_RETNEW
 	//                      t == ARRARYEXPR_MFCALL_LIB // MFCALL_LIB or VAR or DEREF 
@@ -4257,6 +4266,7 @@ void GDLTreeParser::struct_def(RefDNode _t) {
 		case DEREF:
 		case EXPR:
 		case FCALL:
+		case GDLNULL:
 		case MFCALL:
 		case MFCALL_PARENT:
 		case NSTRUC_REF:
@@ -4331,6 +4341,7 @@ void GDLTreeParser::struct_def(RefDNode _t) {
 				case DEREF:
 				case EXPR:
 				case FCALL:
+				case GDLNULL:
 				case MFCALL:
 				case MFCALL_PARENT:
 				case NSTRUC_REF:
@@ -4582,6 +4593,7 @@ void GDLTreeParser::arrayindex(RefDNode _t,
 	case DEREF:
 	case EXPR:
 	case FCALL:
+	case GDLNULL:
 	case MFCALL:
 	case MFCALL_PARENT:
 	case NSTRUC_REF:
@@ -4736,6 +4748,7 @@ void GDLTreeParser::arrayindex(RefDNode _t,
 			case DEREF:
 			case EXPR:
 			case FCALL:
+			case GDLNULL:
 			case MFCALL:
 			case MFCALL_PARENT:
 			case NSTRUC_REF:
@@ -4839,6 +4852,7 @@ void GDLTreeParser::arrayindex(RefDNode _t,
 		case DEREF:
 		case EXPR:
 		case FCALL:
+		case GDLNULL:
 		case MFCALL:
 		case MFCALL_PARENT:
 		case NSTRUC_REF:
@@ -4939,6 +4953,7 @@ void GDLTreeParser::arrayindex(RefDNode _t,
 			case DEREF:
 			case EXPR:
 			case FCALL:
+			case GDLNULL:
 			case MFCALL:
 			case MFCALL_PARENT:
 			case NSTRUC_REF:
@@ -5656,6 +5671,8 @@ void GDLTreeParser::primary_expr(RefDNode _t) {
 	RefDNode id_AST = RefDNode(antlr::nullAST);
 	RefDNode p_AST = RefDNode(antlr::nullAST);
 	RefDNode p = RefDNode(antlr::nullAST);
+	RefDNode g = RefDNode(antlr::nullAST);
+	RefDNode g_AST = RefDNode(antlr::nullAST);
 	
 	int dummy;
 	RefDNode mark;
@@ -5897,6 +5914,22 @@ void GDLTreeParser::primary_expr(RefDNode _t) {
 		struct_def(_t);
 		_t = _retTree;
 		astFactory->addASTChild(currentAST, antlr::RefAST(returnAST));
+		primary_expr_AST = RefDNode(currentAST.root);
+		break;
+	}
+	case GDLNULL:
+	{
+		g = _t;
+		RefDNode g_AST_in = RefDNode(antlr::nullAST);
+		g_AST = astFactory->create(antlr::RefAST(g));
+		astFactory->addASTChild(currentAST, antlr::RefAST(g_AST));
+		match(antlr::RefAST(_t),GDLNULL);
+		_t = _t->getNextSibling();
+		
+		g_AST->setType(SYSVAR);
+		g_AST->setText("NULL");
+		comp.SysVar(g_AST); // sets var to NULL
+		
 		primary_expr_AST = RefDNode(currentAST.root);
 		break;
 	}
@@ -6618,6 +6651,7 @@ void GDLTreeParser::op_expr(RefDNode _t) {
 	case ARRAYEXPR_MFCALL:
 	case CONSTANT:
 	case FCALL:
+	case GDLNULL:
 	case MFCALL:
 	case MFCALL_PARENT:
 	case NSTRUC_REF:
@@ -7078,7 +7112,7 @@ void GDLTreeParser::tag_array_expr(RefDNode _t) {
 
 void GDLTreeParser::initializeASTFactory( antlr::ASTFactory& factory )
 {
-	factory.setMaxNodeType(233);
+	factory.setMaxNodeType(234);
 }
 const char* GDLTreeParser::tokenNames[] = {
 	"<0>",
@@ -7124,6 +7158,7 @@ const char* GDLTreeParser::tokenNames[] = {
 	"FCALL_LIB_DIRECT",
 	"FCALL_LIB_N_ELEMENTS",
 	"FCALL_LIB_RETNEW",
+	"GDLNULL",
 	"IF_ELSE",
 	"KEYDECL",
 	"KEYDEF",
@@ -7318,7 +7353,7 @@ const char* GDLTreeParser::tokenNames[] = {
 	0
 };
 
-const unsigned long GDLTreeParser::_tokenSet_0_data_[] = { 1135607840UL, 1074528257UL, 142647296UL, 75539456UL, 16777208UL, 0UL, 0UL, 0UL, 0UL, 0UL, 0UL, 0UL };
+const unsigned long GDLTreeParser::_tokenSet_0_data_[] = { 1135607840UL, 2149056513UL, 285294592UL, 151078912UL, 33554416UL, 0UL, 0UL, 0UL, 0UL, 0UL, 0UL, 0UL };
 // ASSIGN BLOCK BREAK CONTINUE COMMONDECL COMMONDEF "for" "foreach" MPCALL 
 // MPCALL_PARENT PCALL "repeat" RETURN "while" "case" "forward_function" 
 // "goto" "if" "on_ioerror" "switch" DEC INC AND_OP_EQ ASTERIX_EQ EQ_OP_EQ 
@@ -7326,15 +7361,15 @@ const unsigned long GDLTreeParser::_tokenSet_0_data_[] = { 1135607840UL, 1074528
 // MATRIX_OP2_EQ MINUS_EQ MOD_OP_EQ NE_OP_EQ OR_OP_EQ PLUS_EQ POW_EQ SLASH_EQ 
 // XOR_OP_EQ 
 const antlr::BitSet GDLTreeParser::_tokenSet_0(_tokenSet_0_data_,12);
-const unsigned long GDLTreeParser::_tokenSet_1_data_[] = { 739116576UL, 277872704UL, 37486616UL, 557732352UL, 150994936UL, 0UL, 4193024UL, 0UL, 0UL, 0UL, 0UL, 0UL, 0UL, 0UL, 0UL, 0UL };
+const unsigned long GDLTreeParser::_tokenSet_1_data_[] = { 739116576UL, 555747392UL, 74973232UL, 1115464704UL, 301989872UL, 0UL, 8386048UL, 0UL, 0UL, 0UL, 0UL, 0UL, 0UL, 0UL, 0UL, 0UL };
 // ASSIGN ARRAYDEF ARRAYDEF_CONST ARRAYEXPR ARRAYEXPR_FN ARRAYEXPR_MFCALL 
-// CONSTANT DEREF EXPR FCALL MFCALL MFCALL_PARENT NSTRUC_REF POSTDEC POSTINC 
-// STRUC SYSVAR UMINUS VAR "and" "eq" "ge" "gt" "le" "lt" "mod" "ne" "not" 
-// "or" "xor" DEC INC AND_OP_EQ ASTERIX_EQ EQ_OP_EQ GE_OP_EQ GTMARK_EQ 
-// GT_OP_EQ LE_OP_EQ LTMARK_EQ LT_OP_EQ MATRIX_OP1_EQ MATRIX_OP2_EQ MINUS_EQ 
-// MOD_OP_EQ NE_OP_EQ OR_OP_EQ PLUS_EQ POW_EQ SLASH_EQ XOR_OP_EQ SLASH 
-// ASTERIX DOT POW MATRIX_OP1 MATRIX_OP2 PLUS MINUS LTMARK GTMARK LOG_NEG 
-// LOG_AND LOG_OR QUESTION 
+// CONSTANT DEREF EXPR FCALL GDLNULL MFCALL MFCALL_PARENT NSTRUC_REF POSTDEC 
+// POSTINC STRUC SYSVAR UMINUS VAR "and" "eq" "ge" "gt" "le" "lt" "mod" 
+// "ne" "not" "or" "xor" DEC INC AND_OP_EQ ASTERIX_EQ EQ_OP_EQ GE_OP_EQ 
+// GTMARK_EQ GT_OP_EQ LE_OP_EQ LTMARK_EQ LT_OP_EQ MATRIX_OP1_EQ MATRIX_OP2_EQ 
+// MINUS_EQ MOD_OP_EQ NE_OP_EQ OR_OP_EQ PLUS_EQ POW_EQ SLASH_EQ XOR_OP_EQ 
+// SLASH ASTERIX DOT POW MATRIX_OP1 MATRIX_OP2 PLUS MINUS LTMARK GTMARK 
+// LOG_NEG LOG_AND LOG_OR QUESTION 
 const antlr::BitSet GDLTreeParser::_tokenSet_1(_tokenSet_1_data_,16);
 
 

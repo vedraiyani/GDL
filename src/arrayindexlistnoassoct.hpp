@@ -233,7 +233,7 @@ public:
   {
     // scalar case
     if( right->N_Elements() == 1 && //!var->IsAssoc() &&
-	ix->NIter( var->Size()) == 1)// && var->Type() != STRUCT) 
+	ix->NIter( var->Size()) == 1)// && var->Type() != GDL_STRUCT) 
       {
 	var->AssignAtIx( ix->GetIx0(), right);
 	return;
@@ -258,9 +258,12 @@ public:
   BaseGDL* Index( BaseGDL* var, IxExprListT& ix_)
   {
     Init( ix_, NULL);
-    if( ix->NIter( var->Size()) == 1)// && var->Type() != STRUCT) 
-//     if( !var->IsAssoc() && ix->NIter( var->Size()) == 1)// && var->Type() != STRUCT) 
+    if( ix->Scalar())// && ix->NIter( var->Size()) == 1)// && var->Type() != GDL_STRUCT) 
+//     if( !var->IsAssoc() && ix->NIter( var->Size()) == 1)// && var->Type() != GDL_STRUCT) 
       {
+	SizeT assertValue = ix->NIter( var->Size());
+	assert( assertValue == 1);
+
 	return var->NewIx( ix->GetIx0());
       }
     // normal case
@@ -338,7 +341,7 @@ public:
   // requires special handling
   // used by Assoc_<> returns last index in lastIx, removes it
   // and returns true is the list is empty
-  bool ToAssocIndex( SizeT& lastIx) { assert( false);}
+  bool ToAssocIndex( SizeT& lastIx) { assert( false); return false;}
 
   // set the root variable which is indexed by this ArrayIndexListT
   void SetVariable( BaseGDL* var);
@@ -522,7 +525,7 @@ public:
   {
     // Init() was already called
     // scalar case
-    if( right->N_Elements() == 1) // && !var->IsAssoc()) // && var->Type() != STRUCT) 
+    if( right->N_Elements() == 1) // && !var->IsAssoc()) // && var->Type() != GDL_STRUCT) 
       {
 	s = varPtr->Data()->LoopIndex();
 	if( s >= var->Size())
@@ -674,7 +677,7 @@ public:
 
     // Init() was already called
     // scalar case
-    if( right->N_Elements() == 1)// && !var->IsAssoc())// && var->Type() != STRUCT) 
+    if( right->N_Elements() == 1)// && !var->IsAssoc())// && var->Type() != GDL_STRUCT) 
       {
 	if( sInit < 0)
 	  s = sInit + var->Size();
@@ -682,7 +685,7 @@ public:
 	  throw GDLException(NULL,"Scalar subscript out of range [<].4",true,false);
 	if( s >= var->Size())
 	  throw GDLException(NULL,"Scalar subscript out of range [>].4",true,false);
-	var->AssignAtIx( s, right);
+	var->AssignAtIx( s, right); // must use COPY_BYTE_AS_INT
 	return;
       }
     
@@ -704,7 +707,7 @@ public:
   BaseGDL* Index( BaseGDL* var, IxExprListT& ix_)
   {
     // Init() not called
-//     if( !var->IsAssoc())// && var->Type() != STRUCT)
+//     if( !var->IsAssoc())// && var->Type() != GDL_STRUCT)
       {
 	if( sInit < 0)
 	  s = sInit + var->Size();
@@ -944,7 +947,7 @@ public:
       }
   }
 
-  // optimized for one dimensional access
+  
   BaseGDL* Index( BaseGDL* var, IxExprListT& ix)
   {
     //    Init();
@@ -1183,7 +1186,7 @@ protected:
 
   enum AccessType
   {
-	  UNDEF=0,      // for init access type
+	  GDL_UNDEF=0,      // for init access type
 	  INDEXED_ONE,  // all indexed OR one
 	  NORMAL,       // mixed
 	  ALLINDEXED,
@@ -1366,6 +1369,7 @@ if( dynamic_cast<ArrayIndexIndexed*>(ixList[ixList.size()-1]) ||
   bool ToAssocIndex( SizeT& lastIx)
   {
     assert( false);
+    return FALSE;
   }
 
   // set the root variable which is indexed by this ArrayIndexListMultiT
@@ -1843,7 +1847,9 @@ if( dynamic_cast<ArrayIndexIndexed*>(ixList[ixList.size()-1]) ||
     SetVariable( var);
     if( nIx == 1)// && !var->IsAssoc())
     {
-      return var->NewIx( baseIx);
+      BaseGDL* res = var->NewIx( baseIx);
+      res->MakeArrayFromScalar();
+      return res;
     }
     return var->Index( this);
   }

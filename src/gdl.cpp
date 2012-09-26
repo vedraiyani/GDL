@@ -27,7 +27,12 @@
 #include <string>
 #include <csignal>
 #include <cstdlib>
+#ifdef _MSC_VER
+#include <io.h>
+#define isatty _isatty
+#else
 #include <unistd.h> // isatty
+#endif
 #include <climits> // PATH_MAX
 
 //#include <fenv.h>
@@ -60,6 +65,10 @@ static void StartupMessage()
 }
 
 void LibInit(); // defined in libinit.cpp
+
+namespace lib {
+void SetGDLGenericGSLErrorHandler(); // defined in gsl_fun.cpp
+}
 
 void AtExit()
 {
@@ -105,6 +114,7 @@ void InitGDL()
   signal(SIGINT,ControlCHandler);
   signal(SIGFPE,SigFPEHandler);
   
+  lib::SetGDLGenericGSLErrorHandler();
 }
 
 // SA: for use in COMMAND_LINE_ARGS()

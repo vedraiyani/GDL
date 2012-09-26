@@ -17,9 +17,10 @@
 
 #include "includefirst.hpp"
 
+#ifndef _MSC_VER
 #include <sys/utsname.h>
+#endif
 #include <cmath>
-#include <sys/time.h>
 
 #include <limits>
 
@@ -27,11 +28,19 @@
 #include <omp.h> // for !CPU
 #endif
 
+#include "nullgdl.hpp"
+
 #include "objects.hpp"
 #include "dstructgdl.hpp"
 #include "graphics.hpp"
 
 #include "file.hpp"
+
+#ifdef _MSC_VER
+#include "gtdhelper.hpp"
+#else
+#include <sys/time.h>
+#endif
 
 namespace SysVar
 {
@@ -39,7 +48,7 @@ namespace SysVar
   using namespace std;
 
   // the index of some system variables
-  UInt pathIx, promptIx, edit_inputIx, quietIx, 
+  UInt nullIx, pathIx, promptIx, edit_inputIx, quietIx, 
     dIx, pIx, xIx, yIx, zIx, vIx, gdlIx, cIx, MouseIx,
     errorStateIx, errorIx, errIx, err_stringIx, valuesIx,
     journalIx, exceptIx, mapIx, cpuIx, dirIx, stimeIx, warnIx, usersymIx;
@@ -284,6 +293,12 @@ namespace SysVar
     // for very sensitive compilers (which need a SizeT for dimension())
     const SizeT one=1;
 
+    // !NULL
+    NullGDL* nullInstance = NullGDL::GetSingleInstance();
+    DVar *nullVar = new DVar( "NULL", nullInstance);
+    nullIx=sysVarList.size();
+    sysVarList.push_back(nullVar);
+   
     // !PATH
     //    DString initPath(""); // set here the initial path
     DStringGDL* pathData=new DStringGDL( "");
@@ -490,16 +505,34 @@ namespace SysVar
 
     // !VERSION
     DStructGDL*  ver = new DStructGDL( "!VERSION");
+#ifdef _MSC_VER
+	const char* SysName = "windows";
+	SYSTEM_INFO stInfo;
+	GetNativeSystemInfo( &stInfo );
+	DStringGDL *arch;
+	switch(stInfo.dwProcessorType) {
+	case PROCESSOR_ARCHITECTURE_AMD64:
+		arch = new DStringGDL("x64");
+		break;
+	case PROCESSOR_ARCHITECTURE_INTEL:
+		arch = new DStringGDL("x86");
+		break;
+	default:
+		arch = new DStringGDL("unknown cpu");
+	}
+	ver->NewTag("ARCH", arch); 
+    ver->NewTag("OS_FAMILY", new DStringGDL( "windows")); 
+#else
     struct utsname uts;
     uname(&uts);
     ver->NewTag("ARCH", new DStringGDL( uts.machine)); 
-
     const char *SysName=uts.sysname;
     if (strcmp(SysName,"Linux") ==0) SysName="linux";
     if (strcmp(SysName,"Darwin") ==0) SysName="darwin";
+    ver->NewTag("OS_FAMILY", new DStringGDL( "unix")); 
+#endif
 
     ver->NewTag("OS", new DStringGDL(SysName));    
-    ver->NewTag("OS_FAMILY", new DStringGDL( "unix")); 
     ver->NewTag("OS_NAME", new DStringGDL(SysName)); 
     ver->NewTag("RELEASE", new DStringGDL( "6.0")); 
     ver->NewTag("BUILD_DATE", new DStringGDL(__DATE__)); 
@@ -566,7 +599,9 @@ namespace SysVar
       }
     else
       {
+#ifndef _MSC_VER // Can be ignored, because the windows version of limit has infinity()
 	valuesData->NewTag("F_INFINITY", new DFloatGDL((float)1.0/0.0)); 
+#endif
       }
 
     valuesData->NewTag("F_NAN", new DFloatGDL(-sqrt((float) -1.0))); 
@@ -578,7 +613,9 @@ namespace SysVar
       }
     else
       {
+#ifndef _MSC_VER // Can be ignored, because the windows version of limit has infinity()
 	valuesData->NewTag("D_INFINITY", new DDoubleGDL( (double)1.0/0.0)); 
+#endif
       }
 
     valuesData->NewTag("D_NAN", new DDoubleGDL(-sqrt((double) -1.0)));

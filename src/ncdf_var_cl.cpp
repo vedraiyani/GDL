@@ -118,7 +118,7 @@ namespace lib {
   template <typename T> 
   void ncdf_var_handle_error(EnvT *e, int status, const char *function, T *data)
   {
-    if (data != NULL and status != NC_NOERR) delete data;
+    if (data != NULL and status != NC_NOERR) GDLDelete(data);
     ncdf_handle_error(e, status, function);
   }
   
@@ -139,7 +139,7 @@ namespace lib {
 
     // Check type of varid
     BaseGDL* p1 = e->GetParDefined( 1);
-    if (p1->Type() != STRING) {
+    if (p1->Type() != GDL_STRING) {
       // Numeric
       e->AssureLongScalarPar(1, varid);
     } else {
@@ -233,7 +233,7 @@ namespace lib {
 
     // Check type of varid
     BaseGDL* p1 = e->GetParDefined( 1);
-    if (p1->Type() != STRING) {
+    if (p1->Type() != GDL_STRING) {
       // Numeric
       e->AssureLongScalarPar(1, varid);
     } else {
@@ -303,7 +303,7 @@ namespace lib {
 				index,
 				&dvar);
 
-      	  delete e->GetParGlobal(2);
+      	  GDLDelete(e->GetParGlobal(2));
       e->GetParGlobal(2)=new DDoubleGDL(dvar);
     }
     else if(var_type == NC_FLOAT){
@@ -315,7 +315,7 @@ namespace lib {
 				index,
 				&fvar);
 
-	  delete e->GetParGlobal(2);
+	  GDLDelete(e->GetParGlobal(2));
 	e->GetParGlobal(2)=new DFloatGDL(fvar);
     }
     /*    This shouldn't get called?
@@ -328,7 +328,7 @@ else if(var_type == NC_LONG)
 				varid,
 				index,
 				&lvar);
-	  delete e->GetParGlobal(2);
+	  GDLDelete(e->GetParGlobal(2));
 	e->GetParGlobal(2) = new DLongGDL((lvar));
 
 	}*/
@@ -340,7 +340,7 @@ else if(var_type == NC_LONG)
 				varid,
 				index,
 				&ivar);
-	  delete e->GetParGlobal(2);
+	  GDLDelete(e->GetParGlobal(2));
 	e->GetParGlobal(2) = new DLongGDL((ivar));
       }
     else if(var_type == NC_SHORT)
@@ -351,14 +351,14 @@ else if(var_type == NC_LONG)
 				varid,
 				index,
 				&svar);
-	  delete e->GetParGlobal(2);
+	  GDLDelete(e->GetParGlobal(2));
 	e->GetParGlobal(2) = new DIntGDL((svar));
       }
     else if(var_type == NC_CHAR)
     {
       char cvar;
       status=nc_get_var1_text(cdfid, varid, index, &cvar);
-      delete e->GetParGlobal(2);
+      GDLDelete(e->GetParGlobal(2));
       e->GetParGlobal(2) = new DByteGDL(cvar);
     }
     else if(var_type == NC_BYTE){
@@ -368,7 +368,7 @@ else if(var_type == NC_LONG)
 			       index,
 			       &bvar);
 
-      delete e->GetParGlobal(2);
+      GDLDelete(e->GetParGlobal(2));
       e->GetParGlobal(2) = new DByteGDL((bvar));
     }
     
@@ -395,7 +395,7 @@ else if(var_type == NC_LONG)
 
     // Check type of varid
     BaseGDL* p1 = e->GetParDefined( 1);
-    if (p1->Type() != STRING) {
+    if (p1->Type() != GDL_STRING) {
       // Numeric
       e->AssureLongScalarPar(1, varid);
     } else {
@@ -458,7 +458,7 @@ else if(var_type == NC_LONG)
         DDoubleGDL *temp = new DDoubleGDL(dim,BaseGDL::NOZERO);
         status=nc_get_var_double(cdfid, varid, &(*temp)[0]);
         ncdf_var_handle_error(e, status, "NCDF_VARGET", temp);
-        delete e->GetParGlobal(2);
+        GDLDelete(e->GetParGlobal(2));
         e->GetParGlobal(2)=temp;      	
       } 
       else if (var_type == NC_FLOAT)
@@ -466,7 +466,7 @@ else if(var_type == NC_LONG)
         DFloatGDL *temp = new DFloatGDL(dim, BaseGDL::NOZERO);
         status = nc_get_var_float(cdfid, varid, &(*temp)[0]);
         ncdf_var_handle_error(e, status, "NCDF_VARGET", temp);
-        delete e->GetParGlobal(2);
+        GDLDelete(e->GetParGlobal(2));
         e->GetParGlobal(2)=temp;
       } 
       else if (var_type == NC_SHORT)
@@ -474,7 +474,7 @@ else if(var_type == NC_LONG)
         DIntGDL * temp=new DIntGDL(dim,BaseGDL::NOZERO);
         status=nc_get_var_short(cdfid, varid,&(*temp)[0]);
         ncdf_var_handle_error(e, status, "NCDF_VARGET", temp);
-        delete e->GetParGlobal(2);
+        GDLDelete(e->GetParGlobal(2));
         e->GetParGlobal(2)=temp;      	
       } 
       else if (var_type == NC_INT)
@@ -482,7 +482,7 @@ else if(var_type == NC_LONG)
         DLongGDL* temp=new DLongGDL(dim,BaseGDL::NOZERO);
         status=nc_get_var_int(cdfid, varid,&(*temp)[0]);
         ncdf_var_handle_error(e, status, "NCDF_VARGET", temp);
-        delete e->GetParGlobal(2);
+        GDLDelete(e->GetParGlobal(2));
         e->GetParGlobal(2)=temp;      	
       } 
       else if (var_type == NC_BYTE)
@@ -490,7 +490,7 @@ else if(var_type == NC_LONG)
         DByteGDL* temp=new DByteGDL(dim,BaseGDL::NOZERO);
         status=nc_get_var_uchar(cdfid, varid, &(*temp)[0]);
         ncdf_var_handle_error(e,status,"NCDF_VARGET", temp);
-        delete e->GetParGlobal(2);  
+        GDLDelete(e->GetParGlobal(2));  
         e->GetParGlobal(2)=temp;      	
       } 
       else if (var_type == NC_CHAR)
@@ -498,7 +498,7 @@ else if(var_type == NC_LONG)
         DByteGDL* temp = new DByteGDL(dim, BaseGDL::NOZERO);
         status = nc_get_var_uchar(cdfid, varid, &(*temp)[0]);
         ncdf_var_handle_error(e, status, "NCDF_VARGET", temp);
-        delete e->GetParGlobal(2);
+        GDLDelete(e->GetParGlobal(2));
         e->GetParGlobal(2) = temp;
       }
       //done read all.
@@ -580,7 +580,7 @@ else if(var_type == NC_LONG)
           DDoubleGDL *temp = new DDoubleGDL(dim, BaseGDL::NOZERO);
           status=nc_get_vara_double(cdfid, varid, off, cou, &(*temp)[0]);
           ncdf_var_handle_error(e, status, "NCDF_VARGET", temp);
-          delete e->GetParGlobal(2);
+          GDLDelete(e->GetParGlobal(2));
           e->GetParGlobal(2) = temp;      	
         }
         else if (var_type == NC_FLOAT)
@@ -588,7 +588,7 @@ else if(var_type == NC_LONG)
           DFloatGDL *temp = new DFloatGDL(dim, BaseGDL::NOZERO);
           status = nc_get_vara_float(cdfid, varid, off,cou,&(*temp)[0]);
           ncdf_var_handle_error(e, status, "NCDF_VARGET", temp);
-          delete e->GetParGlobal(2);
+          GDLDelete(e->GetParGlobal(2));
           e->GetParGlobal(2) = temp;
         }
         else if (var_type == NC_SHORT)
@@ -596,7 +596,7 @@ else if(var_type == NC_LONG)
           DIntGDL *temp = new DIntGDL(dim, BaseGDL::NOZERO);
           status = nc_get_vara_short(cdfid, varid, off, cou, &(*temp)[0]);
           ncdf_var_handle_error(e, status, "NCDF_VARGET", temp);
-          delete e->GetParGlobal(2);
+          GDLDelete(e->GetParGlobal(2));
           e->GetParGlobal(2) = temp;      	
         }
         else if(var_type == NC_INT)
@@ -604,7 +604,7 @@ else if(var_type == NC_LONG)
           DLongGDL *temp = new DLongGDL(dim,BaseGDL::NOZERO);
           status = nc_get_vara_int(cdfid, varid, off, cou, &(*temp)[0]);
           ncdf_var_handle_error(e, status, "NCDF_VARGET", temp);
-          delete e->GetParGlobal(2);
+          GDLDelete(e->GetParGlobal(2));
           e->GetParGlobal(2) = temp;    
         }
         else if (var_type == NC_BYTE)
@@ -612,7 +612,7 @@ else if(var_type == NC_LONG)
           DByteGDL *temp=new DByteGDL(dim,BaseGDL::NOZERO);
           status = nc_get_vara_uchar(cdfid, varid, off, cou, &(*temp)[0]);
           ncdf_var_handle_error(e, status, "NCDF_VARGET", temp);
-          delete e->GetParGlobal(2);
+          GDLDelete(e->GetParGlobal(2));
           e->GetParGlobal(2) = temp;      	
         }
         else if (var_type == NC_CHAR)
@@ -620,7 +620,7 @@ else if(var_type == NC_LONG)
           DByteGDL *temp = new DByteGDL(dim, BaseGDL::NOZERO);
           status = nc_get_vara_uchar(cdfid, varid, off, cou, &(*temp)[0]);
           ncdf_var_handle_error(e, status, "NCDF_VARGET", temp);
-          delete e->GetParGlobal(2);
+          GDLDelete(e->GetParGlobal(2));
           e->GetParGlobal(2) = temp;
         }
       } 
@@ -696,7 +696,7 @@ else if(var_type == NC_LONG)
           DDoubleGDL *temp = new DDoubleGDL(dim, BaseGDL::NOZERO);
           status=nc_get_vars_double(cdfid, varid, off, cou, stri, &(*temp)[0]);
           ncdf_var_handle_error(e, status, "NCDF_VARGET", temp);
-          delete e->GetParGlobal(2);
+          GDLDelete(e->GetParGlobal(2));
           e->GetParGlobal(2) = temp; 
         }
         else if(var_type == NC_FLOAT)
@@ -704,7 +704,7 @@ else if(var_type == NC_LONG)
           DFloatGDL *temp = new DFloatGDL(dim,BaseGDL::NOZERO);
           status = nc_get_vars_float(cdfid, varid, off, cou, stri, &(*temp)[0]);
           ncdf_var_handle_error(e,status,"NCDF_VARGET", temp);
-          delete e->GetParGlobal(2);
+          GDLDelete(e->GetParGlobal(2));
           e->GetParGlobal(2) = temp; 
         }
         else if (var_type == NC_SHORT)
@@ -712,7 +712,7 @@ else if(var_type == NC_LONG)
           DIntGDL *temp = new DIntGDL(dim, BaseGDL::NOZERO);
           status = nc_get_vars_short(cdfid, varid, off, cou, stri, &(*temp)[0]);
           ncdf_var_handle_error(e,status,"NCDF_VARGET", temp);
-          delete e->GetParGlobal(2);
+          GDLDelete(e->GetParGlobal(2));
           e->GetParGlobal(2) = temp;      	
         }
         else if(var_type == NC_INT)
@@ -720,7 +720,7 @@ else if(var_type == NC_LONG)
           DLongGDL *temp = new DLongGDL(dim, BaseGDL::NOZERO);
           status = nc_get_vars_int(cdfid, varid, off,cou, stri, &(*temp)[0]);
           ncdf_var_handle_error(e, status, "NCDF_VARGET", temp);
-          delete e->GetParGlobal(2);
+          GDLDelete(e->GetParGlobal(2));
           e->GetParGlobal(2) = temp;  
         }
         else if(var_type == NC_BYTE)
@@ -728,7 +728,7 @@ else if(var_type == NC_LONG)
           DByteGDL *temp=new DByteGDL(dim, BaseGDL::NOZERO);
           status = nc_get_vars_uchar(cdfid, varid, off, cou, stri, &(*temp)[0]);
           ncdf_var_handle_error(e,status,"NCDF_VARGET", temp);
-          delete e->GetParGlobal(2);
+          GDLDelete(e->GetParGlobal(2));
           e->GetParGlobal(2) = temp;      	
         }
         else if (var_type == NC_CHAR)
@@ -736,7 +736,7 @@ else if(var_type == NC_LONG)
           DByteGDL *temp = new DByteGDL(dim, BaseGDL::NOZERO);
           status = nc_get_vars_uchar(cdfid, varid, off, cou, stri, &(*temp)[0]);
           ncdf_var_handle_error(e, status, "NCDF_VARGET", temp);
-          delete e->GetParGlobal(2);
+          GDLDelete(e->GetParGlobal(2));
           e->GetParGlobal(2) = temp;      	
         }
       }
@@ -763,7 +763,7 @@ else if(var_type == NC_LONG)
     if(nParam == 3)
       {
 	v=e->GetParDefined(2);
-	DIntGDL* dim_in=static_cast<DIntGDL*>(v->Convert2(INT, BaseGDL::COPY));
+	DIntGDL* dim_in=static_cast<DIntGDL*>(v->Convert2(GDL_INT, BaseGDL::COPY));
 	auto_ptr<DIntGDL> dim_in_guard( dim_in);
 	var_ndims=dim_in->N_Elements();
 	if(var_ndims > NC_MAX_VAR_DIMS)
@@ -783,13 +783,13 @@ else if(var_type == NC_LONG)
 	//dims is not set, scalar
       }
 
-    if(e->KeywordSet(0))//BYTE
+    if(e->KeywordSet(0))//GDL_BYTE
       type=NC_BYTE;
     else if(e->KeywordSet(1))//CHAR
       type=NC_CHAR;
-    else if(e->KeywordSet(2))//DOUBLE
+    else if(e->KeywordSet(2))//GDL_DOUBLE
       type=NC_DOUBLE;
-    else if(e->KeywordSet(4))//LONG
+    else if(e->KeywordSet(4))//GDL_LONG
       type=NC_INT;
     else if(e->KeywordSet(5))//SHORT
       type=NC_SHORT;
@@ -829,7 +829,7 @@ else if(var_type == NC_LONG)
 
     // Check type of varid
     BaseGDL* p1 = e->GetParDefined( 1);
-    if (p1->Type() != STRING) {
+    if (p1->Type() != GDL_STRING) {
       // Numeric
       e->AssureLongScalarPar(1, varid);
     } else {
@@ -876,7 +876,7 @@ else if(var_type == NC_LONG)
 
     // Check type of varid
     BaseGDL* p1 = e->GetParDefined( 1);
-    if (p1->Type() != STRING) {
+    if (p1->Type() != GDL_STRING) {
       // Numeric
       e->AssureLongScalarPar(1, varid);
     } else {
@@ -896,7 +896,7 @@ else if(var_type == NC_LONG)
     value_nelem = v->N_Elements();
     for (int i = 0; i < var_ndims; ++i) 
     {
-      if (v->Type() != STRING) dim_length[i] = max(int(v->Dim(i)), 1);
+      if (v->Type() != GDL_STRING) dim_length[i] = max(int(v->Dim(i)), 1);
       else dim_length[i] = (*static_cast<DStringGDL*>(v))[0].length();
     }
 
@@ -1013,33 +1013,33 @@ else if(var_type == NC_LONG)
     switch (v->Type()) 
     { 
       // using netCDF API functions data type convertion
-      case DOUBLE : 
+      case GDL_DOUBLE : 
         status = nc_put_vars_double(cdfid, varid, offset, count, stride, 
           &((*static_cast<DDoubleGDL*>(v))[0]));
         break;
-      case FLOAT :
+      case GDL_FLOAT :
         status = nc_put_vars_float(cdfid, varid, offset, count, stride, 
           &((*static_cast<DFloatGDL*>(v))[0]));
         break;
-      case INT : 
+      case GDL_INT : 
         status = nc_put_vars_short(cdfid, varid, offset, count, stride, 
           &((*static_cast<DIntGDL*>(v))[0]));
         break;
-      case LONG :
+      case GDL_LONG :
         status = nc_put_vars_int(cdfid, varid, offset, count, stride, 
           &((*static_cast<DLongGDL*>(v))[0]));
         break;
-      case BYTE :
+      case GDL_BYTE :
         status = nc_put_vars_uchar(cdfid, varid, offset, count, stride,
           &((*static_cast<DByteGDL*>(v))[0]));
         break;
       // initially using GDL methods for data type convertion
-      case COMPLEXDBL : 
-      case COMPLEX :
-      case UINT :
-      case ULONG :
-      case LONG64:
-      case ULONG64 :
+      case GDL_COMPLEXDBL : 
+      case GDL_COMPLEX :
+      case GDL_UINT :
+      case GDL_ULONG :
+      case GDL_LONG64:
+      case GDL_ULONG64 :
       {
         BaseGDL* val;
         auto_ptr<BaseGDL> val_guard(val);
@@ -1047,45 +1047,45 @@ else if(var_type == NC_LONG)
         {
           case NC_BYTE :   // 8-bit signed integer
           case NC_SHORT :  // 16-bit signed integer
-            val = v->Convert2(INT, BaseGDL::COPY);
+            val = v->Convert2(GDL_INT, BaseGDL::COPY);
             status = nc_put_vars_short(cdfid, varid, offset, count, stride,
               &((*static_cast<DIntGDL*>(val))[0])); 
             break;
           case NC_CHAR :   // 8-bit unsigned integer
-            val = v->Convert2(BYTE, BaseGDL::COPY);
+            val = v->Convert2(GDL_BYTE, BaseGDL::COPY);
             status = nc_put_vars_uchar(cdfid, varid, offset, count, stride,
               &((*static_cast<DByteGDL*>(val))[0])); 
             break;
           case NC_INT :    // 32-bit signed integer
-            val = v->Convert2(LONG, BaseGDL::COPY);
+            val = v->Convert2(GDL_LONG, BaseGDL::COPY);
             status = nc_put_vars_int(cdfid, varid, offset, count, stride,
               &((*static_cast<DLongGDL*>(val))[0]));
             break;
           case NC_FLOAT :  // 32-bit floating point
-            val = v->Convert2(FLOAT, BaseGDL::COPY);
+            val = v->Convert2(GDL_FLOAT, BaseGDL::COPY);
             status = nc_put_vars_float(cdfid, varid, offset, count, stride, 
               &((*static_cast<DFloatGDL*>(val))[0]));
             break;
           case NC_DOUBLE : // 64-bit floating point
-            val = v->Convert2(DOUBLE, BaseGDL::COPY);
+            val = v->Convert2(GDL_DOUBLE, BaseGDL::COPY);
             status = nc_put_vars_double(cdfid, varid, offset, count, stride,
               &((*static_cast<DDoubleGDL*>(val))[0]));
             break;
         }
         break;
       }
-      case STRING :
+      case GDL_STRING :
         status = nc_put_vars_text(cdfid, varid, offset, count, stride, 
           (*static_cast<DStringGDL*>(v))[0].c_str());
         break;
       // reporting illegal types (could be done before...)
-      case STRUCT :  
+      case GDL_STRUCT :  
         e->Throw("Struct expression not allowed in this context: " 
           + e->GetParString(2));
-      case PTR :
+      case GDL_PTR :
         e->Throw("Pointer expression not allowed in this context: " 
           + e->GetParString(2));
-      case OBJECT : 
+      case GDL_OBJECT : 
         e->Throw("Object reference expression not allowed in this context: " 
           + e->GetParString(2));
     }

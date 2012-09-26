@@ -47,9 +47,12 @@ TESTS = \
   test_bug_3300626.pro \
   test_bug_3313522.pro \
   test_bug_3376577.pro \
-  test_bug_3441031.pro \
   test_bug_3453775.pro \
+  test_bug_3483402.pro \
   test_bug_3488003.pro \
+  test_bug_3559291.pro \
+  test_call_function.pro \
+  test_call_procedure.pro \
   test_ce.pro \
   test_clip.pro \
   test_common.pro \
@@ -61,7 +64,9 @@ TESTS = \
   test_dicom.pro \
   test_erfinv.pro \
   test_execute.pro \
+  test_extra_keywords.pro \
   test_fft.pro \
+  test_fft_dim.pro \
   test_fft_leak.pro \
   test_file_basename.pro \
   test_file_copy.pro \
@@ -69,8 +74,11 @@ TESTS = \
   test_file_dirname.pro \
   test_file_search.pro \
   test_file_which.pro \
+  test_finite.pro \
   test_fix.pro \
   test_fixprint.pro \
+  test_fx_root.pro \
+  test_fz_roots.pro \
   test_gc.pro \
   test_get_screen_size.pro \
   test_grib.pro \
@@ -105,6 +113,7 @@ TESTS = \
   test_spawn_unit.pro \
   test_spher_harm.pro \
   test_spl_init.pro \
+  test_standardize.pro \
   test_step.pro \
   test_str_functions.pro \
   test_str_sep.pro \
@@ -115,6 +124,7 @@ TESTS = \
   test_systime.pro \
   test_trisol.pro \
   test_url.pro \
+  test_wait.pro \
   test_wavelet.pro \
   test_zeropoly.pro \
   test_zip.pro \

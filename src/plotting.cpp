@@ -28,6 +28,11 @@
 #include "plotting.hpp"
 #include "math_utl.hpp"
 
+#ifdef _MSC_VER
+#define isfinite _finite
+#define isnan _isnan
+#endif
+
 namespace lib {
 
   using namespace std;
@@ -366,6 +371,41 @@ namespace lib {
 //
 //    xStart=wcxs; xEnd=wcxe; minVal=wcys; maxVal=wcye;
 //  }
+  void setIsoPort(GDLGStream* actStream,
+  PLFLT x1,
+  PLFLT x2,
+  PLFLT y1,
+  PLFLT y2,
+  PLFLT aspect)
+  {
+    PLFLT X1, X2, Y1, Y2, X1s, X2s, Y1s, Y2s, displacx,displacy, scalex,scaley,offsetx,offsety;
+    if (aspect <= 0.0)
+    {
+      actStream->vpor(x1, x2, y1, y2);
+      return;
+    }
+    // here we need too compensate for the change of aspect due to eventual !P.MULTI plots
+     actStream->vpor(x1, x2, y1, y2); //ask for non-iso window
+     actStream->gvpd(X1, X2, Y1, Y2); //get viewport values
+     //compute relation desiredViewport-page viewport x=scalex*X+offsetx:
+     scalex=(x2-x1)/(X2-X1);
+     offsetx=(x1*X2-x2*X1)/(X2-X1);
+     scaley=(y2-y1)/(Y2-Y1);
+     offsety=(y1*Y2-y2*Y1)/(Y2-Y1);
+     //ask for wiewport scaled to isotropic by plplot
+     actStream->vpas(x1, x2, y1, y2, aspect);
+     //retrieve values
+     actStream->gvpd(X1s, X2s, Y1s, Y2s);
+     //measure displacement
+     displacx=X1s-X1;
+     displacy=Y1s-Y1;
+     //set wiewport scaled by plplot, displaced, as vpor using above linear transformation
+     x1=(X1s-displacx)*scalex+offsetx;
+     x2=(X2s-displacx)*scalex+offsetx;
+     y1=(Y1s-displacy)*scaley+offsety;
+     y2=(Y2s-displacy)*scaley+offsety;
+     actStream->vpor(x1, x2, y1, y2);
+}
 
   bool SetVP_WC( EnvT* e,
 		 GDLGStream* actStream,
@@ -380,7 +420,8 @@ namespace lib {
 		 DDouble xStart,
 		 DDouble xEnd,
 		 DDouble yStart,
-		 DDouble yEnd)
+		 DDouble yEnd,
+         DLong iso   )
   {
     //    cout << "xStart " << xStart << "  xEnd "<<xEnd<<endl;
     //    cout << "yStart " << yStart << "  yEnd "<<yEnd<<endl;
@@ -399,7 +440,9 @@ namespace lib {
 		 xMR, xML, yMB, yMT);
 
     // viewport - POSITION overrides
-    static bool kwP;
+    static bool kwP=FALSE;
+    static bool do_iso=FALSE;
+    static PLFLT aspect=0.0;
     static PLFLT positionP[ 4]={0,0,0,0};
     static PLFLT position[ 4];
     DStructGDL* pStruct = SysVar::P();
@@ -412,61 +455,92 @@ namespace lib {
 	  (*static_cast<DFloatGDL*>(pStruct->GetTag( positionTag, 0)))[i];
     }
 
-    // If pos == NULL (oplot)
-
-  if (pos == NULL)
-  {
-
-    // If position keyword previously set
-    if (kwP)
+    // If pos == NULL (oplot, /OVERPLOT etc. Reuse previous values)
+    if (pos == NULL)
     {
-      actStream->vpor(position[0], position[2], position[1], position[3]);
-    }
-    else
-    {
-      // If !P.position not set
-      if (positionP[0] == 0 && positionP[1] == 0 &&
-          positionP[2] == 0 && positionP[3] == 0)
-        actStream->vpor(position[0], position[2], position[1], position[3]);
+      // If position keyword previously set
+      if (kwP)
+      {
+// Creates a viewport with the specified normalized subpage coordinates.
+        if (do_iso) setIsoPort(actStream,position[0], position[2], position[1], position[3], aspect);
+        else actStream->vpor(position[0], position[2], position[1], position[3]);
+      }
       else
       {
-        // !P.position set
-        actStream->vpor(positionP[0], positionP[2], positionP[1], positionP[3]);
+        // If !P.position not set
+        if (positionP[0] == 0 && positionP[1] == 0 &&
+            positionP[2] == 0 && positionP[3] == 0)
+        {
+          if (do_iso) setIsoPort(actStream,position[0], position[2], position[1], position[3], aspect);
+          else actStream->vpor(position[0], position[2], position[1], position[3]);
+      }
+        else
+        {
+          // !P.position set
+          if (do_iso) setIsoPort(actStream,positionP[0], positionP[2], positionP[1], positionP[3], aspect);
+          else actStream->vpor(positionP[0], positionP[2], positionP[1], positionP[3]);
+        }
       }
     }
-    // New plot
-  }
-  else if (pos == (DFloatGDL*) 0xF)
-  {
-    kwP = false;
-
-    // If !P.position not set use default values
-    if (positionP[0] == 0 && positionP[1] == 0 &&
-        positionP[2] == 0 && positionP[3] == 0)
+    else //New Plot
     {
+      if (iso == 1) // Check ISOTROPIC first
+      {
+        do_iso = TRUE;
+        if ((xLog) && (yLog))
+        {
+          aspect = abs(log10(yEnd/yStart) / log10(xEnd/xStart));
+        } else if (xLog)
+        {
+          aspect = abs((yEnd-yStart) / log10(xEnd/xStart));
+        } else if (yLog)
+        {
+          aspect = abs( log10(yEnd/yStart) / (xEnd-xStart));
+        } else
+        {
+           aspect = abs((yEnd-yStart)/(xEnd-xStart));
+        }
+      }
+      else
+      {
+        do_iso = FALSE;
+        aspect = 0.0; // vpas with aspect=0.0 equals vpor.
+      }
 
-      // Set to default values
-      position[0] = xML;
-      position[1] = yMB;
-      position[2] = 1.0 - xMR;
-      position[3] = 1.0 - yMT;
-      actStream->vpor(position[0], position[2], position[1], position[3]);
-    }
-    else
-    {
-      // !P.position values
-      actStream->vpor(positionP[0], positionP[2], positionP[1], positionP[3]);
-    }
-    // Position keyword set
-  }
-  else
-  {
-    kwP = true;
-    for (SizeT i = 0; i < 4 && i < pos->N_Elements(); ++i)
-      position[ i] = (*pos)[ i];
-    actStream->vpor(position[0], position[2], position[1], position[3]);
-  }
+      // New plot without POSITION=[] as argument
+      if (pos == (DFloatGDL*) 0xF)
+      {
+        kwP = false;
+        //compute isotropic ratio & save values
 
+        // If !P.position not set use default values
+        if (positionP[0] == 0 && positionP[1] == 0 &&
+            positionP[2] == 0 && positionP[3] == 0)
+        {
+
+          // Set to default values
+          position[0] = xML;
+          position[1] = yMB;
+          position[2] = 1.0 - xMR;
+          position[3] = 1.0 - yMT;
+          if (do_iso) setIsoPort(actStream,position[0], position[2], position[1], position[3], aspect);
+          else actStream->vpor(position[0], position[2], position[1], position[3]);
+         }
+        else
+        {
+          // Use !P.position values
+          if (do_iso) setIsoPort(actStream,positionP[0], positionP[2], positionP[1], positionP[3], aspect);
+          else actStream->vpor(positionP[0], positionP[2], positionP[1], positionP[3]);
+        }
+      }
+      else       // Position keyword set
+      {
+        kwP = true;
+        for (SizeT i = 0; i < 4 && i < pos->N_Elements(); ++i) position[ i] = (*pos)[ i];
+        if (do_iso) setIsoPort(actStream,position[0], position[2], position[1], position[3], aspect);
+        else actStream->vpor(position[0], position[2], position[1], position[3]);
+      }
+    }
 
     // CLIPPING
     if( clippingD != NULL)
@@ -622,8 +696,14 @@ namespace lib {
       x=x_buff[jj];
       y1=y_buff[jj-1];
       y=y_buff[jj];
-      if (xLog) val=(x1+x)/2.0;
-      else val=log10((pow(10.0,x1)+pow(10.0,x))/2.0);
+      // cf patch 3567803
+      if (xLog) {
+	//  val=log10((pow(10.0,x1)+pow(10.0,x))/2.0);
+	val=x1+log10(0.5+0.5*(pow(10.0,x-x1)));
+      }
+      else {
+	val=(x1+x)/2.0;
+      }
       a->join(x1,y1,val,y1);
       a->join(val,y1,val,y);
       a->join(val,y,x,y);
@@ -941,7 +1021,7 @@ namespace lib {
 		   " must have from 1 to 2 elements.");
 	auto_ptr<DFloatGDL> guard;
 	DFloatGDL* MarginF = static_cast<DFloatGDL*>
-	  ( Margin->Convert2( FLOAT, BaseGDL::COPY));
+	  ( Margin->Convert2( GDL_FLOAT, BaseGDL::COPY));
 	guard.reset( MarginF);
 	start = (*MarginF)[0];
 	if( MarginF->N_Elements() > 1)
@@ -1380,7 +1460,7 @@ namespace lib {
                  " must have 2 elements.");
       auto_ptr<DDoubleGDL> guard;
       DDoubleGDL* RangeF = static_cast<DDoubleGDL*>
-	(Range->Convert2(DOUBLE, BaseGDL::COPY));
+	(Range->Convert2(GDL_DOUBLE, BaseGDL::COPY));
       guard.reset(RangeF);
       start = (*RangeF)[0];
       end = (*RangeF)[1];
@@ -1413,7 +1493,7 @@ namespace lib {
  	   BaseGDL* p0 = e->GetNumericArrayParDefined( 0)->Transpose( NULL); //hence [1024,2]
 
 	xyVal = static_cast<DFloatGDL*>
-	  (p0->Convert2( FLOAT, BaseGDL::COPY));
+	  (p0->Convert2( GDL_FLOAT, BaseGDL::COPY));
 	p0_guard.reset( p0); // delete upon exit
 
 	if(xyVal->Rank() != 2 || xyVal->Dim(1) != 2)

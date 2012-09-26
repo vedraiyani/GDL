@@ -42,7 +42,7 @@ void push_back( BaseGDL* p) { assert( sz<3*MAXRANK); eArr[ sz++] = p;}
 BaseGDL* operator[]( SizeT i) const { assert( i<3*MAXRANK && i<sz); return eArr[i];}
 SizeT size() const { return sz;}
 void Cleanup() { for( int i=0; i<sz; ++i) delete eArr[i]; sz=0;}
-IxExprListT& operator=( const IxExprListT&r) { sz = r.sz; for( int i=0; i<sz; ++i) eArr[i] = r.eArr[i];}
+IxExprListT& operator=(IxExprListT&r) { sz = r.sz; for(int i=0; i<sz; ++i) eArr[i] = r.eArr[i]; return r;}
 };
 
 enum IndexType
@@ -515,7 +515,7 @@ public:
     // type INDEXED
     DType dType = ix_->Type();
 
-    assert( dType != UNDEF);
+    assert( dType != GDL_UNDEF);
     //     assert( maxVal == 0);
 
     int typeCheck = DTypeOrder[ dType];
@@ -525,6 +525,7 @@ public:
     //SizeT nElem = ix_->N_Elements();
     //    ix = new SizeT[ nElem]; // allocate array
 
+  //DEBUG if( ix != NULL)    
     assert( ix == NULL);
 
     //     ix = new AllIxMultiT( nElem);
