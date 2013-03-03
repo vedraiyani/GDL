@@ -83,7 +83,7 @@ tokens {
 	ARRAYIX_ORANGE_S; // with stride
 	ARRAYIX_RANGE_S;
 	ARRAYEXPR;
-	ARRAYEXPR_FN;
+	ARRAYEXPR_FCALL;
 	ARRAYEXPR_MFCALL;
 	BLOCK;
     BREAK;
@@ -470,6 +470,12 @@ keyword_declaration
 object_name! returns [std::string name] // !//
   	: i1:IDENTIFIER m:METHOD i2:IDENTIFIER
 		{ 
+        // here we translate IDL_OBECT to GDL_OBJECT for source code compatibility
+        {
+            if( #i1->getText() == "IDL_OBJECT")
+                #i1->setText(GDL_OBJECT_NAME);
+        }
+
             #object_name = #(NULL, i2, m, i1); // NULL -> no root
             name= std::string( i1->getText()+"__"+i2->getText());
         }
@@ -608,7 +614,12 @@ compound_statement
 	;
 
 baseclass_method
-	: IDENTIFIER METHOD!
+	: s:IDENTIFIER METHOD!
+        // here we translate IDL_OBECT to GDL_OBJECT for source code compatibility
+        {
+            if( #s->getText() == "IDL_OBJECT")
+                #s->setText(GDL_OBJECT_NAME);
+        }
 	;
 
 statement
@@ -1461,41 +1472,28 @@ deref_expr
 			#([DEREF,"deref"], #deref_expr);}
 	;
 
-// array or member function (only to be used in primary_expr)
-// array_expr_mfcall!
-//     : v:var al:arrayindex_list 
-//     ;
-
-// array or function (only to be used in primary_expr)
-//array_expr_fn
-// {
-//     RefDNode dot;//, t;
-//     SizeT nDot;
-// }
-//    : v:var al:arrayindex_list 
-//         ( (tag_access)=> nDot=t:tag_access // must be a variable with index list
-//             {          // -> do so 
-//             //t= RefDNode(returnAST);    
-
-//             dot=#[DOT,"."];
-//             dot->SetNDot( nDot);    
-//             dot->SetLine( #al->getLine());
-  
-//             #array_expr_fn = 
-// 	  		#(dot, ([ARRAYEXPR,"arrayexpr"], #v, #al), #t);} 
-
-//         | // still ambiguous
-//	  		#([ARRAYEXPR_FN,"arrayexpr_fn"], #array_expr_fn);}
-//      )
-//	;	
 
 
 member_function_call returns [bool parent]
 	: { parent = false;} MEMBER! 
-        (IDENTIFIER METHOD! { parent = true;} )? formal_function_call
+        (s:IDENTIFIER METHOD! 
+            { 
+        // here we translate IDL_OBECT to GDL_OBJECT for source code compatibility
+        {
+            if( #s->getText() == "IDL_OBJECT")
+                #s->setText(GDL_OBJECT_NAME);
+        }
+                parent = true;
+            } )? formal_function_call
   	;
 member_function_call_dot
-	:  DOT! (IDENTIFIER METHOD!) formal_function_call
+	:  DOT! (s:IDENTIFIER METHOD!
+        // here we translate IDL_OBECT to GDL_OBJECT for source code compatibility
+        {
+            if( #s->getText() == "IDL_OBJECT")
+                #s->setText(GDL_OBJECT_NAME);
+        }
+        ) formal_function_call
   	;
 
 assign_expr
@@ -1572,7 +1570,7 @@ primary_expr
             { 
 //             std::cout << "***(IDENTIFIER LBRACE expr (COMMA expr)* RBRACE) 2" << std::endl;
 
-                #primary_expr = #([ARRAYEXPR_FN,"arrayexpr_fn"], #primary_expr);}
+                #primary_expr = #([ARRAYEXPR_FCALL,"arrayexpr_fcall"], #primary_expr);}
 // 	  		( parent=member_function_call
 // 				{ 
 //                     if( parent)

@@ -271,7 +271,7 @@ bool ArrayIndexListOneScalarT::ToAssocIndex( SizeT& lastIx)
   {
     sInit = GDLInterpreter::CallStackBack()->GetKW( varIx)->LoopIndex();
     if( sInit < 0)
-      throw GDLException( NULL,"Record number must be a scalar > 0 in this context.",true,false);      
+      throw GDLException(-1,NULL,"Record number must be a scalar > 0 in this context.",true,false);      
     lastIx = sInit;
     return true;
   }
@@ -403,13 +403,15 @@ void MakeArrayIndex( ArrayIndexVectorT* ixList,
       {
 	if( arrayIndexNoAssocOut != NULL)
 		*arrayIndexNoAssocOut = new ArrayIndexListOneConstScalarNoAssocT( ixList);
-	*arrayIndexOut = new ArrayIndexListOneConstScalarT( ixList);
+// 	if( arrayIndexOut != NULL)
+		*arrayIndexOut = new ArrayIndexListOneConstScalarT( ixList);
 	return;
       }
       if( ArrayIndexScalarID == (*ixList)[0]->Type())
       {
 	if( arrayIndexNoAssocOut != NULL)
 		*arrayIndexNoAssocOut = new ArrayIndexListOneScalarNoAssocT( ixList);
+// 	if( arrayIndexOut != NULL)
 		*arrayIndexOut = new ArrayIndexListOneScalarT( ixList);
 		return;
       }
@@ -418,13 +420,15 @@ void MakeArrayIndex( ArrayIndexVectorT* ixList,
       {
 	if( arrayIndexNoAssocOut != NULL)
 		*arrayIndexNoAssocOut = new ArrayIndexListOneScalarVPNoAssocT( ixList);
+// 	if( arrayIndexOut != NULL)
 		*arrayIndexOut = new ArrayIndexListOneScalarVPT( ixList);
 		return;
       }
       
       if( arrayIndexNoAssocOut != NULL)
 	*arrayIndexNoAssocOut = new ArrayIndexListOneNoAssocT( ixList);
-      *arrayIndexOut = new ArrayIndexListOneT( ixList);
+//       if( arrayIndexOut != NULL)
+	*arrayIndexOut = new ArrayIndexListOneT( ixList);
       return;
     }
   
@@ -447,7 +451,8 @@ void MakeArrayIndex( ArrayIndexVectorT* ixList,
       else
 	*arrayIndexNoAssocOut = new ArrayIndexListScalarNoAssocT( ixList);
     }
-    *arrayIndexOut = new ArrayIndexListScalarT( ixList);
+//     if( arrayIndexOut != NULL)
+      *arrayIndexOut = new ArrayIndexListScalarT( ixList);
     return;
   }	
   // Note that each index can be a assoc index anytime
@@ -460,18 +465,21 @@ void MakeArrayIndex( ArrayIndexVectorT* ixList,
 	*arrayIndexNoAssocOut = new ArrayIndexListMultiNoneIndexedNoAssoc2DT( ixList);
       else
 	*arrayIndexNoAssocOut = new ArrayIndexListMultiNoneIndexedNoAssocT( ixList);
-    *arrayIndexOut = new ArrayIndexListMultiNoneIndexedT( ixList);
+//     if( arrayIndexOut != NULL)
+      *arrayIndexOut = new ArrayIndexListMultiNoneIndexedT( ixList);
     return;
   }	
   if( nIndexed == ixList->size())
   {
     if( arrayIndexNoAssocOut != NULL)
       *arrayIndexNoAssocOut = new ArrayIndexListMultiAllIndexedNoAssocT( ixList);
-    *arrayIndexOut = new ArrayIndexListMultiAllIndexedT( ixList);
+//     if( arrayIndexOut != NULL)
+      *arrayIndexOut = new ArrayIndexListMultiAllIndexedT( ixList);
     return;
   }	
 
   if( arrayIndexNoAssocOut != NULL)
     *arrayIndexNoAssocOut = new ArrayIndexListMultiNoAssocT( ixList);
-  *arrayIndexOut = new ArrayIndexListMultiT( ixList);
+//   if( arrayIndexOut != NULL)
+    *arrayIndexOut = new ArrayIndexListMultiT( ixList);
 }

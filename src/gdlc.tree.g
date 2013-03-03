@@ -1371,87 +1371,111 @@ arrayexpr_fn!//
 {
     std::string id_text;
     bool isVar;
+    RefDNode mark, va2, vaAlt, fn, arrayindex_listAST;
 }   
-  	: #(aIn:ARRAYEXPR_FN 
+  	: #(aIn:ARRAYEXPR_FCALL 
             // always here: #(VAR IDENTIFIER)
             #(va:VAR id:IDENTIFIER)
             { 
-                id_text=#id->getText(); 
+                mark = _t;
 
-                // IsVar already tries to find the function and compile it
-                isVar = comp.IsVar( id_text);
+                id_text = #id->getText(); 
+                
+                // IsVar is not needed, we must emit an ARRAYEXPR_FCALL even if the variable is known
+                // (rule: Accessible functions always override variables
+                //isVar = comp.IsVar( id_text); 
+                // isVar == true -> VAR for sure 
+                // (== false: maybe VAR nevertheless)
 
-                int i=-1;
-                if( !isVar)
-                    i=LibFunIx(id_text);
+                int libIx = LibFunIx(id_text);
+
             }
-
-            (   { isVar}? al:arrayindex_list
-            |   el:arrayindex_list_to_parameter_list[ i != -1 && libFunList[ i]->NPar() == -1]
+            (   
+                el:arrayindex_list_to_parameter_list[ libIx != -1 && libFunList[ libIx]->NPar() == -1]
             )
             { 
-                if( !isVar)
-                {   // no variable -> function call
-
-                    // first search library functions
-                    int i=LibFunIx(id_text);
-                    if( i != -1)
+                // first search library functions
+                if( libIx != -1)
                     {
                         int nParam = 0;
                         if( #el != RefDNode(antlr::nullAST))
                             nParam = #el->GetNParam();
 
-                        int libParam = libFunList[i]->NPar();
-                        int libParamMin = libFunList[i]->NParMin();
+                        int libParam = libFunList[libIx]->NPar();
+                        int libParamMin = libFunList[libIx]->NParMin();
                         if( libParam != -1 && nParam > libParam)
-                            throw GDLException(	aIn, libFunList[i]->Name() + ": Too many arguments.");
-                    if( libParam != -1 && nParam < libParamMin)
-                        throw GDLException(	aIn, libFunList[i]->Name() + ": Too few arguments.");
+                            throw GDLException(	aIn, libFunList[libIx]->Name() + ": Too many arguments.");
+                        if( libParam != -1 && nParam < libParamMin)
+                            throw GDLException(	aIn, libFunList[libIx]->Name() + ": Too few arguments.");
 
-                        #id->SetLibFun( libFunList[i]);
-                        if( libFunList[ i]->RetNew())
+                        #id->SetLibFun( libFunList[libIx]);
+                        if( libFunList[ libIx]->RetNew())
                             {
-                                if( libFunList[ i]->Name() == "N_ELEMENTS")
+                                if( libFunList[ libIx]->Name() == "N_ELEMENTS")
                                     #id->setType( FCALL_LIB_N_ELEMENTS);
-                                else if( libFunList[ i]->DirectCall())
+                                else if( libFunList[ libIx]->DirectCall())
                                         #id->setType( FCALL_LIB_DIRECT);
                                     else
                                         #id->setType( FCALL_LIB_RETNEW);
-                                #arrayexpr_fn =
-                                #( id, el);
+                                #arrayexpr_fn = #( id, el);
 //                              #([/*FCALL_LIB_RETNEW,"fcall_lib_retnew"],*/ id, el);
                             }
                         else
                             {
                                 #id->setType( FCALL_LIB);
-                                #arrayexpr_fn =
-                                #( id, el);
+                                #arrayexpr_fn = #( id, el);
 //                              #(/*[FCALL_LIB,"fcall_lib"],*/ id, el);
                             }
                     }
-                    else
-                    {
-                        // then search user defined functions
-                        #id->setType( FCALL);
-                        i=FunIx(id_text);
-                        #id->SetFunIx(i);
-
-                        #arrayexpr_fn=
-                        #( id, el);
-//                        #(/*[FCALL,"fcall"],*/ id, el);
-                    }
-                }
+                // then search user defined functions
                 else
-                {   // variable -> arrayexpr
-                    
-                    // make var
-                    #va=astFactory->create(VAR,#id->getText());
-//                    #va=#[VAR,id->getText()];
-                    comp.Var(#va);	
+                    {
 
-                    #arrayexpr_fn=
-                    #([ARRAYEXPR,"arrayexpr"], va, al);
-                }
+                        int funIx=FunIx( id_text);
+
+                        // we use #id for the FCALL part
+                        #id->setType( FCALL);
+                        #id->SetFunIx( funIx);
+
+                        if( funIx != -1) // found -> FCALL
+                            {
+                                #arrayexpr_fn = #( id, el); 
+                                // #(/*[FCALL,"fcall"],*/ id, el);
+                            }
+                        else // function not found -> still ambiguous
+                            {
+                                // _t = mark; // rewind to parse again 
+                                arrayindex_list( mark);
+                                //_t = _retTree;
+                                arrayindex_listAST = returnAST;
+                
+
+                                #va2=astFactory->create( VAR, id_text);
+                                // #va=#[VAR,id->getText()];
+                                comp.Var( #va2); // we declare the variable here!
+                                // if IsVar() still would be used this would lead to surprising behavior: 
+                                // e. g.: function_call(42) & function_call(43)  
+                                // The first (42) would be an ARRAYEXPR_FCALL the 2nd (43) an ARRAYEXPR
+                                // if then at runtime function "function_call" is known,
+                                // it will be called only at the first appearance of the call.
+                                // that's why we cannot allow unambiguous VAR here 
+
+                                #vaAlt = #([ARRAYEXPR,"arrayexpr"], va2, arrayindex_listAST);
+                                #fn = #( id, el);    
+
+                                #arrayexpr_fn = #( aIn, vaAlt, fn); 
+                            }
+                    }
+
+//                 // not valid s. a. (kept for reference): unambiguous VAR
+//                 {   // variable -> arrayexpr                    
+//                     // make var
+//                     #va=astFactory->create(VAR,#id->getText());
+// //                    #va=#[VAR,id->getText()];
+//                     comp.Var(#va);
+//                     #arrayexpr_fn=
+//                     #([ARRAYEXPR,"arrayexpr"], va, al);
+//                 }
             }
         )  
     ;
@@ -1590,7 +1614,7 @@ RefDNode mark;
                 }
             }
         ) 	
-  	| arrayexpr_fn // converts fo FCALL(_LIB) or ARRAYEXPR
+  	| arrayexpr_fn // converts fo FCALL(_LIB) or ARRAYEXPR_FCALL
 	| CONSTANT
 	| dummy=array_def
 	| struct_def

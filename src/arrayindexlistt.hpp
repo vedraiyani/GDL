@@ -45,19 +45,19 @@ public:
 
   virtual void InitAsOverloadIndex( IxExprListT& ixIn, IxExprListT* cleanupIx, IxExprListT& ixOut) 
   { 
-    throw GDLException( NULL,"Internal error: ArrayIndexListT::InitAsOverladIndex( IxExprListT& ixInOut) called.",true,false);    
+    throw GDLException( -1, NULL,"Internal error: ArrayIndexListT::InitAsOverladIndex( IxExprListT& ixInOut) called.",true,false);    
   }
   virtual void Init( IxExprListT& ix, IxExprListT* cleanupIx) 
   { 
     assert( 0);
-    throw GDLException( NULL,"Internal error: ArrayIndexListT::Init( IxExprListT& ix, IxExprListT* cleanupIx) called.",true,false);    
+    throw GDLException( -1, NULL,"Internal error: ArrayIndexListT::Init( IxExprListT& ix, IxExprListT* cleanupIx) called.",true,false);    
   }
   virtual void Init() {}
   
    virtual bool ToAssocIndex( SizeT& lastIx) 
    { 
     assert( 0);       
-    throw GDLException( NULL,"Internal error: ArrayIndexListT::ToAssocIndex( SizeT& lastIx) called.",true,false);
+    throw GDLException( -1, NULL,"Internal error: ArrayIndexListT::ToAssocIndex( SizeT& lastIx) called.",true,false);
    }
 //  virtual bool ToAssocIndex( RangeT& lastIx) = 0;
 
@@ -188,10 +188,10 @@ public:
     // cannot be ArrayIndexScalar[VP] ix->Init();
     RangeT lastValIx;
     if( !ix->Scalar( lastValIx))
-      throw GDLException( NULL,"Record number must be a scalar in this context.",true,false);
+      throw GDLException( -1, NULL,"Record number must be a scalar in this context.",true,false);
 
     if( lastValIx < 0)
-      throw GDLException( NULL,"Record number must be a scalar > 0 in this context.",true,false);
+      throw GDLException( -1, NULL,"Record number must be a scalar > 0 in this context.",true,false);
 
     lastIx = lastValIx;
     return true;
@@ -535,7 +535,7 @@ public:
   {
     sInit = varPtr->Data()->LoopIndex();
     if( sInit < 0)
-      throw GDLException( NULL,"Record number must be a scalar > 0 in this context.",true,false);
+      throw GDLException( -1, NULL,"Record number must be a scalar > 0 in this context.",true,false);
     s = sInit;
     lastIx = s;
     return true;
@@ -553,9 +553,9 @@ public:
     // for assoc variables last index is the record
     if( var->IsAssoc()) return;
     if( s >= var->Size())
-      throw GDLException(NULL,"Scalar subscript out of range [>].1",true,false);
+      throw GDLException(-1, NULL,"Scalar subscript out of range [>].1",true,false);
     if( s < 0)
-      throw GDLException(NULL,"Scalar subscript out of range [<].1",true,false);
+      throw GDLException(-1,NULL,"Scalar subscript out of range [<].1",true,false);
   }
   
   // structure of indexed expression
@@ -600,7 +600,7 @@ public:
       {
 	s = varPtr->Data()->LoopIndex();
 	if( s >= var->Size())
-	  throw GDLException(NULL,"Scalar subscript out of range [>].2",true,false);
+	  throw GDLException(-1,NULL,"Scalar subscript out of range [>].2",true,false);
 	var->AssignAtIx( s, right);
 	return;
       }
@@ -714,7 +714,7 @@ public:
   bool ToAssocIndex( SizeT& lastIx)
   {
     if( sInit < 0)
-      throw GDLException( NULL,"Record number must be a scalar > 0 in this context.",true,false);      
+      throw GDLException(-1,NULL,"Record number must be a scalar > 0 in this context.",true,false);      
     lastIx = sInit;
     return true;
   }
@@ -727,9 +727,9 @@ public:
       s = sInit + var->Size();
     // for assoc variables last index is the record
     if( s < 0)
-      throw GDLException(NULL,"Scalar subscript out of range [<].1",true,false);
+      throw GDLException(-1,NULL,"Scalar subscript out of range [<].1",true,false);
     if( s >= var->Size())
-      throw GDLException(NULL,"Scalar subscript out of range [>].1",true,false);
+      throw GDLException(-1,NULL,"Scalar subscript out of range [>].1",true,false);
   }
 
   // returns one dim long ix in case of one element array index
@@ -752,9 +752,9 @@ public:
 	if( sInit < 0)
 	  s = sInit + var->Size();
 	if( s < 0)
-	  throw GDLException(NULL,"Scalar subscript out of range [<].2",true,false);
+	  throw GDLException(-1,NULL,"Scalar subscript out of range [<].2",true,false);
 	if( s >= var->Size())
-	  throw GDLException(NULL,"Scalar subscript out of range [>].2",true,false);
+	  throw GDLException(-1,NULL,"Scalar subscript out of range [>].2",true,false);
 	var->AssignAtIx( s, right);
 	return;
       }
@@ -782,11 +782,11 @@ public:
 	if( sInit < 0)
 	  s = sInit + var->Size();
 	if( s < 0)
-		throw GDLException(NULL,"Scalar subscript out of range [<].3",true,false);
+		throw GDLException(-1,NULL,"Scalar subscript out of range [<].3",true,false);
 	if( s >= var->Size())
 	{
 // 	    std::cout << s << " var->Size():" << var->Size() << std::endl;
-		throw GDLException(NULL,"Scalar subscript out of range [>].3",true,false);
+		throw GDLException(-1,NULL,"Scalar subscript out of range [>].3",true,false);
 	}
 	
 	return var->NewIx( s);
@@ -879,7 +879,7 @@ public:
     assert( ixList.size() > 1); // must be, from compiler
     
     if( ix->size() > MAXRANK)
-      throw GDLException(NULL,"Maximum of "+MAXRANK_STR+" dimensions allowed.",true,false);
+      throw GDLException(-1,NULL,"Maximum of "+MAXRANK_STR+" dimensions allowed.",true,false);
 
     nParam = 0;
     for( SizeT i=0; i<ixList.size(); ++i)
@@ -941,7 +941,7 @@ public:
     ixListEnd->Scalar( lastIxVal); // always scalar
 
     if( lastIxVal < 0)
-      throw GDLException( NULL,"Record number must be a scalar > 0 in this context.",true,false);
+      throw GDLException(-1,NULL,"Record number must be a scalar > 0 in this context.",true,false);
     
     lastIx = lastIxVal;
     return false; // multi dim
@@ -1209,7 +1209,7 @@ public:
     assert( ix->size() != 0); // must be, from compiler
 
     if( ixList.size() > MAXRANK)
-      throw GDLException(NULL,"Maximum of "+MAXRANK_STR+" dimensions allowed.",true,false);
+      throw GDLException(-1,NULL,"Maximum of "+MAXRANK_STR+" dimensions allowed.",true,false);
 
     nParam = 0;
     for( SizeT i=0; i<ix->size(); ++i)
@@ -1326,10 +1326,10 @@ public:
     
     RangeT lastValIx;
     if( !ixListEndTmp->Scalar( lastValIx))
-      throw GDLException(NULL ,"Record number must be a scalar in this context.",true,false);
+      throw GDLException(-1, NULL ,"Record number must be a scalar in this context.",true,false);
 
     if( lastValIx < 0)
-      throw GDLException( NULL,"Record number must be a scalar > 0 in this context.",true,false);
+      throw GDLException(-1, NULL,"Record number must be a scalar > 0 in this context.",true,false);
 
     lastIx = lastValIx;
    
@@ -1463,7 +1463,7 @@ public:
 	      {
 		SizeT nIter = ixList[i]->NIter( (i<varRank)?varDim[i]:1);
 		if( nIter != nIx)
-			throw GDLException(NULL, "All array subscripts must be of same size.", true, false);
+			throw GDLException(-1,NULL, "All array subscripts must be of same size.", true, false);
 	      }
 
       // in this case, having more index dimensions does not matter
@@ -1630,38 +1630,6 @@ public:
     // higher indices of variable are implicitely zero,
     // therefore they are not checked in 'SetRoot'
 
-// 	SizeT nIterLimitGt1 = 0;
-// 	SizeT baseIx = 0;
-// 	RankT gt1Rank;
-// 	bool indexed;
-// 	for( SizeT l=0; l<acRank; ++l)
-// 	{
-// 		if( nIterLimit[l] > 1)
-// 		{
-// 			++nIterLimitGt1;
-// 			gt1Rank = l;
-// 			if( !ixList[l]->Indexed())
-// 			{
-// 				baseIx += ixList[l]->GetS() * varStride[l];
-// 				indexed = false;
-// 			}
-// 			else
-// 			{
-// 				indexed = true;
-// 			}
-// 		}
-// 		else
-// 		{
-// 			if( ixList[l]->Indexed())
-// 			{
-// 				baseIx += static_cast< ArrayIndexIndexed*>( ixList[l])->GetIx( 0) * varStride[l];
-// 			}
-// 			else
-// 			{
-// 				baseIx += ixList[l]->GetS()  * varStride[l];
-// 			}
-// 		}
-// 	}
     if( nIterLimitGt1 == 1) // only one variable dimension
     {
       if( indexed)
@@ -1678,103 +1646,6 @@ public:
     allIx = new (allIxInstance) AllIxNewMultiT( &ixList, acRank, nIx, varStride, nIterLimit, stride);
     return allIx;
 }
-//     // init allIx from first index
-//     if( ixList[0]->Indexed())
-//       {
-// 		AllIxMultiT* tmpIx = static_cast< ArrayIndexIndexed*>(ixList[0])->StealIx();
-// 
-// 		for( SizeT i=0; i<nIx; ++i)
-// 		{
-// 		static_cast<AllIxMultiT*>(allIx)->SetIx( i, tmpIx->GetIx( i %  nIterLimit[0]));
-// 	// 	  	    (*allIx)[ i] = (*tmpIx)[ i %  nIterLimit[0]];
-// 		}
-// 
-// 		delete tmpIx;
-//       }
-//     else
-//       {
-// 		SizeT s = ixList.FrontGetS(); //ixList[0]->GetS();
-// 		SizeT ixStride = ixList[0]->GetStride();
-// 		
-// 		if( ixStride <= 1)
-// 			if( s != 0)
-// 				for( SizeT i=0; i<nIx; ++i)
-// 				{
-// 					static_cast<AllIxMultiT*>(allIx)->SetIx( i,  (i %  nIterLimit[0]) + s);
-// 		// 		(*allIx)[i] = (i %  nIterLimit[0]) + s; // stride[0], varStride[0] == 1
-// 				}
-// 			else
-// 				for( SizeT i=0; i<nIx; ++i)
-// 				{
-// 					static_cast<AllIxMultiT*>(allIx)->SetIx( i, (i %  nIterLimit[0]));
-// 		// 		(*allIx)[i] = (i %  nIterLimit[0]); // stride[0], varStride[0] == 1
-// 				}
-// 		else
-// 			if( s != 0)
-// 				for( SizeT i=0; i<nIx; ++i)
-// 				{
-// 					static_cast<AllIxMultiT*>(allIx)->SetIx( i, (i %  nIterLimit[0]) * ixStride + s);
-// 		// 		(*allIx)[i] = (i %  nIterLimit[0]) * ixStride + s; // stride[0], varStride[0] == 1
-// 				}
-// 			else
-// 				for( SizeT i=0; i<nIx; ++i)
-// 				{
-// 					static_cast<AllIxMultiT*>(allIx)->SetIx( i, (i %  nIterLimit[0]) * ixStride);
-// 		// 		(*allIx)[i] = (i %  nIterLimit[0]) * ixStride; // stride[0], varStride[0] == 1
-// 				}
-//       }
-// 
-//     for( SizeT l=1; l < acRank; ++l)
-//     {
-// 		if( ixList[l]->Indexed())
-// 		{
-// 				AllIxMultiT* tmpIx = static_cast< ArrayIndexIndexed*>(ixList[l])->StealIx();
-// 				//	    SizeT* tmpIx = ixList[l]->StealIx();
-// 			
-// 				for( SizeT i=0; i<nIx; ++i)
-// 				{
-// 					static_cast<AllIxMultiT*>(allIx)->AddToIx( i,  tmpIx->GetIx( (i / stride[l]) %  nIterLimit[l]) * varStride[l]);
-// 			// 		(*allIx)[ i] += (*tmpIx)[ (i / stride[l]) %  nIterLimit[l]] * varStride[l];
-// 				}
-// 			
-// 				delete tmpIx;
-// 		}
-// 		else
-// 		{
-// 				SizeT s = ixList[l]->GetS();
-// 				SizeT ixStride = ixList[l]->GetStride();
-// 			
-// 				if( ixStride <= 1)
-// 				if( s != 0)
-// 				for( SizeT i=0; i<nIx; ++i)
-// 				{
-// 					static_cast<AllIxMultiT*>(allIx)->AddToIx( i, ((i / stride[l]) %  nIterLimit[l] + s) * varStride[l]);
-// 		// 		  (*allIx)[i] += ((i / stride[l]) %  nIterLimit[l] + s) * varStride[l];
-// 				}
-// 				else
-// 				for( SizeT i=0; i<nIx; ++i)
-// 				{
-// 					static_cast<AllIxMultiT*>(allIx)->AddToIx( i, ((i / stride[l]) %  nIterLimit[l]) * varStride[l]);
-// 		// 		  (*allIx)[i] += ((i / stride[l]) %  nIterLimit[l]) * varStride[l];
-// 				}
-// 				else // ixStride > 1
-// 				if( s != 0)
-// 				for( SizeT i=0; i<nIx; ++i)
-// 				{
-// 					static_cast<AllIxMultiT*>(allIx)->AddToIx( i, (((i / stride[l]) %  nIterLimit[l]) * ixStride + s) * varStride[l]);
-// 		// 		  (*allIx)[i] += (((i / stride[l]) %  nIterLimit[l]) * ixStride + s) * varStride[l];
-// 				}
-// 				else
-// 				for( SizeT i=0; i<nIx; ++i)
-// 				{
-// 					static_cast<AllIxMultiT*>(allIx)->AddToIx( i, ((i * ixStride / stride[l]) %  nIterLimit[l]) * ixStride * varStride[l]);
-// 		// 		  (*allIx)[i] += ((i * ixStride / stride[l]) %  nIterLimit[l]) * ixStride * varStride[l];
-// 				}
-// 		}
-// 	}
-//     
-//     return allIx;
-//   }
 
   // returns one dim long ix in case of one element array index
   // used by AssignAt and Index functions
@@ -1867,7 +1738,7 @@ class ArrayIndexListMultiNoneIndexedT: public ArrayIndexListMultiT
     assert( ix->size() != 0); // must be, from compiler
 
     if( ixList.size() > MAXRANK)
-      throw GDLException(NULL,"Maximum of "+MAXRANK_STR+" dimensions allowed.",true,false);
+      throw GDLException(-1,NULL,"Maximum of "+MAXRANK_STR+" dimensions allowed.",true,false);
 
     nParam = 0;
     for( SizeT i=0; i<ix->size(); ++i)
@@ -2105,7 +1976,7 @@ public:
     assert( ix->size() != 0); // must be, from compiler
 
     if( ixList.size() > MAXRANK)
-      throw GDLException(NULL,"Maximum of "+MAXRANK_STR+" dimensions allowed.",true,false);
+      throw GDLException(-1,NULL,"Maximum of "+MAXRANK_STR+" dimensions allowed.",true,false);
 
     nParam = 0;
     for( SizeT i=0; i<ix->size(); ++i)
@@ -2195,7 +2066,7 @@ public:
 			{
 				SizeT nIter = ixList[i]->NIter( (i<varRank)?varDim[i]:1);
 				if( nIter != nIx)
-					throw GDLException(NULL, "All array subscripts must be of same size.", true, false);
+					throw GDLException(-1,NULL, "All array subscripts must be of same size.", true, false);
 			}
 
 		// in this case, having more index dimensions does not matter

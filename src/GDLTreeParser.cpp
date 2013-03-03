@@ -1549,7 +1549,7 @@ void GDLTreeParser::expr(RefDNode _t) {
 	case ASSIGN:
 	case ARRAYDEF:
 	case ARRAYDEF_CONST:
-	case ARRAYEXPR_FN:
+	case ARRAYEXPR_FCALL:
 	case ARRAYEXPR_MFCALL:
 	case CONSTANT:
 	case FCALL:
@@ -3099,7 +3099,7 @@ void GDLTreeParser::for_statement(RefDNode _t) {
 	case ARRAYDEF:
 	case ARRAYDEF_CONST:
 	case ARRAYEXPR:
-	case ARRAYEXPR_FN:
+	case ARRAYEXPR_FCALL:
 	case ARRAYEXPR_MFCALL:
 	case CONSTANT:
 	case DEREF:
@@ -3463,7 +3463,7 @@ void GDLTreeParser::jump_statement(RefDNode _t) {
 		case ARRAYDEF:
 		case ARRAYDEF_CONST:
 		case ARRAYEXPR:
-		case ARRAYEXPR_FN:
+		case ARRAYEXPR_FCALL:
 		case ARRAYEXPR_MFCALL:
 		case CONSTANT:
 		case DEREF:
@@ -3809,7 +3809,7 @@ void GDLTreeParser::parameter_def(RefDNode _t,
 		case ARRAYDEF:
 		case ARRAYDEF_CONST:
 		case ARRAYEXPR:
-		case ARRAYEXPR_FN:
+		case ARRAYEXPR_FCALL:
 		case ARRAYEXPR_MFCALL:
 		case CONSTANT:
 		case DEREF:
@@ -4260,7 +4260,7 @@ void GDLTreeParser::struct_def(RefDNode _t) {
 		case ARRAYDEF:
 		case ARRAYDEF_CONST:
 		case ARRAYEXPR:
-		case ARRAYEXPR_FN:
+		case ARRAYEXPR_FCALL:
 		case ARRAYEXPR_MFCALL:
 		case CONSTANT:
 		case DEREF:
@@ -4335,7 +4335,7 @@ void GDLTreeParser::struct_def(RefDNode _t) {
 				case ARRAYDEF:
 				case ARRAYDEF_CONST:
 				case ARRAYEXPR:
-				case ARRAYEXPR_FN:
+				case ARRAYEXPR_FCALL:
 				case ARRAYEXPR_MFCALL:
 				case CONSTANT:
 				case DEREF:
@@ -4587,7 +4587,7 @@ void GDLTreeParser::arrayindex(RefDNode _t,
 	case ARRAYDEF:
 	case ARRAYDEF_CONST:
 	case ARRAYEXPR:
-	case ARRAYEXPR_FN:
+	case ARRAYEXPR_FCALL:
 	case ARRAYEXPR_MFCALL:
 	case CONSTANT:
 	case DEREF:
@@ -4774,7 +4774,7 @@ void GDLTreeParser::arrayindex(RefDNode _t,
 			case ARRAYDEF:
 			case ARRAYDEF_CONST:
 			case ARRAYEXPR:
-			case ARRAYEXPR_FN:
+			case ARRAYEXPR_FCALL:
 			case ARRAYEXPR_MFCALL:
 			case CONSTANT:
 			case DEREF:
@@ -4895,7 +4895,7 @@ void GDLTreeParser::arrayindex(RefDNode _t,
 		case ARRAYDEF:
 		case ARRAYDEF_CONST:
 		case ARRAYEXPR:
-		case ARRAYEXPR_FN:
+		case ARRAYEXPR_FCALL:
 		case ARRAYEXPR_MFCALL:
 		case CONSTANT:
 		case DEREF:
@@ -5009,7 +5009,7 @@ void GDLTreeParser::arrayindex(RefDNode _t,
 			case ARRAYDEF:
 			case ARRAYDEF_CONST:
 			case ARRAYEXPR:
-			case ARRAYEXPR_FN:
+			case ARRAYEXPR_FCALL:
 			case ARRAYEXPR_MFCALL:
 			case CONSTANT:
 			case DEREF:
@@ -5480,13 +5480,12 @@ void GDLTreeParser::arrayexpr_fn(RefDNode _t) {
 	RefDNode va_AST = RefDNode(antlr::nullAST);
 	RefDNode id = RefDNode(antlr::nullAST);
 	RefDNode id_AST = RefDNode(antlr::nullAST);
-	RefDNode al_AST = RefDNode(antlr::nullAST);
-	RefDNode al = RefDNode(antlr::nullAST);
 	RefDNode el_AST = RefDNode(antlr::nullAST);
 	RefDNode el = RefDNode(antlr::nullAST);
 	
 	std::string id_text;
 	bool isVar;
+	RefDNode mark, va2, vaAlt, fn, arrayindex_listAST;
 	
 	
 	RefDNode __t153 = _t;
@@ -5496,7 +5495,7 @@ void GDLTreeParser::arrayexpr_fn(RefDNode _t) {
 	antlr::ASTPair __currentAST153 = currentAST;
 	currentAST.root = currentAST.child;
 	currentAST.child = RefDNode(antlr::nullAST);
-	match(antlr::RefAST(_t),ARRAYEXPR_FN);
+	match(antlr::RefAST(_t),ARRAYEXPR_FCALL);
 	_t = _t->getFirstChild();
 	RefDNode __t154 = _t;
 	va = (_t == RefDNode(ASTNULL)) ? RefDNode(antlr::nullAST) : _t;
@@ -5516,99 +5515,109 @@ void GDLTreeParser::arrayexpr_fn(RefDNode _t) {
 	_t = __t154;
 	_t = _t->getNextSibling();
 	
-	id_text=id_AST->getText(); 
+	mark = _t;
 	
-	// IsVar already tries to find the function and compile it
-	isVar = comp.IsVar( id_text);
+	id_text = id_AST->getText(); 
 	
-	int i=-1;
-	if( !isVar)
-	i=LibFunIx(id_text);
+	// IsVar is not needed, we must emit an ARRAYEXPR_FCALL even if the variable is known
+	// (rule: Accessible functions always override variables
+	//isVar = comp.IsVar( id_text); 
+	// isVar == true -> VAR for sure 
+	// (== false: maybe VAR nevertheless)
+	
+	int libIx = LibFunIx(id_text);
+	
 	
 	{
-	if (_t == RefDNode(antlr::nullAST) )
-		_t = ASTNULL;
-	if (((_t->getType() == ARRAYIX))&&( isVar)) {
-		al = (_t == ASTNULL) ? RefDNode(antlr::nullAST) : _t;
-		arrayindex_list(_t);
-		_t = _retTree;
-		al_AST = returnAST;
-	}
-	else if ((_t->getType() == ARRAYIX)) {
-		el = (_t == ASTNULL) ? RefDNode(antlr::nullAST) : _t;
-		arrayindex_list_to_parameter_list(_t, i != -1 && libFunList[ i]->NPar() == -1);
-		_t = _retTree;
-		el_AST = returnAST;
-	}
-	else {
-		throw antlr::NoViableAltException(antlr::RefAST(_t));
-	}
-	
+	el = (_t == ASTNULL) ? RefDNode(antlr::nullAST) : _t;
+	arrayindex_list_to_parameter_list(_t, libIx != -1 && libFunList[ libIx]->NPar() == -1);
+	_t = _retTree;
+	el_AST = returnAST;
 	}
 	arrayexpr_fn_AST = RefDNode(currentAST.root);
 	
-	if( !isVar)
-	{   // no variable -> function call
-	
 	// first search library functions
-	int i=LibFunIx(id_text);
-	if( i != -1)
+	if( libIx != -1)
 	{
 	int nParam = 0;
 	if( el_AST != RefDNode(antlr::nullAST))
 	nParam = el_AST->GetNParam();
 	
-	int libParam = libFunList[i]->NPar();
-	int libParamMin = libFunList[i]->NParMin();
+	int libParam = libFunList[libIx]->NPar();
+	int libParamMin = libFunList[libIx]->NParMin();
 	if( libParam != -1 && nParam > libParam)
-	throw GDLException(	aIn, libFunList[i]->Name() + ": Too many arguments.");
+	throw GDLException(	aIn, libFunList[libIx]->Name() + ": Too many arguments.");
 	if( libParam != -1 && nParam < libParamMin)
-	throw GDLException(	aIn, libFunList[i]->Name() + ": Too few arguments.");
+	throw GDLException(	aIn, libFunList[libIx]->Name() + ": Too few arguments.");
 	
-	id_AST->SetLibFun( libFunList[i]);
-	if( libFunList[ i]->RetNew())
+	id_AST->SetLibFun( libFunList[libIx]);
+	if( libFunList[ libIx]->RetNew())
 	{
-	if( libFunList[ i]->Name() == "N_ELEMENTS")
+	if( libFunList[ libIx]->Name() == "N_ELEMENTS")
 	id_AST->setType( FCALL_LIB_N_ELEMENTS);
-	else if( libFunList[ i]->DirectCall())
+	else if( libFunList[ libIx]->DirectCall())
 	id_AST->setType( FCALL_LIB_DIRECT);
 	else
 	id_AST->setType( FCALL_LIB_RETNEW);
-	arrayexpr_fn_AST =
-	RefDNode(astFactory->make((new antlr::ASTArray(2))->add(antlr::RefAST(id_AST))->add(antlr::RefAST(el_AST))));
+	arrayexpr_fn_AST = RefDNode(astFactory->make((new antlr::ASTArray(2))->add(antlr::RefAST(id_AST))->add(antlr::RefAST(el_AST))));
 	//                              #([/*FCALL_LIB_RETNEW,"fcall_lib_retnew"],*/ id, el);
 	}
 	else
 	{
 	id_AST->setType( FCALL_LIB);
-	arrayexpr_fn_AST =
-	RefDNode(astFactory->make((new antlr::ASTArray(2))->add(antlr::RefAST(id_AST))->add(antlr::RefAST(el_AST))));
+	arrayexpr_fn_AST = RefDNode(astFactory->make((new antlr::ASTArray(2))->add(antlr::RefAST(id_AST))->add(antlr::RefAST(el_AST))));
 	//                              #(/*[FCALL_LIB,"fcall_lib"],*/ id, el);
 	}
 	}
+	// then search user defined functions
 	else
 	{
-	// then search user defined functions
+	
+	int funIx=FunIx( id_text);
+	
+	// we use #id for the FCALL part
 	id_AST->setType( FCALL);
-	i=FunIx(id_text);
-	id_AST->SetFunIx(i);
+	id_AST->SetFunIx( funIx);
 	
-	arrayexpr_fn_AST=
-	RefDNode(astFactory->make((new antlr::ASTArray(2))->add(antlr::RefAST(id_AST))->add(antlr::RefAST(el_AST))));
-	//                        #(/*[FCALL,"fcall"],*/ id, el);
+	if( funIx != -1) // found -> FCALL
+	{
+	arrayexpr_fn_AST = RefDNode(astFactory->make((new antlr::ASTArray(2))->add(antlr::RefAST(id_AST))->add(antlr::RefAST(el_AST)))); 
+	// #(/*[FCALL,"fcall"],*/ id, el);
+	}
+	else // function not found -> still ambiguous
+	{
+	// _t = mark; // rewind to parse again 
+	arrayindex_list( mark);
+	//_t = _retTree;
+	arrayindex_listAST = returnAST;
+	
+	
+	va2=astFactory->create( VAR, id_text);
+	// #va=#[VAR,id->getText()];
+	comp.Var( va2); // we declare the variable here!
+	// if IsVar() still would be used this would lead to surprising behavior: 
+	// e. g.: function_call(42) & function_call(43)  
+	// The first (42) would be an ARRAYEXPR_FCALL the 2nd (43) an ARRAYEXPR
+	// if then at runtime function "function_call" is known,
+	// it will be called only at the first appearance of the call.
+	// that's why we cannot allow unambiguous VAR here 
+	
+	vaAlt = RefDNode(astFactory->make((new antlr::ASTArray(3))->add(antlr::RefAST(astFactory->create(ARRAYEXPR,"arrayexpr")))->add(antlr::RefAST(va2))->add(antlr::RefAST(arrayindex_listAST))));
+	fn = RefDNode(astFactory->make((new antlr::ASTArray(2))->add(antlr::RefAST(id_AST))->add(antlr::RefAST(el_AST))));    
+	
+	arrayexpr_fn_AST = RefDNode(astFactory->make((new antlr::ASTArray(3))->add(antlr::RefAST(aIn_AST))->add(antlr::RefAST(vaAlt))->add(antlr::RefAST(fn)))); 
 	}
 	}
-	else
-	{   // variable -> arrayexpr
 	
-	// make var
-	va_AST=astFactory->create(VAR,id_AST->getText());
-	//                    #va=#[VAR,id->getText()];
-	comp.Var(va_AST);	
-	
-	arrayexpr_fn_AST=
-	RefDNode(astFactory->make((new antlr::ASTArray(3))->add(antlr::RefAST(astFactory->create(ARRAYEXPR,"arrayexpr")))->add(antlr::RefAST(va_AST))->add(antlr::RefAST(al_AST))));
-	}
+	//                 // not valid s. a. (kept for reference): unambiguous VAR
+	//                 {   // variable -> arrayexpr                    
+	//                     // make var
+	//                     #va=astFactory->create(VAR,#id->getText());
+	// //                    #va=#[VAR,id->getText()];
+	//                     comp.Var(#va);
+	//                     #arrayexpr_fn=
+	//                     #([ARRAYEXPR,"arrayexpr"], va, al);
+	//                 }
 	
 	currentAST.root = arrayexpr_fn_AST;
 	if ( arrayexpr_fn_AST!=RefDNode(antlr::nullAST) &&
@@ -5955,7 +5964,7 @@ void GDLTreeParser::primary_expr(RefDNode _t) {
 		primary_expr_AST = RefDNode(currentAST.root);
 		break;
 	}
-	case ARRAYEXPR_FN:
+	case ARRAYEXPR_FCALL:
 	{
 		arrayexpr_fn(_t);
 		_t = _retTree;
@@ -6723,7 +6732,7 @@ void GDLTreeParser::op_expr(RefDNode _t) {
 	case ASSIGN:
 	case ARRAYDEF:
 	case ARRAYDEF_CONST:
-	case ARRAYEXPR_FN:
+	case ARRAYEXPR_FCALL:
 	case ARRAYEXPR_MFCALL:
 	case CONSTANT:
 	case FCALL:
@@ -7209,7 +7218,7 @@ const char* GDLTreeParser::tokenNames[] = {
 	"ARRAYIX_ORANGE_S",
 	"ARRAYIX_RANGE_S",
 	"ARRAYEXPR",
-	"ARRAYEXPR_FN",
+	"ARRAYEXPR_FCALL",
 	"ARRAYEXPR_MFCALL",
 	"BLOCK",
 	"BREAK",
@@ -7438,7 +7447,7 @@ const unsigned long GDLTreeParser::_tokenSet_0_data_[] = { 1135607840UL, 2149056
 // XOR_OP_EQ 
 const antlr::BitSet GDLTreeParser::_tokenSet_0(_tokenSet_0_data_,12);
 const unsigned long GDLTreeParser::_tokenSet_1_data_[] = { 739116576UL, 555747392UL, 74973232UL, 1115464704UL, 301989872UL, 0UL, 8386048UL, 0UL, 0UL, 0UL, 0UL, 0UL, 0UL, 0UL, 0UL, 0UL };
-// ASSIGN ARRAYDEF ARRAYDEF_CONST ARRAYEXPR ARRAYEXPR_FN ARRAYEXPR_MFCALL 
+// ASSIGN ARRAYDEF ARRAYDEF_CONST ARRAYEXPR ARRAYEXPR_FCALL ARRAYEXPR_MFCALL 
 // CONSTANT DEREF EXPR FCALL GDLNULL MFCALL MFCALL_PARENT NSTRUC_REF POSTDEC 
 // POSTINC STRUC SYSVAR UMINUS VAR "and" "eq" "ge" "gt" "le" "lt" "mod" 
 // "ne" "not" "or" "xor" DEC INC AND_OP_EQ ASTERIX_EQ EQ_OP_EQ GE_OP_EQ 

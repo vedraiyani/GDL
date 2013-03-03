@@ -102,8 +102,9 @@ GDLInterpreter::GDLInterpreter()
 		!(sigControlC && interruptEnable) && 
 		(debugMode == DEBUG_CLEAR));
 		
-		if( _retTree != NULL) 
-		last = _retTree;
+		// commented out, because we are only at the last statement
+		// if( _retTree != NULL) 
+		//     last = _retTree;
 		
 		goto afterStatement;
 		
@@ -388,8 +389,20 @@ GDLInterpreter::GDLInterpreter()
 		#endif
 		}
 		}
-		else    
-		if( interruptEnable)
+		// else if( debugMode == DEBUG_SKIP)
+		//     {
+		//         if( last != NULL)
+		//             {
+		//                 last = last->getNextSibling();
+		//                 DebugMsg( last, "Skipped to: ");
+		//             }
+		//         else
+		//             DebugMsg( last, "Cannot SKIP fro here");
+		
+		//         debugMode = DEBUG_CLEAR;
+		//         retCode = RC_OK;
+		//     }
+		else if( interruptEnable)
 		{
 		if( debugMode == DEBUG_PROCESS_STOP)
 		{
@@ -415,13 +428,28 @@ GDLInterpreter::GDLInterpreter()
 		// .CONTINUE does not work)
 		_retTree = last; 
 		
-		if( dynamic_cast< GDLIOException*>( &e) != NULL)
+		// set !ERROR_STATE sys var 
+		static DStructDesc* errorStateDesc = SysVar::Error_State()->Desc();
+		static unsigned nameTag = errorStateDesc->TagIndex( "NAME");
+		static unsigned codeTag = errorStateDesc->TagIndex( "CODE");
+		static unsigned msgTag = errorStateDesc->TagIndex( "MSG");
+		
+		if( e.IsIOException())
 		{
+		assert( dynamic_cast< GDLIOException*>( &e) != NULL);
 		// set the jump target - also logs the jump
 		ProgNodeP onIOErr = 
 		static_cast<EnvUDT*>(callStack.back())->GetIOError();
 		if( onIOErr != NULL)
 		{
+		DStructGDL* errorState = SysVar::Error_State();
+		(*static_cast<DStringGDL*>( errorState->GetTag( nameTag)))[0] = 
+		"IDL_M_FAILURE";
+		(*static_cast<DLongGDL*>( errorState->GetTag( codeTag)))[0] = 
+		e.ErrorCode();
+		SysVar::SetErrError( e.ErrorCode());
+		(*static_cast<DStringGDL*>( errorState->GetTag( msgTag)))[0] = 
+		e.getMessage();
 		SysVar::SetErr_String( e.getMessage());
 		
 		_retTree = onIOErr;
@@ -429,10 +457,43 @@ GDLInterpreter::GDLInterpreter()
 		}
 		}
 		
+		// handle CATCH
+		ProgNodeP catchNode = callStack.back()->GetCatchNode();
+		if( catchNode != NULL)
+		{
+		DStructGDL* errorState = SysVar::Error_State();
+		(*static_cast<DStringGDL*>( errorState->GetTag( nameTag)))[0] = 
+		"IDL_M_FAILURE";
+		(*static_cast<DLongGDL*>( errorState->GetTag( codeTag)))[0] = 
+		e.ErrorCode();
+		SysVar::SetErrError( e.ErrorCode());
+		(*static_cast<DStringGDL*>( errorState->GetTag( msgTag)))[0] = 
+		e.getMessage();
+		SysVar::SetErr_String( e.getMessage());
+		
+		BaseGDL** catchVar = callStack.back()->GetCatchVar();
+		GDLDelete(*catchVar);
+		*catchVar = new DLongGDL( e.ErrorCode());
+		_retTree = catchNode;
+		return RC_OK;
+		}
+		
 		EnvUDT* targetEnv = e.GetTargetEnv();
 		if( targetEnv == NULL)
 		{
 		// initial exception, set target env
+		
+		// set !ERROR_STATE here
+		DStructGDL* errorState = SysVar::Error_State();
+		(*static_cast<DStringGDL*>( errorState->GetTag( nameTag)))[0] = 
+		"IDL_M_FAILURE";
+		(*static_cast<DLongGDL*>( errorState->GetTag( codeTag)))[0] = 
+		e.ErrorCode();
+		SysVar::SetErrError( e.ErrorCode());
+		(*static_cast<DStringGDL*>( errorState->GetTag( msgTag)))[0] = 
+		e.getMessage();
+		SysVar::SetErr_String( e.getMessage());
+		
 		// look if ON_ERROR is set somewhere
 		for( EnvStackT::reverse_iterator i = callStack.rbegin();
 		i != callStack.rend(); ++i)
@@ -2184,7 +2245,7 @@ BaseGDL*  GDLInterpreter::l_decinc_dot_expr(ProgNodeP _t,
 	if( dec_inc == DEC) aD->Dec(); //*** aD->Assign( dec_inc);
 	else if( dec_inc == INC) aD->Inc();
 	//                
-	res=aD->Resolve();
+	res=aD->ADResolve();
 	
 	if( dec_inc == POSTDEC) aD->Dec();
 	else if( dec_inc == POSTINC) aD->Inc();
@@ -2201,42 +2262,15 @@ void GDLInterpreter::l_dot_array_expr(ProgNodeP _t,
 	
 	ArrayIndexListT* aL;
 	BaseGDL**        rP;
-	DStructGDL*      structR;
-	ArrayIndexListGuard guard;
 		
 		if( _t->getType() == ARRAYEXPR)
 		{
 			rP=l_indexable_expr(_t->getFirstChild());
 			aL=arrayindex_list(_retTree);
-			guard.reset(aL);
 	
 			_retTree = _t->getNextSibling();
 	
-			// check here for object and get struct
-			structR=dynamic_cast<DStructGDL*>(*rP);
-			if( structR == NULL)
-	{
-	bool isObj = callStack.back()->IsObject();
-	if( isObj)
-	{
-	DStructGDL* oStruct = ObjectStructCheckAccess( *rP, _t);
-	// oStruct cannot be "Assoc_"
-	aD->Root( oStruct, guard.release()); 
-	}
-	else
-	{
-	throw GDLException( _t, "Expression must be a"
-	" STRUCT in this context: "+Name(*rP),
-	true,false);
-	}
-	}
-			else 
-	{
-	if( (*rP)->IsAssoc())
-	throw GDLException( _t, "File expression not allowed "
-	"in this context: "+Name(*rP),true,false);
-	aD->Root( structR, guard.release() /* aL */); 
-	}
+	SetRootL( _t, aD, *rP, aL); 
 		}
 	else
 		// case ARRAYEXPR_MFCALL:
@@ -2251,35 +2285,8 @@ void GDLInterpreter::l_dot_array_expr(ProgNodeP _t,
 		// case VARPTR:
 		{
 			rP=l_indexable_expr(_t);
-			//_t = _retTree; _retTree set ok
 	
-			// check here for object and get struct
-			structR = dynamic_cast<DStructGDL*>(*rP);
-			if( structR == NULL)
-	{
-	bool isObj = callStack.back()->IsObject();
-	if( isObj) // member access to object?
-	{
-	DStructGDL* oStruct = ObjectStructCheckAccess( *rP, _t);
-	// oStruct cannot be "Assoc_"
-	aD->Root( oStruct); 
-	}
-	else
-	{
-	throw GDLException( _t, "Expression must be a"
-	" STRUCT in this context: "+Name(*rP),
-	true,false);
-	}
-	}
-			else
-	{
-	if( (*rP)->IsAssoc())
-	{
-	throw GDLException( _t, "File expression not allowed "
-	"in this context: "+Name(*rP),true,false);
-	}
-	aD->Root(structR); 
-	}
+	SetRootL( _t, aD, *rP, NULL); 
 		}
 	return;
 	//	_retTree = _t;
@@ -2340,7 +2347,7 @@ void GDLInterpreter::tag_array_expr(ProgNodeP _t,
 			_t = _retTree;
 			aL=arrayindex_list(_t);
 			_t = _retTree;
-			aD->AddIx(aL);
+			aD->ADAddIx(aL);
 			_retTree = tIn->getNextSibling();
 		}
 	else
@@ -2349,7 +2356,7 @@ void GDLInterpreter::tag_array_expr(ProgNodeP _t,
 		{
 			tag_expr(_t, aD);
 			//_t = _retTree;
-			aD->AddIx(NULL);
+			aD->ADAddIx(NULL);
 		}
 		//_retTree = _t;
 	return;
@@ -2368,7 +2375,6 @@ void GDLInterpreter::tag_array_expr(ProgNodeP _t,
 		_t = _retTree;
 		aL=arrayindex_list(_t);
 		_t = _retTree;
-		aD->AddIx(aL);
 		_t = __t75;
 		_t = _t->getNextSibling();
 		break;
@@ -2378,7 +2384,6 @@ void GDLInterpreter::tag_array_expr(ProgNodeP _t,
 	{
 		tag_expr(_t, aD);
 		_t = _retTree;
-		aD->AddIx(NULL);
 		break;
 	}
 	default:
@@ -4106,7 +4111,7 @@ BaseGDL**  GDLInterpreter::l_arrayexpr_mfcall(ProgNodeP _t,
 	"Struct expression not allowed in this context.",
 	true,false);
 	
-	aD->Assign( right);
+	aD->ADAssign( right);
 	
 	res=NULL;
 	
@@ -4138,7 +4143,7 @@ void GDLInterpreter::tag_expr(ProgNodeP _t,
 			if( ret < 1) // this is a return code, not the index
 	throw GDLException( tIn, "Expression must be a scalar"
 	" >= 0 in this context: "+Name(e),true,false);
-			aD->Add( tagIx);
+			aD->ADAdd( tagIx);
 	
 			_retTree = tIn->getNextSibling();
 		}
@@ -4148,7 +4153,7 @@ void GDLInterpreter::tag_expr(ProgNodeP _t,
 	assert( _t->getType() == IDENTIFIER);
 			std::string tagName=_t->getText();
 	
-			aD->Add( tagName);
+			aD->ADAdd( tagName);
 	
 			_retTree = _t->getNextSibling();		
 		}
@@ -4166,17 +4171,6 @@ void GDLInterpreter::tag_expr(ProgNodeP _t,
 		_t = _t->getFirstChild();
 		e=expr(_t);
 		_t = _retTree;
-		
-		auto_ptr<BaseGDL> e_guard(e);
-		
-		SizeT tagIx;
-		int ret=e->Scalar2index(tagIx);
-		if( ret < 1) // this is a return code, not the index
-		throw GDLException( _t, "Expression must be a scalar"
-		" >= 0 in this context: "+Name(e),true,false);
-		
-		aD->Add( tagIx);
-		
 		_t = __t73;
 		_t = _t->getNextSibling();
 		break;
@@ -4186,10 +4180,6 @@ void GDLInterpreter::tag_expr(ProgNodeP _t,
 		i = _t;
 		match(antlr::RefAST(_t),IDENTIFIER);
 		_t = _t->getNextSibling();
-		
-		std::string tagName=i->getText();
-		aD->Add( tagName);
-		
 		break;
 	}
 	default:
@@ -4299,11 +4289,8 @@ void GDLInterpreter::r_dot_array_expr(ProgNodeP _t,
 ) {
 	ProgNodeP r_dot_array_expr_AST_in = (_t == ProgNodeP(ASTNULL)) ? ProgNodeP(antlr::nullAST) : _t;
 	
-	ArrayIndexListT* aL;
 	BaseGDL*         r;
-	DStructGDL*      structR;
-	ArrayIndexListGuard guard;
-	bool isObj = callStack.back()->IsObject();
+	ArrayIndexListT* aL;
 	
 	
 	if (_t == ProgNodeP(antlr::nullAST) )
@@ -4319,50 +4306,11 @@ void GDLInterpreter::r_dot_array_expr(ProgNodeP _t,
 		_t = _retTree;
 		aL=arrayindex_list(_t);
 		_t = _retTree;
-		guard.reset(aL);
 		_t = __t79;
 		_t = _t->getNextSibling();
 		
 		// check here for object and get struct
-		structR=dynamic_cast<DStructGDL*>(r);
-		if( structR == NULL)
-		{
-		if( isObj)
-		{
-		DStructGDL* oStruct = ObjectStructCheckAccess( r, _t);
-		
-		//                    DStructGDL* obj = oStruct->Index( aL);
-		
-		if( aD->IsOwner()) delete r; 
-		aD->SetOwner( false); // object struct, not owned
-		
-		aD->Root( oStruct, guard.release()); 
-		//                    aD->Root( obj); 
-		
-		//                     BaseGDL* obj = r->Index( aL);
-		//                     auto_ptr<BaseGDL> objGuard( obj); // new object -> guard
-		
-		//                     DStructGDL* oStruct = ObjectStructCheckAccess( obj, _t);
-		
-		//                     // oStruct cannot be "Assoc_"
-		//                     if( aD->IsOwner()) delete r; 
-		//                     aD->SetOwner( false); // object structs are never owned
-		//                     aD->Root( oStruct); 
-		}
-		else
-		{
-		throw GDLException( _t, "Expression must be a"
-		" STRUCT in this context: "+Name(r),true,false);
-		}
-		}
-		else
-		{
-		if( r->IsAssoc())
-		throw GDLException( _t, "File expression not allowed "
-		"in this context: "+Name(r),true,false);
-		
-		aD->Root( structR, guard.release()); 
-		}
+		SetRootR( _t, aD, r, aL); 
 		
 		break;
 	}
@@ -4375,34 +4323,7 @@ void GDLInterpreter::r_dot_array_expr(ProgNodeP _t,
 		_t = _retTree;
 		
 		// check here for object and get struct
-		structR = dynamic_cast<DStructGDL*>(r);
-		if( structR == NULL)
-		{
-		if( isObj) // memeber access to object?
-		{
-		DStructGDL* oStruct = ObjectStructCheckAccess( r, _t);
-		
-		// oStruct cannot be "Assoc_"
-		if( aD->IsOwner()) delete r;
-		aD->SetOwner( false); // object structs are never owned
-		aD->Root( oStruct); 
-		}
-		else
-		{
-		throw GDLException( _t, "Expression must be a"
-		" STRUCT in this context: "+Name(r),true,false);
-		}
-		}
-		else
-		{
-		if( r->IsAssoc())
-		{
-		throw GDLException( _t, "File expression not allowed "
-		"in this context: "+Name(r),true,false);
-		}
-		
-		aD->Root(structR); 
-		}
+		SetRootR( _t, aD, r, NULL); 
 		
 		break;
 	}
@@ -4991,7 +4912,7 @@ BaseGDL**  GDLInterpreter::l_arrayexpr_mfcall_as_arrayexpr(ProgNodeP _t,
 	"Struct expression not allowed in this context.",
 	true,false);
 	
-	aD->Assign( right);
+	aD->ADAssign( right);
 	
 	res=NULL;
 	
@@ -5426,7 +5347,7 @@ const char* GDLInterpreter::tokenNames[] = {
 	"ARRAYIX_ORANGE_S",
 	"ARRAYIX_RANGE_S",
 	"ARRAYEXPR",
-	"ARRAYEXPR_FN",
+	"ARRAYEXPR_FCALL",
 	"ARRAYEXPR_MFCALL",
 	"BLOCK",
 	"BREAK",

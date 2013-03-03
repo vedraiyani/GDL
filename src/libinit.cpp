@@ -200,8 +200,8 @@ void LibInit()
   
   const string helpKey[]={"STRUCTURES","ROUTINES","BRIEF",
 			  "OUTPUT","PROCEDURES","FUNCTIONS",
-			  "INFO","LIB","LIB_GDL_INTERNAL","CALLS","RECALL_COMMANDS",
-                          "MEMORY","PREFERENCES", KLISTEND};
+			  "INFO","LIB","INTERNAL_LIB_GDL","CALLS","RECALL_COMMANDS",
+                          "MEMORY","PREFERENCES", "SOURCE_FILES", KLISTEND};
   new DLibPro(lib::help,string("HELP"),-1,helpKey);
 
   const string memoryKey[]={"CURRENT","HIGHWATER","NUM_ALLOC",
@@ -234,7 +234,7 @@ void LibInit()
 
   const string heap_gcKey[]={"PTR","OBJ","VERBOSE",KLISTEND};
   new DLibPro(lib::heap_gc,string("HEAP_GC"),0,heap_gcKey); 
-  new DLibPro(lib::heap_free,string("HEAP_FREE"),1,heap_gcKey); 
+  new DLibPro(lib::heap_free,string("HEAP_FREE"),1,heap_gcKey);
 
 
   new DLibPro(lib::ptr_free,string("PTR_FREE"),-1);
@@ -495,18 +495,26 @@ void LibInit()
   const string tvlctKey[]={"GET","HLS","HSV",KLISTEND};
   new DLibPro(lib::tvlct,string("TVLCT"),4,tvlctKey);
 
+  const string tvcrsKey[]={"DATA","DEVICE","NORMAL",KLISTEND};
+  const string tvcrsWarnKey[]={"CENTIMETERS","INCHES","HIDE_CURSOR","T3D","Z",KLISTEND};
+  new DLibPro(lib::tvcrs,string("TVCRS"),2,tvcrsKey,tvcrsWarnKey);
+
+  new DLibPro(lib::empty,string("EMPTY"),-1);
+  
   const string deviceKey[]=
     {
       "CLOSE_FILE","FILENAME","LANDSCAPE","PORTRAIT",
       "DECOMPOSED","GET_DECOMPOSED","Z_BUFFERING","SET_RESOLUTION",
       "SET_CHARACTER_SIZE","GET_VISUAL_DEPTH","XSIZE","YSIZE",
       "COLOR","GET_SCREEN_SIZE","INCHES","WINDOW_STATE","SCALE_FACTOR", 
-      "XOFFSET", "YOFFSET", "ENCAPSULATED", KLISTEND
+      "XOFFSET", "YOFFSET", "ENCAPSULATED", "GET_GRAPHICS_FUNCTION", 
+      "SET_GRAPHICS_FUNCTION", "CURSOR_STANDARD", "CURSOR_ORIGINAL",
+      "CURSOR_CROSSHAIR",KLISTEND
     };
   const string deviceWarnKey[] = {"RETAIN", "SET_FONT", "HELVETICA", 
     "AVANTGARDE", "BKMAN", "COURIER", "PALATINO", 
     "SCHOOLBOOK", "TIMES", "ZAPFCHANCERY", "ZAPFDINGBATS", "BITS_PER_PIXEL", 
-    "ITALIC", "BOLD", "TRUE_COLOR", KLISTEND};
+    "ITALIC", "BOLD", "TRUE_COLOR", "CURSOR_IMAGE","CURSOR_MASK","CURSOR_XY", KLISTEND};
   new DLibPro(lib::device,string("DEVICE"),0, deviceKey, deviceWarnKey);
 
   const string usersymKey[]= 
@@ -523,63 +531,72 @@ void LibInit()
      "LINESTYLE", "NOCLIP",  "NODATA",   "NOERASE", 
      "NORMAL",    "POSITION","PSYM",     "SUBTITLE",
      "SYMSIZE",   "THICK",    "TICKLEN", "TITLE",
-     "XCHARSIZE", "XMARGIN", "XMINOR",
-     "XRANGE",    "XSTYLE",     "XTHICK",  "XTICKFORMAT",
-     "XTICKLEN",  "XTICKS",     "XTITLE",
-     "YCHARSIZE", "YMARGIN", "YMINOR",
-     "YRANGE",    "YSTYLE",     "YTHICK",  "YTICKFORMAT", "YTICKLEN",
-     "YTICKS",    "YTITLE", "ZCHARSIZE",    "ZGRIDSTYLE", "ZMARGIN", "ZMINOR",
-     "ZRANGE",    "ZSTYLE",     "ZTHICK",  "ZTICKFORMAT",
-     "ZTICKLEN",  "ZTICKS",    "ZTITLE", "ZVALUE", "MAX_VALUE", "MIN_VALUE",
-     "XLOG",      "YLOG",     "YNOZERO", "XTYPE", "YTYPE", "POLAR", "NSUM",
-     KLISTEND
+     "MAX_VALUE", "MIN_VALUE",
+     "XLOG",      "YLOG",
+     "YNOZERO",   "XTYPE",    "YTYPE",   "POLAR", "NSUM",
+      "XCHARSIZE", "YCHARSIZE",
+      "XGRIDSTYLE", "YGRIDSTYLE",
+      "XMARGIN", "YMARGIN",
+      "XMINOR", "YMINOR",
+      "XRANGE", "YRANGE",
+      "XSTYLE", "YSTYLE",
+      "XTHICK", "YTHICK",
+      "XTICK_GET", "YTICK_GET",
+      "XTICKFORMAT", "YTICKFORMAT",
+      "XTICKINTERVAL", "YTICKINTERVAL",
+      "XTICKLAYOUT", "YTICKLAYOUT",
+      "XTICKLEN", "YTICKLEN",
+      "XTICKNAME", "YTICKNAME",
+      "XTICKS", "YTICKS",
+      "XTICKUNITS", "YTICKUNITS",
+      "XTICKV", "YTICKV",
+      "XTITLE", "YTITLE",
+      KLISTEND
     };
   //
   const string plotWarnKey[]= {
-    "FONT", "T3D", "YTICKUNITS", "XTICKLAYOUT", "YTICKLAYOUT", 
-    "ZTICKLAYOUT", "XGRIDSTYLE", "YGRIDSTYLE", "XTICKUNITS", "XTICKV", "XTICK_GET", "YTICKV",
-    "YTICK_GET", "XTICKNAME", "ZTICKNAME", "ZTICKUNITS", "ZTICKV",  "ZTICK_GET",
-    "XTICKINTERVAL", "YTICKINTERVAL", "YTICKNAME", "ZTICKINTERVAL", 
+    "FONT", "T3D", "ZVALUE", "ZCHARSIZE", "ZGRIDSTYLE", "ZMARGIN", "ZMINOR",
+    "ZRANGE", "ZSTYLE", "ZTHICK", "ZTICK_GET", "ZTICKFORMAT", "ZTICKINTERVAL",
+    "ZTICKLAYOUT", "ZTICKLEN", "ZTICKNAME", "ZTICKS", "ZTICKUNITS", "ZTICKV",
+    "ZTITLE",
     KLISTEND
   };
   new DLibPro(lib::plot,string("PLOT"),2,plotKey,plotWarnKey);
 
   const string axisKey[]=
-    {
-     "CHARSIZE","CHARTHICK",
-     "COLOR",     "DATA",    "DEVICE",   "FONT",
-     "NODATA",    "NOERASE", 
-     "NORMAL",    "SUBTITLE",
-     "T3D",       "TICKLEN", 
-     "XCHARSIZE", "XGRIDSTYLE", "XMARGIN", "XMINOR",
-     "XRANGE",    "XSTYLE",     "XTHICK",  "XTICKFORMAT",
-     "XTICKLEN",  "XTICKNAME",
-     "XTICKS",    
-     "XTITLE",
-     "YCHARSIZE",  "YGRIDSTYLE", "YMARGIN", "YMINOR",
-     "YRANGE",     "YSTYLE",     "YTHICK",  "YTICKFORMAT",
-     "YTICKLEN",   "YTICKNAME",
-     "YTICKS",
-     "YTITLE",
-     "ZCHARSIZE",  "ZGRIDSTYLE", "ZMARGIN", "ZMINOR",
-     "ZRANGE",     "ZSTYLE",     "ZTHICK",  "ZTICKFORMAT",
-     "ZTICKLEN",   "ZTICKNAME",
-     "ZTICKS",
-     "ZTITLE",
-     "ZVALUE", 
-
-     "SAVE", "XAXIS", "YAXIS", "XLOG", "YLOG", "XTYPE", "YTYPE", "YNOZERO", "THICK",
-      KLISTEND
-     };
-   const string axisWarnKey[]=
-   {
-   "ZAXIS","ZLOG", 
-   "XTICKINTERVAL", "YTICKINTERVAL", "ZTICKINTERVAL",
-   "XTICKLAYOUT", "YTICKLAYOUT", "ZTICKLAYOUT",
-   "XTICKUNITS", "YTICKUNITS", "ZTICKUNITS",
-   "XTICKV", "YTICKV", "ZTICKV",
-   "XTICK_GET", "YTICK_GET", "ZTICK_GET",
-   KLISTEND
+  {
+    "CHARSIZE",  "CHARTHICK",
+    "COLOR",     "DATA",    "DEVICE",   "FONT",
+    "NODATA",    "NOERASE", 
+    "NORMAL",    "SUBTITLE",
+    "T3D",       "TICKLEN", 
+    "SAVE", "XAXIS", "YAXIS", "XLOG", "YLOG", "XTYPE", "YTYPE", "YNOZERO", "THICK",
+    "XCHARSIZE", "YCHARSIZE",
+    "XGRIDSTYLE", "YGRIDSTYLE",
+    "XMARGIN", "YMARGIN",
+    "XMINOR", "YMINOR",
+    "XRANGE", "YRANGE",
+    "XSTYLE", "YSTYLE",
+    "XTHICK", "YTHICK",
+    "XTICK_GET", "YTICK_GET",
+    "XTICKFORMAT", "YTICKFORMAT",
+    "XTICKINTERVAL", "YTICKINTERVAL",
+    "XTICKLAYOUT", "YTICKLAYOUT",
+    "XTICKLEN", "YTICKLEN",
+    "XTICKNAME", "YTICKNAME",
+    "XTICKS", "YTICKS",
+    "XTICKUNITS", "YTICKUNITS",
+    "XTICKV", "YTICKV",
+    "XTITLE", "YTITLE",
+    KLISTEND
+  };
+  const string axisWarnKey[]=
+  {
+   "ZAXIS","ZLOG", "ZVALUE", "ZCHARSIZE", "ZGRIDSTYLE", "ZMARGIN", "ZMINOR",
+    "ZRANGE", "ZSTYLE", "ZTHICK", "ZTICK_GET", "ZTICKFORMAT", "ZTICKINTERVAL",
+    "ZTICKLAYOUT", "ZTICKLEN", "ZTICKNAME", "ZTICKS", "ZTICKUNITS", "ZTICKV",
+    "ZTITLE",
+    KLISTEND
   };
   new DLibPro(lib::axis,string("AXIS"),3,axisKey,axisWarnKey);
 
@@ -673,34 +690,45 @@ void LibInit()
      "BACKGROUND","CHARSIZE","CHARTHICK","CLIP",
      "COLOR",     "DATA",    "DEVICE",   "FONT",
      "NOCLIP",  "NODATA",   "NOERASE", 
-     "NORMAL",    "POSITION",     "SUBTITLE",
+     "NORMAL",    "POSITION", "SUBTITLE",
      "T3D",     "THICK",    "TICKLEN", 
-     "TITLE",
-     "XCHARSIZE",    "XGRIDSTYLE", "XMARGIN", "XMINOR",
-     "XRANGE",       "XSTYLE",     "XTHICK",  "XTICKFORMAT",
-     "XTICKLEN","XTICKNAME",
-     "XTICKS",       "XTICKV",  "XTICK_GET",
-     "XTITLE",
-     "YCHARSIZE",    "YGRIDSTYLE", "YMARGIN", "YMINOR",
-     "YRANGE",       "YSTYLE",     "YTHICK",  "YTICKFORMAT",
-     "YTICKLEN","YTICKNAME",
-     "YTICKS",       "YTICKV",  "YTICK_GET",
-     "YTITLE",
-     "ZCHARSIZE",    "ZGRIDSTYLE", "ZMARGIN", "ZMINOR",
-     "ZRANGE",       "ZSTYLE",     "ZTHICK",  "ZTICKFORMAT",
-     "ZTICKLEN","ZTICKNAME",
-     "ZTICKS",       "ZTICKV",  "ZTICK_GET",
-     "ZTITLE",
-     "ZVALUE", 
-     "LEVELS", "NLEVELS",
+     "TITLE" ,    "LEVELS", "NLEVELS",
      "MAX_VALUE", "MIN_VALUE",
-     "XLOG", "XTYPE", "YLOG", "YTYPE", "ZLOG", "ZTYPE", "FILL", "ISOTROPIC",
-     "FOLLOW", "C_CHARSIZE","OVERPLOT","C_COLORS","C_LINESTYLE",
+     "XLOG", "YLOG", "FILL", "ISOTROPIC",
+     "FOLLOW",
+
+    "XCHARSIZE", "YCHARSIZE", "ZCHARSIZE",
+    "XGRIDSTYLE", "YGRIDSTYLE", "ZGRIDSTYLE",
+    "XMARGIN", "YMARGIN", "ZMARGIN",
+    "XMINOR", "YMINOR", "ZMINOR",
+    "XRANGE", "YRANGE", "ZRANGE",
+    "XSTYLE", "YSTYLE", "ZSTYLE",
+    "XTHICK", "YTHICK", "ZTHICK",
+    "XTICK_GET", "YTICK_GET", "ZTICK_GET",
+    "XTICKFORMAT", "YTICKFORMAT", "ZTICKFORMAT",
+    "XTICKINTERVAL", "YTICKINTERVAL", "ZTICKINTERVAL",
+    "XTICKLAYOUT", "YTICKLAYOUT", "ZTICKLAYOUT",
+    "XTICKLEN", "YTICKLEN", "ZTICKLEN",
+    "XTICKNAME", "YTICKNAME", "ZTICKNAME",
+    "XTICKS", "YTICKS",  "ZTICKS",
+    "XTICKUNITS", "YTICKUNITS",  "ZTICKUNITS",
+    "XTICKV", "YTICKV","ZTICKV",
+    "XTITLE", "YTITLE", "ZTITLE",
+
+     "C_CHARSIZE","OVERPLOT","C_COLORS","C_LINESTYLE",
+     "C_LABELS", "C_CHARTHICK", "C_ORIENTATION", "C_SPACING", "C_THICK",
+     "PATH_INFO","PATH_XY",
+     "ZLOG", //ZLOG is an addition for GDL only
      KLISTEND
     };
+   // NO SUPPORT AT ALL for:,"CLOSED","DOWNHILL","IRREGULAR","PATH_DATA_COORDS","PATH_FILENAME",
+   // "PATH_INFO","PATH_XY","TRIANGULATION","PATH_DOUBLE","ZAXIS"
    const string contourWarnKey[]=
     {
-        "CELL_FILL","C_LABELS","C_ANNOTATIONS", "C_CHARTHICK","C_ORIENTATION","C_SPACING","C_THICK",KLISTEND 
+      "ZVALUE", 
+      "CELL_FILL","C_ANNOTATIONS","CLOSED","DOWNHILL","IRREGULAR",
+      "PATH_DATA_COORDS","PATH_FILENAME",
+      "PATH_INFO","PATH_XY","TRIANGULATION","PATH_DOUBLE","ZAXIS",KLISTEND
     };
    new DLibPro(lib::contour,string("CONTOUR"),3,contourKey,contourWarnKey);
 
@@ -709,7 +737,7 @@ void LibInit()
   const string xyoutsKey[]=
     {
       "COLOR","DATA","NORMAL","DEVICE","CLIP",
-      "ORIENTATION","ALIGNMENT","CHARSIZE","SIZE","CHARTHICK",
+      "ORIENTATION","ALIGNMENT","CHARSIZE","SIZE","CHARTHICK", //note SIZE is not in doc but in XYOUTS demo!
       "NOCLIP","Z","WIDTH","FONT",KLISTEND
     };
    const string xyoutsWarnKey[]=
@@ -720,11 +748,16 @@ void LibInit()
    
    const string polyfillKey[]=
     {
-      "COLOR","DATA","NORMAL","DEVICE","CLIP","NOCLIP",
-      "LINE_FILL","SPACING","LINESTYLE","ORIENTATION","THICK",
+      "CLIP", "COLOR","DATA","DEVICE","NORMAL","LINESTYLE","NOCLIP", //supported graphic KW
+      "ORIENTATION","THICK", //supported graphic KW
+      "LINE_FILL", "SPACING", //polyfill specifics
       KLISTEND
     };
-  new DLibPro(lib::polyfill, string("POLYFILL"), 3, polyfillKey);
+   const string polyfillWarnKey[]=
+    {
+     "IMAGE_COORD","IMAGE_INTERP", "PATTERN", "TRANSPARENT", "T3D","Z",KLISTEND
+    };
+  new DLibPro(lib::polyfill, string("POLYFILL"), 3, polyfillKey,polyfillWarnKey);
 
   const string eraseKey[]= {"CHANNEL","COLOR",KLISTEND};
   new DLibPro(lib::erase,string("ERASE"),1, eraseKey);

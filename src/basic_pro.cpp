@@ -241,6 +241,51 @@ namespace lib {
   {
     bool kw = false;
 
+    static int sourceFilesKWIx = e->KeywordIx("SOURCE_FILES");
+    bool sourceFilesKW = e->KeywordPresent( sourceFilesKWIx);
+    if( sourceFilesKW)
+    {
+	deque<string> sourceFiles;
+
+	for(FunListT::iterator i=funList.begin(); i != funList.end(); ++i)
+	{
+	    string funFile = (*i)->GetFilename();
+	    bool alreadyInList = false;
+	    for(deque<string>::iterator i2=sourceFiles.begin(); i2 != sourceFiles.end(); ++i2)
+	    {
+		if( funFile == *i2)
+		{
+		  alreadyInList = true;
+		  break;
+		}
+	    }
+	    if( !alreadyInList)
+	      sourceFiles.push_back(funFile);
+	}
+	for(ProListT::iterator i=proList.begin(); i != proList.end(); ++i)
+	{
+	    string proFile = (*i)->GetFilename();
+	    bool alreadyInList = false;
+	    for(deque<string>::iterator i2=sourceFiles.begin(); i2 != sourceFiles.end(); ++i2)
+	    {
+		if( proFile == *i2)
+		{
+		  alreadyInList = true;
+		  break;
+		}
+	    }
+	    if( !alreadyInList)
+	      sourceFiles.push_back(proFile);
+	}
+	// sourceFiles now contains a uniqe list of all file names.
+	sort( sourceFiles.begin(), sourceFiles.end());
+
+      	SizeT nSourceFiles = sourceFiles.size();
+	cout << "Source files (" << nSourceFiles <<"):" << endl;
+	for( SizeT i = 0; i<nSourceFiles; ++i)
+	  cout << sourceFiles[ i] << endl;
+    }
+    
     static int callsKWIx = e->KeywordIx("CALLS");
     bool callsKW = e->KeywordPresent( callsKWIx);
     if( callsKW)
@@ -325,7 +370,7 @@ namespace lib {
       }
 
     // internal library functions
-    bool kwLibInternal = e->KeywordSet( "LIB_GDL_INTERNAL"); 
+    bool kwLibInternal = e->KeywordSet( "INTERNAL_LIB_GDL"); 
     if( kwLibInternal)
       {
 	kw = true;
@@ -1218,14 +1263,14 @@ namespace lib {
 	" Unit: "+i2s( lun)+", File: "+fileUnits[ lun-1].Name();
       
       if( !errorKeyword)
-	throw GDLIOException( e->CallingNode(), errorMsg);
+	throw GDLIOException( ex.ErrorCode(), e->CallingNode(), errorMsg);
       
       BaseGDL** err = &e->GetKW( errorIx);
       
-      GDLDelete((*err)); 
+      GDLDelete(*err); 
 //    if( *err != e->Caller()->Object()) delete (*err); 
       
-      *err = new DLongGDL( 1);
+      *err = new DLongGDL( ex.ErrorCode());
       return;
     }
 
@@ -1677,11 +1722,11 @@ namespace lib {
 
   void catch_pro( EnvT* e)
   {
-    static bool warned = false;
-    if (!warned) {
-      Warning("CATCH: feature not implemented yet (FIXME!).");
-      warned = true;
-    }
+//     static bool warned = false;
+//     if (!warned) {
+//       Warning("CATCH: feature not implemented yet (FIXME!).");
+//       warned = true;
+//     }
     e->Catch();
   }
 
@@ -1827,8 +1872,6 @@ TRACEOMP( __FILE__, __LINE__)
   {
     SizeT nParam = e->NParam();
 
-    if( nParam == 0) return;
-
     static int continueIx = e->KeywordIx( "CONTINUE");
     static int infoIx = e->KeywordIx( "INFORMATIONAL");
     static int ioerrorIx = e->KeywordIx( "IOERROR");
@@ -1845,6 +1888,34 @@ TRACEOMP( __FILE__, __LINE__)
     bool noprint = e->KeywordSet( noprintIx);
     bool reset = e->KeywordSet( resetIx);
 
+    if( reset)
+    {
+      DStructGDL* errorState = SysVar::Error_State();
+      static unsigned nameTag = errorState->Desc()->TagIndex( "NAME");
+      static unsigned blockTag = errorState->Desc()->TagIndex( "BLOCK");
+      static unsigned codeTag = errorState->Desc()->TagIndex( "CODE");
+      static unsigned rangeTag = errorState->Desc()->TagIndex( "RANGE");
+      static unsigned sys_code_typeTag = errorState->Desc()->TagIndex( "SYS_CODE_TYPE");
+      static unsigned msgTag = errorState->Desc()->TagIndex( "MSG");
+      static unsigned sys_msgTag = errorState->Desc()->TagIndex( "SYS_MSG");
+      static unsigned msg_prefixTag = errorState->Desc()->TagIndex( "MSG_PREFIX");
+
+      (*static_cast<DStringGDL*>( errorState->GetTag( nameTag)))[0] = "IDL_M_SUCCESS";
+      (*static_cast<DStringGDL*>( errorState->GetTag( blockTag)))[0] = "IDL_MBLK_CORE";
+      (*static_cast<DLongGDL*>( errorState->GetTag( codeTag)))[0] = 0;
+      (*static_cast<DLongGDL*>( errorState->GetTag( rangeTag)))[0] = 0;
+      (*static_cast<DLongGDL*>( errorState->GetTag( rangeTag)))[1] = 0;
+      (*static_cast<DStringGDL*>( errorState->GetTag( sys_code_typeTag)))[0] = "";
+      (*static_cast<DStringGDL*>( errorState->GetTag( msgTag)))[0] = "";
+      (*static_cast<DStringGDL*>( errorState->GetTag( sys_msgTag)))[0] = "";
+      (*static_cast<DStringGDL*>( errorState->GetTag( msg_prefixTag)))[0] = "% ";
+      
+      SysVar::SetErr_String( "");     
+      SysVar::SetErrError( 0);
+    }
+    
+    if( nParam == 0) return;
+
     DString msg;
     e->AssureScalarPar<DStringGDL>( 0, msg);
 
@@ -1854,10 +1925,13 @@ TRACEOMP( __FILE__, __LINE__)
     if( !info)
       {
 	DStructGDL* errorState = SysVar::Error_State();
+	static unsigned codeTag = errorState->Desc()->TagIndex( "CODE");
+	(*static_cast<DLongGDL*>( errorState->GetTag( codeTag)))[0] = 0;
 	static unsigned msgTag = errorState->Desc()->TagIndex( "MSG");
 	(*static_cast<DStringGDL*>( errorState->GetTag( msgTag)))[0] = msg;
 	
 	SysVar::SetErr_String( msg);
+	SysVar::SetErrError( -1);
       }
 	
     if( noprint)
@@ -1998,47 +2072,6 @@ TRACEOMP( __FILE__, __LINE__)
 	  swapSz = 4;
 
  	byteorderDo( e, par, swapSz, p);
-
-/*	if( par->Type() == GDL_STRING)
-	  e->Throw( "STRING type not allowed in this context: "+e->GetParString(p));		    
-	if( par->Type() == GDL_OBJ)
-	  e->Throw( "Object type not allowed in this context: "+e->GetParString(p));		    
-	if( par->Type() == GDL_PTR)
-	  e->Throw( "PTR type not allowed in this context: "+e->GetParString(p));		    
-	if( par->Type() == GDL_STRUCT)
-	{
-		if( static_cast<DStructGDL*>( par)->Desc()->ContainsStringPtrObject())
-		  e->Throw( "Structs must not contain PTR, OBJECT or STRING tags: "+e->GetParString(p));		    
-
-		if( par->N_Elements() == 1)
-			{
-				DStructGDL* dS = static_cast<DStructGDL*>(par);
-				for( SizeT t=0; t<dS->NTags(); ++t)
-				{
-					BaseGDL* actTag = dS->GetTag( t);
-				}
-			}
-	}
-	//  e->Throw( "PTR type not allowed in this context: "+e->GetParString(p));		    
-	
-	SizeT nBytes = par->NBytes();
-	if( nBytes % swapSz != 0)
-	  e->Throw( "Operand's size must be a multiple of swap "
-		    "datum size: " + e->GetParString(p));		    
-	    
-	SizeT nSwap = nBytes / swapSz;
-
-	char* addr = static_cast<char*>(par->DataAddr());
-
-	for( SizeT i=0; i<nSwap; ++i)
-	  {
-	    for( SizeT s=0; s < (swapSz/2); ++s)
-	      {
-		char tmp = *(addr+i*swapSz+s);
-		*(addr+i*swapSz+s) = *(addr+i*swapSz+swapSz-1-s);
-		*(addr+i*swapSz+swapSz-1-s) = tmp;
-	      }
-	  }*/
       }
   }
 
@@ -2469,20 +2502,21 @@ TRACEOMP( __FILE__, __LINE__)
 	    p5 = e->GetNumericParDefined( 5);
 	  }
 
-	ArrayIndexVectorT* ixList = new ArrayIndexVectorT();
-	auto_ptr< ArrayIndexVectorT> ixList_guard( ixList);
+// 	ArrayIndexVectorT* ixList = new ArrayIndexVectorT();
+// 	auto_ptr< ArrayIndexVectorT> ixList_guard( ixList);
+	ArrayIndexVectorT ixList; 
 // 	BaseGDL* loc1 = p3->Dup();
 // 	loc1->SetDim (dimension( loc1->N_Elements()));
 //	ixList->reserve( p3->N_Elements());
 	for (size_t i=0; i<p3->N_Elements(); i++)
 	  if( (i+1) == d1)
-	    ixList->push_back( new ArrayIndexAll());
+	    ixList.push_back( new ArrayIndexAll());
 	  else if( (i+1) == d2)
-	    ixList->push_back( new CArrayIndexIndexed( p5, true));
+	    ixList.push_back( new CArrayIndexIndexed( p5, true));
 	  else
-	    ixList->push_back( new CArrayIndexScalar( (*p3)[ i]));//p3->NewIx(i)));
+	    ixList.push_back( new CArrayIndexScalar( (*p3)[ i]));//p3->NewIx(i)));
 	ArrayIndexListT* ixL;
-	MakeArrayIndex( ixList, &ixL);
+	MakeArrayIndex( &ixList, &ixL);
 	auto_ptr< ArrayIndexListT> ixL_guard( ixL);
 	ixL->AssignAt( p0, p1);
 	return;

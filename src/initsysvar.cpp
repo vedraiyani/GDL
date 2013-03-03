@@ -180,6 +180,13 @@ namespace SysVar
     DVar& eSSysVar = *sysVarList[ err_stringIx];
     static_cast<DStringGDL&>(*eSSysVar.Data())[0] = eS;
   }
+  void SetErrError( DLong eC)
+  {
+    DVar& errSysVar = *sysVarList[ errIx];
+    DVar& errorSysVar = *sysVarList[ errorIx];
+    static_cast<DLongGDL&>(*errSysVar.Data())[0] = eC;
+    static_cast<DLongGDL&>(*errorSysVar.Data())[0] = eC;
+  }
 
   DStructGDL* P()
   {
@@ -339,7 +346,7 @@ namespace SysVar
     // plotting
     // !P
     SizeT clipDim = 6;
-    DLong p_clipInit[] = { 60, 40, 622, 492, 0, 1000};
+    DLong p_clipInit[] = { 0, 0, 1024, 1024, 0, 1000};
     DLongGDL* p_clip = new DLongGDL( dimension( &clipDim, one));
     for( UInt i=0; i<clipDim; i++) (*p_clip)[ i] = p_clipInit[ i];
     SizeT multiDim = 5;

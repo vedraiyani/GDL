@@ -60,8 +60,11 @@ public:
 
   void AdjustTypesNC( std::auto_ptr<BaseGDL>& g1, BaseGDL*& e1, 
 		      std::auto_ptr<BaseGDL>& g2, BaseGDL*& e2);
-  void AdjustTypesNCNull( std::auto_ptr<BaseGDL>& g1, BaseGDL*& e1, 
-		      std::auto_ptr<BaseGDL>& g2, BaseGDL*& e2);
+  // for overloaded operators 
+  void SetupGuards( Guard<BaseGDL>& g1, BaseGDL*& e1,
+		    Guard<BaseGDL>& g2, BaseGDL*& e2);
+  void AdjustTypesNCNull( Guard<BaseGDL>& g1, BaseGDL*& e1, 
+		      Guard<BaseGDL>& g2, BaseGDL*& e2);
 
   //  int getType() { return GDLTokenTypes::EXPR;}
 };
@@ -178,6 +181,30 @@ public:
   BaseGDL** LEval();
   BaseGDL* Eval();
 //   BaseGDL** LExprGrab( BaseGDL* right);  
+};
+
+class ARRAYEXPR_FCALLNode: public LeafNode
+{
+private:
+  int fcallNodeFunIx;
+  FCALLNode* fcallNode;
+  ARRAYEXPRNode* arrayExprNode;
+  
+  ARRAYEXPR_FCALLNode(){} // disable
+
+public:
+  ARRAYEXPR_FCALLNode( const RefDNode& refNode): LeafNode( refNode)
+  {
+    assert( dynamic_cast<FCALLNode*>(this->getFirstChild()->getNextSibling()));
+    assert( dynamic_cast<ARRAYEXPRNode*>(this->getFirstChild()));
+    arrayExprNode = static_cast<ARRAYEXPRNode*>(this->getFirstChild());
+    fcallNode = dynamic_cast<FCALLNode*>(arrayExprNode->getNextSibling());
+    fcallNodeFunIx = fcallNode->funIx;
+  }
+  BaseGDL** EvalRefCheck( BaseGDL*& rEval);
+  BaseGDL** LExpr( BaseGDL* right);
+  BaseGDL** LEval();
+  BaseGDL* Eval();
 };
 
 

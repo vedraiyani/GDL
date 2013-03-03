@@ -166,8 +166,13 @@ EnvUDT::EnvUDT( ProgNodeP cN, BaseGDL* self,
   lastJump( -1)
 {
   obj = true;
+
+  DType selfType = self->Type();
+  if( selfType != GDL_OBJ) 
+    throw GDLException( cN, "Object reference type"
+			" required in this context: "+interpreter->Name(self));
   
-  DStructGDL* oStructGDL = interpreter->ObjectStruct( self, cN);
+  DStructGDL* oStructGDL = interpreter->ObjectStruct( static_cast<DObjGDL*>(self), cN);
 
   const string& mp = cN->getText();
 
@@ -219,7 +224,12 @@ EnvUDT::EnvUDT( BaseGDL* self, //DStructGDL* oStructGDL,
 {
   obj = true;
 
-  DStructGDL* oStructGDL = interpreter->ObjectStruct( self, cN);
+  DType selfType = self->Type();
+  if( selfType != GDL_OBJ) 
+    throw GDLException( cN, "Object reference type"
+			" required in this context: "+interpreter->Name(self));
+  
+  DStructGDL* oStructGDL = interpreter->ObjectStruct( static_cast<DObjGDL*>(self), cN);
 
   const string& mp = cN->getText();
 
@@ -1101,6 +1111,12 @@ int EnvT::KeywordIx( const std::string& k)
   assert( pro != NULL);
   assert( pro->FindKey( k) != -1);
   return pro->FindKey( k);
+}
+
+bool EnvT::KeywordPresent( const std::string& kw)
+{
+  int ix = KeywordIx( kw);
+  return (env[ix] != NULL);
 }
 
 const string EnvBaseT::GetString( SizeT ix)

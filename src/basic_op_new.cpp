@@ -954,7 +954,7 @@ Data_<SpDObj>* Data_<SpDObj>::XorOpSNew( BaseGDL* r)
 // Adds right to itself returns new result
 // right must always have more or same number of elements
 template<class Sp>
-Data_<Sp>* Data_<Sp>::AddNew( BaseGDL* r)
+BaseGDL* Data_<Sp>::AddNew( BaseGDL* r)
 {
   Data_* right=static_cast<Data_*>(r);
 
@@ -981,13 +981,13 @@ Data_<Sp>* Data_<Sp>::AddNew( BaseGDL* r)
 }
 
 template<class Sp>
-Data_<Sp>* Data_<Sp>::AddInvNew( BaseGDL* r)
+BaseGDL* Data_<Sp>::AddInvNew( BaseGDL* r)
 {
   return AddNew( r);
 }
 
 template<>
-Data_<SpDString>* Data_<SpDString>::AddInvNew( BaseGDL* r)
+BaseGDL* Data_<SpDString>::AddInvNew( BaseGDL* r)
 {
   Data_* right=static_cast<Data_*>(r);
 
@@ -1023,21 +1023,25 @@ DStructGDL* DStructGDL::AddInvNew( BaseGDL* r)
   return NULL;
 }
 template<>
-Data_<SpDPtr>* Data_<SpDPtr>::AddNew( BaseGDL* r)
+BaseGDL* Data_<SpDPtr>::AddNew( BaseGDL* r)
 {
   throw GDLException("Cannot apply operation to datatype PTR.",true,false);  
   return NULL;
 }
 template<>
-Data_<SpDObj>* Data_<SpDObj>::AddNew( BaseGDL* r)
+BaseGDL* Data_<SpDObj>::AddNew( BaseGDL* r)
 {
-  throw GDLException("Cannot apply operation to datatype OBJECT.",true,false);  
-  return NULL;
+    return Add( r);
+}
+template<>
+BaseGDL* Data_<SpDObj>::AddInvNew( BaseGDL* r)
+{
+    return AddInv( r);
 }
 
 // scalar versions
 template<class Sp>
-Data_<Sp>* Data_<Sp>::AddSNew( BaseGDL* r)
+BaseGDL* Data_<Sp>::AddSNew( BaseGDL* r)
 {
   Data_* right=static_cast<Data_*>(r);
 
@@ -1061,12 +1065,12 @@ Data_<Sp>* Data_<Sp>::AddSNew( BaseGDL* r)
   return res;
 }
 template<class Sp>
-Data_<Sp>* Data_<Sp>::AddInvSNew( BaseGDL* r)
+BaseGDL* Data_<Sp>::AddInvSNew( BaseGDL* r)
 {
   return AddSNew( r);
 }
 template<>
-Data_<SpDString>* Data_<SpDString>::AddInvSNew( BaseGDL* r)
+BaseGDL* Data_<SpDString>::AddInvSNew( BaseGDL* r)
 {
   Data_* right=static_cast<Data_*>(r);
 
@@ -1100,16 +1104,20 @@ DStructGDL* DStructGDL::AddInvSNew( BaseGDL* r)
   return NULL;
 }
 template<>
-Data_<SpDPtr>* Data_<SpDPtr>::AddSNew( BaseGDL* r)
+BaseGDL* Data_<SpDPtr>::AddSNew( BaseGDL* r)
 {
   throw GDLException("Cannot apply operation to datatype PTR.",true,false);  
   return NULL;
 }
 template<>
-Data_<SpDObj>* Data_<SpDObj>::AddSNew( BaseGDL* r)
+BaseGDL* Data_<SpDObj>::AddSNew( BaseGDL* r)
 {
-  throw GDLException("Cannot apply operation to datatype OBJECT.",true,false);  
-  return NULL;
+  return Add( r);
+}
+template<>
+BaseGDL* Data_<SpDObj>::AddInvSNew( BaseGDL* r)
+{ 
+  return AddInv( r);
 }
 
 
@@ -1117,7 +1125,7 @@ Data_<SpDObj>* Data_<SpDObj>::AddSNew( BaseGDL* r)
 // Sub ----------------------------------------------------------------------
 // substraction: res=left-right
 template<class Sp>
-Data_<Sp>* Data_<Sp>::SubNew( BaseGDL* r)
+BaseGDL* Data_<Sp>::SubNew( BaseGDL* r)
 {
   Data_* right=static_cast<Data_*>(r);
 
@@ -1159,7 +1167,7 @@ Data_<Sp>* Data_<Sp>::SubNew( BaseGDL* r)
 }
 // inverse substraction: left=right-left
 template<class Sp>
-Data_<Sp>* Data_<Sp>::SubInvNew( BaseGDL* r)
+BaseGDL* Data_<Sp>::SubInvNew( BaseGDL* r)
 {
   Data_* right=static_cast<Data_*>(r);
 
@@ -1194,45 +1202,43 @@ DStructGDL* DStructGDL::SubInvNew( BaseGDL* r)
   return NULL;
 }
 template<>
-Data_<SpDString>* Data_<SpDString>::SubNew( BaseGDL* r)
+BaseGDL* Data_<SpDString>::SubNew( BaseGDL* r)
 {
   throw GDLException("Cannot apply operation to datatype STRING.",true,false);  
   return NULL;
 }
 template<>
-Data_<SpDString>* Data_<SpDString>::SubInvNew( BaseGDL* r)
+BaseGDL* Data_<SpDString>::SubInvNew( BaseGDL* r)
 {
   throw GDLException("Cannot apply operation to datatype STRING.",true,false);  
   return NULL;
 }
 template<>
-Data_<SpDPtr>* Data_<SpDPtr>::SubNew( BaseGDL* r)
+BaseGDL* Data_<SpDPtr>::SubNew( BaseGDL* r)
 {
   throw GDLException("Cannot apply operation to datatype PTR.",true,false);  
   return NULL;
 }
 template<>
-Data_<SpDPtr>* Data_<SpDPtr>::SubInvNew( BaseGDL* r)
+BaseGDL* Data_<SpDPtr>::SubInvNew( BaseGDL* r)
 {
   throw GDLException("Cannot apply operation to datatype PTR.",true,false);  
   return NULL;
 }
 template<>
-Data_<SpDObj>* Data_<SpDObj>::SubNew( BaseGDL* r)
+BaseGDL* Data_<SpDObj>::SubNew( BaseGDL* r)
 {
-  throw GDLException("Cannot apply operation to datatype OBJECT.",true,false);  
-  return NULL;
+  return Sub( r);
 }
 template<>
-Data_<SpDObj>* Data_<SpDObj>::SubInvNew( BaseGDL* r)
+BaseGDL* Data_<SpDObj>::SubInvNew( BaseGDL* r)
 {
-  throw GDLException("Cannot apply operation to datatype OBJECT.",true,false);  
-  return NULL;
+  return SubInv( r);
 }
 
 // scalar versions
 template<class Sp>
-Data_<Sp>* Data_<Sp>::SubSNew( BaseGDL* r)
+BaseGDL* Data_<Sp>::SubSNew( BaseGDL* r)
 {
   Data_* right=static_cast<Data_*>(r);
 
@@ -1259,7 +1265,7 @@ Data_<Sp>* Data_<Sp>::SubSNew( BaseGDL* r)
 }
 // inverse substraction: left=right-left
 template<class Sp>
-Data_<Sp>* Data_<Sp>::SubInvSNew( BaseGDL* r)
+BaseGDL* Data_<Sp>::SubInvSNew( BaseGDL* r)
 {
   Data_* right=static_cast<Data_*>(r);
 
@@ -1297,40 +1303,38 @@ DStructGDL* DStructGDL::SubInvSNew( BaseGDL* r)
   return NULL;
 }
 template<>
-Data_<SpDString>* Data_<SpDString>::SubSNew( BaseGDL* r)
+BaseGDL* Data_<SpDString>::SubSNew( BaseGDL* r)
 {
   throw GDLException("Cannot apply operation to datatype STRING.",true,false);  
   return NULL;
 }
 template<>
-Data_<SpDString>* Data_<SpDString>::SubInvSNew( BaseGDL* r)
+BaseGDL* Data_<SpDString>::SubInvSNew( BaseGDL* r)
 {
   throw GDLException("Cannot apply operation to datatype STRING.",true,false);  
   return NULL;
 }
 template<>
-Data_<SpDPtr>* Data_<SpDPtr>::SubSNew( BaseGDL* r)
+BaseGDL* Data_<SpDPtr>::SubSNew( BaseGDL* r)
 {
   throw GDLException("Cannot apply operation to datatype PTR.",true,false);  
   return NULL;
 }
 template<>
-Data_<SpDPtr>* Data_<SpDPtr>::SubInvSNew( BaseGDL* r)
+BaseGDL* Data_<SpDPtr>::SubInvSNew( BaseGDL* r)
 {
   throw GDLException("Cannot apply operation to datatype PTR.",true,false);  
   return NULL;
 }
 template<>
-Data_<SpDObj>* Data_<SpDObj>::SubSNew( BaseGDL* r)
+BaseGDL* Data_<SpDObj>::SubSNew( BaseGDL* r)
 {
-  throw GDLException("Cannot apply operation to datatype OBJECT.",true,false);  
-  return NULL;
+  return Sub( r);
 }
 template<>
-Data_<SpDObj>* Data_<SpDObj>::SubInvSNew( BaseGDL* r)
+BaseGDL* Data_<SpDObj>::SubInvSNew( BaseGDL* r)
 {
-  throw GDLException("Cannot apply operation to datatype OBJECT.",true,false);  
-  return NULL;
+  return SubInv( r);
 }
 
 // LtMark <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
@@ -2594,7 +2598,7 @@ Data_<SpDDouble>* Data_<SpDDouble>::PowIntNew( BaseGDL* r)
   DLongGDL* right=static_cast<DLongGDL*>(r);
 
   ULong rEl=right->N_Elements();
-  ULong nEl=N_Elements(); Data_* res = NewResult();
+  ULong nEl=N_Elements();
   assert( rEl);
   assert( nEl);
   if( r->StrictScalar())

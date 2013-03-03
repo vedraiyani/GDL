@@ -13,14 +13,15 @@ cmake_minimum_required(VERSION 2.6 FATAL_ERROR)
 
 project(GDL)
 
-# X.X.X CVS becomes release X.X.X
-set(VERSION "0.9.2 CVS")
+# X.X.X CVS becomes release X.X.X+1
+set(VERSION "0.9.3 CVS")
 enable_testing()
 
 include(CheckIncludeFile)
 include(CheckIncludeFileCXX)
 include(CheckLibraryExists)
 include(CheckFunctionExists)
+include(CheckSymbolExists)
 include(CheckCSourceRuns)
 include(FindPkgConfig)
 include(FindPackageHandleStandardArgs)
@@ -48,6 +49,9 @@ set(WXWIDGETSDIR "" CACHE PATH "Specify WxWidgets directory tree")
 
 set(UDUNITS OFF CACHE BOOL "Enable UDUNITS-2 ?")
 set(UDUNITSDIR "" CACHE PATH "Specify the UDUNITS-2 directory tree")
+
+set(EIGEN3 ON CACHE BOOL "Enable Eigen3 ?")
+set(EIGEN3DIR "" CACHE PATH "Specify the Eigen3 directory tree")
 
 set(PSLIB ON CACHE BOOL "Enable pslib ?")
 set(PSLIBDIR "" CACHE PATH "Specify the pslib directory tree")
@@ -285,13 +289,16 @@ else(PLPLOT_FOUND)
         "(suitable Fedora package: plplot-devel)")
 endif(PLPLOT_FOUND)
 
-check_library_exists("${PLPLOT_LIBRARIES}" plP_mmpcx "" HAVE_PLPLOT_BEFORE_5994)
-if(HAVE_PLPLOT_BEFORE_5994)
-  message(STATUS "OK for XYOUTS in plplot")
-else(HAVE_PLPLOT_BEFORE_5994)
-  message(STATUS "warning for XYOUTS in plplot")
-endif(HAVE_PLPLOT_BEFORE_5994)
-
+if(PLPLOT_FOUND)
+	check_library_exists("${PLPLOT_LIBRARIES}" c_plslabelfunc "" HAVE_PLPLOT_SLABELFUNC)
+	if(HAVE_PLPLOT_SLABELFUNC)
+	  set(HAVE_PLPLOT_SLABELFUNC 1)
+	else(HAVE_PLPLOT_SLABELFUNC)
+	  message(STATUS "warning, due to old plplot library, [XYZ]TICKFORMAT option for plot axis will not be supported.\n"
+	    "you should upgrade to plplot version > 5.9.6")
+	endif(HAVE_PLPLOT_SLABELFUNC)
+endif(PLPLOT_FOUND)
+	
 if(MAGICK) # support Magick
 	check_library_exists("${PLPLOT_LIBRARIES}" plGetDrvDir "" HAVE_PLGETDRVDIR)
 	if(HAVE_PLGETDRVDIR)
@@ -596,6 +603,23 @@ if(UDUNITS)
 	endif(UDUNITS_FOUND)
 endif(UDUNITS)
 
+# eigen3
+# -DEIGEN3=ON|OFF
+# -DEIGEN3DIR=DIR
+if(EIGEN3)
+	set(CMAKE_PREFIX_PATH ${EIGEN3DIR})
+	find_package(Eigen3 QUIET)
+	set(USE_EIGEN ${EIGEN3_FOUND})
+	if(EIGEN3_FOUND)
+		include_directories(${EIGEN3_INCLUDE_DIR})	
+	else(EIGEN3_FOUND)
+		message(FATAL_ERROR "EIGEN3 is required but was not found.\n"
+		"Use -DEIGEN3DIR=DIR to specify the Eigen3 directory tree.\n"
+		"Use -DEIGEN3=OFF to not use it.\n"
+                "(suitable Fedora package: eigen3-devel)")
+	endif(EIGEN3_FOUND)
+endif(EIGEN3)
+
 # pslib
 # -DPSLIB=ON|OFF
 # -DPSLIBDIR=DIR
@@ -767,6 +791,7 @@ set(MPICH_LIBRARIES ${MPI_LIBRARIES})
 module(MPICH     "MPICH      ")
 module(PYTHON    "Python     ")
 module(UDUNITS   "UDUNITS-2  ")
+module(EIGEN3    "EIGEN3     ")
 module(GRIB      "GRIB       ")
 set(GSHHS_LIBRARIES ${GSHHS_INCLUDE_DIR})
 module(GSHHS     "GSHHS      ")

@@ -116,8 +116,11 @@ public:
     static int GetFunIx( const std::string& subName);
     static int GetProIx( ProgNodeP);//const std::string& subName);
     static int GetProIx( const std::string& subName);
-    DStructGDL* ObjectStruct( BaseGDL* self, ProgNodeP mp);
-    DStructGDL* ObjectStructCheckAccess( BaseGDL* self, ProgNodeP mp);
+    DStructGDL* ObjectStruct( DObjGDL* self, ProgNodeP mp);
+    void SetRootR( ProgNodeP tt, DotAccessDescT* aD, BaseGDL* r, ArrayIndexListT* aL);
+    void SetRootL( ProgNodeP tt, DotAccessDescT* aD, BaseGDL* r, ArrayIndexListT* aL);
+    // DStructGDL* ObjectStructCheckAccess( DObjGDL* self, ProgNodeP mp);
+    // DStructDesc* GDLObjectDesc( DObjGDL* self, ProgNodeP mp);
 
     // code in: dinterpreter.cpp
     static void SetFunIx( ProgNodeP f); // triggers read/compile
@@ -450,12 +453,19 @@ std::cout << add << " + <ObjHeapVar" << id << ">" << std::endl;
     }
 
     // for overload functions
-    static DStructGDL* GetObjHeapNoThrow( DObj ID)
+    static DSubUD* GetObjHeapOperator( DObj ID, int opIx)
     {
+        if( ID == 0) return NULL;
         ObjHeapT::iterator it=objHeap.find( ID);
         if( it == objHeap.end()) return NULL;
-        return it->second.get();
+        return it->second.get()->Desc()->GetOperator( opIx);
     }
+    // static DStructGDL* GetObjHeapNoThrow( DObj ID)
+    // {
+    //     ObjHeapT::iterator it=objHeap.find( ID);
+    //     if( it == objHeap.end()) return NULL;
+    //     return it->second.get();
+    // }
 //     static DStructGDL*& GetObjHeap( DObj ID, ObjHeapT::iterator& it)
 //     {
 // //         ObjHeapT::iterator it=objHeap.find( ID);
@@ -584,6 +594,9 @@ std::cout << add << " + <ObjHeapVar" << id << ">" << std::endl;
 //         if( o != 0) return std::string("<ObjHeapVar")+i2s(o)+">";
         return "<(ptr to undefined expression not found on the heap)>";
     }
+
+
+
 
     // compiler (lexer, parser, treeparser) def in dinterpreter.cpp
     static void ReportCompileError( GDLException& e, const std::string& file = "");

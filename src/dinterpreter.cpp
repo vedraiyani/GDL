@@ -113,14 +113,14 @@ RetCode GDLInterpreter::NewInterpreterInstance( SizeT lineOffset)
   return static_cast<DInterpreter*>( this)->InnerInterpreterLoop(lineOffset);
 }
 
-DStructGDL* GDLInterpreter::ObjectStruct( BaseGDL* self, ProgNodeP mp)
+DStructGDL* GDLInterpreter::ObjectStruct( DObjGDL* self, ProgNodeP mp)
 {
-  DType selfType = self->Type();
-  if( selfType != GDL_OBJ) 
-    throw GDLException( mp, "Object reference type"
-			" required in this context: "+Name(self));
+//   DType selfType = self->Type();
+//   if( selfType != GDL_OBJ) 
+//     throw GDLException( mp, "Object reference type"
+// 			" required in this context: "+Name(self));
 
-  DObjGDL* obj=static_cast<DObjGDL*>(self);
+  DObjGDL* obj=self;//static_cast<DObjGDL*>(self);
 
   SizeT o;
   if( !obj->Scalar( o))
@@ -143,21 +143,199 @@ DStructGDL* GDLInterpreter::ObjectStruct( BaseGDL* self, ProgNodeP mp)
   return oStructGDL;
 }
 
-DStructGDL* GDLInterpreter::ObjectStructCheckAccess( BaseGDL* self, ProgNodeP mp)
-{
-  DStructGDL* oStruct = ObjectStruct( self, mp);
-  
-  // check accessibility
-  DStructDesc* desc = oStruct->Desc();
-  if( !desc->IsParent( callStack.back()->GetPro()->Object()))
-    {
-      throw GDLException( mp, "Object of type "+desc->Name()+
-			  " is not accessible within "+
-			  callStack.back()->GetProName() + ": "+Name(self));
-    }
-  
-  return oStruct;
+void GDLInterpreter::SetRootL( ProgNodeP tt, DotAccessDescT* aD, BaseGDL* r, ArrayIndexListT* aL) 
+{ 
+  if( r->Type() == GDL_STRUCT)
+  {
+      if( r->IsAssoc())
+	  {
+	      ArrayIndexListGuard guard( aL);
+	      throw GDLException( tt, "File expression not allowed "
+				  "in this context: "+Name(r),true,false);
+	  }
+      DStructGDL* structR=static_cast<DStructGDL*>(r);
+      aD->ADRoot(structR, aL); 
+  }
+  else
+  {
+      if( r->Type() != GDL_OBJ)
+	  {
+	      throw GDLException( tt, "Expression must be a"
+				  " STRUCT in this context: "+Name(r),
+				  true,false);
+	  }
+
+      ArrayIndexListGuard guard( aL);
+
+      DStructGDL* oStruct = ObjectStruct( static_cast<DObjGDL*>(r), tt);
+      DStructDesc* desc = oStruct->Desc();
+
+      bool isObj = callStack.back()->IsObject();
+
+      if( desc->IsParent( GDL_OBJECT_NAME))
+	  {
+	    SizeT sss = 0;
+	    SizeT ooo = 0;
+	    if( isObj)
+	    {
+	      static_cast<DObjGDL*>(r)->Scalar( ooo); // checked in ObjectStruct
+
+	      BaseGDL* self = callStack.back()->GetKW(callStack.back()->GetPro()->NKey()); // SELF
+
+	      assert( dynamic_cast<DObjGDL*>(self) != NULL);
+
+	      if( !static_cast<DObjGDL*>(self)->Scalar( sss))
+		  throw GDLException( tt, "Internal error: SELF Object reference"
+				    " must be scalar in this context: "+Name(self));
+
+	      assert( sss != 0);
+	    }
+
+	    if( !isObj || (sss != ooo))
+	    {
+	      // call SetProperty
+		  throw GDLException( tt, "Calling SetProperty not yet implemented: "+Name(r));
+	      //return;
+	    }
+	  }
+
+      if( isObj) // member access to object?
+	  {
+	      if( !desc->IsParent( callStack.back()->GetPro()->Object()))
+		  {
+		      throw GDLException( tt, "Object of type "+desc->Name()+
+					  " is not accessible within "+
+					  callStack.back()->GetProName() + 
+					  ": "+Name(r));
+		  }
+	      // DStructGDL* oStruct = 
+	      //        ObjectStructCheckAccess( static_cast<DObjGDL*>(r), tt);
+
+	      // oStruct cannot be "Assoc_"
+	      aD->ADRoot( oStruct, guard.release()); 
+	  }
+      else
+	  {
+	      throw GDLException( tt, "Expression must be a"
+				  " STRUCT in this context: "+Name(r),
+				  true,false);
+	  }
+  }
 }
+
+void GDLInterpreter::SetRootR( ProgNodeP tt, DotAccessDescT* aD, BaseGDL* r, ArrayIndexListT* aL) 
+{ 
+// check here for object and get struct
+if( r->Type() == GDL_STRUCT)
+  {
+      if( r->IsAssoc())
+	  {
+	      ArrayIndexListGuard guard( aL);
+	      throw GDLException( tt, "File expression not allowed "
+				  "in this context: "+Name(r),true,false);
+	  }
+      DStructGDL* structR=static_cast<DStructGDL*>(r);
+      aD->ADRoot( structR, aL); 
+  }
+else
+  {
+      if( r->Type() != GDL_OBJ)
+	  {
+	      throw GDLException( tt, "Expression must be a"
+				  " STRUCT in this context: "+Name(r),
+				  true,false);
+	  }
+
+      ArrayIndexListGuard guard( aL);
+
+      DStructGDL* oStruct = ObjectStruct( static_cast<DObjGDL*>(r), tt);
+      DStructDesc* desc = oStruct->Desc();
+
+      bool isObj = callStack.back()->IsObject();
+
+      if( desc->IsParent( GDL_OBJECT_NAME))
+	  {
+	    SizeT sss = 0;
+	    SizeT ooo = 0;
+	    if( isObj)
+	    {
+	      static_cast<DObjGDL*>(r)->Scalar( ooo); // checked in ObjectStruct
+
+	      BaseGDL* self = callStack.back()->GetKW(callStack.back()->GetPro()->NKey()); // SELF
+
+	      assert( dynamic_cast<DObjGDL*>(self) != NULL);
+
+	      if( !static_cast<DObjGDL*>(self)->Scalar( sss))
+		  throw GDLException( tt, "Internal error: SELF Object reference"
+				    " must be scalar in this context: "+Name(self));
+
+	      assert( sss != 0);
+	    }
+
+	    if( !isObj || (sss != ooo))
+	    {
+	      // call GetProperty
+	      throw GDLException( tt, "Calling GetProperty not yet implemented: "+Name(r));
+
+	      //aD->ADRootGetProperty( oStruct, guard.release()); 
+	      return;
+	    }
+	  }
+
+      if( isObj)
+	  {
+	      if( !desc->IsParent( callStack.back()->GetPro()->Object()))
+		  {
+		      throw GDLException( tt, "Object of type "+desc->Name()+
+					  " is not accessible within "+
+					  callStack.back()->GetProName() + 
+					  ": "+Name(r));
+		  }
+	      // DStructGDL* oStruct = 
+	      //     ObjectStructCheckAccess( static_cast<DObjGDL*>(r), tt);
+
+	      if( aD->IsOwner()) delete r; 
+	      aD->SetOwner( false); // object struct, not owned
+	      
+	      aD->ADRoot( oStruct, guard.release()); 
+	  }
+      else
+	  {
+	      throw GDLException( tt, "Expression must be a"
+				  " STRUCT in this context: "+Name(r),true,false);
+	  }
+  }
+}
+
+// DStructDesc* GDLInterpreter::GDLObjectDesc( DStructGDL* oStruct, ProgNodeP mp)
+// {
+//   //DStructGDL* oStruct = ObjectStruct( self, mp);
+//   
+//   // check accessibility
+//   DStructDesc* desc = oStruct->Desc();
+//   if( !desc->IsParent( GDL_OBJECT_NAME))
+//     {
+//       return NULL;
+//     }
+//   
+//   return desc;
+// }
+// 
+// void GDLInterpreter::ObjectStructCheckAccess( DStructGDL* oStruct, ProgNodeP mp)
+// {
+//   //DStructGDL* oStruct = ObjectStruct( self, mp);
+//   
+//   // check accessibility
+//   DStructDesc* desc = oStruct->Desc();
+//   if( !desc->IsParent( callStack.back()->GetPro()->Object()))
+//     {
+//       throw GDLException( mp, "Object of type "+desc->Name()+
+// 			  " is not accessible within "+
+// 			  callStack.back()->GetProName() + ": "+Name(self));
+//     }
+//   
+//   //return oStruct;
+// }
 
 // searches and compiles procedure (searchForPro == true) or function (searchForPro == false)  'pro'
 bool GDLInterpreter::SearchCompilePro(const string& pro, bool searchForPro) 
@@ -593,7 +771,6 @@ DInterpreter::CommandCode DInterpreter::CmdRun( const string& command)
   //  return CC_OK;
 }
 
-
 // execute GDL command (.run, .step, ...)
 DInterpreter::CommandCode DInterpreter::ExecuteCommand(const string& command)
 {
@@ -663,30 +840,46 @@ DInterpreter::CommandCode DInterpreter::ExecuteCommand(const string& command)
     }
   if( cmd( "SKIP"))
     {
-      cout << "SKIP not implemented yet." << endl;
-      return CC_OK;
+      DLong sCount;
+      if( args == "")
+      {
+	  sCount = 1;
+      }
+      else
+      {
+	const char* cStart=args.c_str();
+	char* cEnd;
+	sCount = strtol(cStart,&cEnd,10);
+	if( cEnd == cStart)
+	{
+	  cout << "Type conversion error: Unable to convert given STRING: '"+args+"' to LONG." << endl;
+	  return CC_OK;
+	}
+      }
+      stepCount = sCount;
+      return CC_SKIP;
     }
   if( cmd( "STEP"))
     {
-      	    DLong sCount;
-      	    if( args == "")
-      	    {
-				sCount = 1;
-      	    }
-      	    else
-      	    {
-				const char* cStart=args.c_str();
-				char* cEnd;
-				sCount = strtol(cStart,&cEnd,10);
-				if( cEnd == cStart)
-				{
-				cout << "Type conversion error: Unable to convert given STRING: '"+args+"' to LONG." << endl;
-				return CC_OK;
-				}
-      	      }
-      	      stepCount = sCount;
-			  debugMode = DEBUG_STEP;
-			  return CC_STEP;
+      DLong sCount;
+      if( args == "")
+      {
+	  sCount = 1;
+      }
+      else
+      {
+	  const char* cStart=args.c_str();
+	  char* cEnd;
+	  sCount = strtol(cStart,&cEnd,10);
+	  if( cEnd == cStart)
+	  {
+	    cout << "Type conversion error: Unable to convert given STRING: '"+args+"' to LONG." << endl;
+	    return CC_OK;
+	  }
+	}
+	stepCount = sCount;
+	debugMode = DEBUG_STEP;
+	return CC_STEP;
     }
   if( cmd( "STEPOVER"))
     {
@@ -1103,28 +1296,32 @@ RetCode DInterpreter::InnerInterpreterLoop(SizeT lineOffset)
   for (;;) {
     feclearexcept(FE_ALL_EXCEPT);
 
-//     try
-//       {
-	DInterpreter::CommandCode ret=ExecuteLine(NULL, lineOffset);
+    DInterpreter::CommandCode ret=ExecuteLine(NULL, lineOffset);
 
-	_retTree = retTreeSave; // on return, _retTree should be kept
+    _retTree = retTreeSave; // on return, _retTree should be kept
 
-	if( ret == CC_RETURN) return RC_RETURN;
-	if( ret == CC_CONTINUE) return RC_OK; 
-	if( ret == CC_STEP) return RC_OK;
-//       }
-//     catch( RetAllException&)
-//       {
-//  	throw;
-//       }
-    //     catch( exception& e)
-    //       {
-    // 	cerr << "InnerInterpreterLoop: Exception: " << e.what() << endl;
-    //       }
-    //     catch (...)
-    //       {	
-    // 	cerr << "InnerInterpreterLoop: Unhandled Error." << endl;
-    //       }
+    if( ret == CC_SKIP)
+    {
+      for( int s=0; s<stepCount; ++s)
+      {
+	if( _retTree == NULL)
+	  break;
+	
+	_retTree = _retTree->getNextSibling();
+      }
+//       cout << ".SKIP " << stepCount << "   " << _retTree << endl;
+
+      stepCount = 0;
+      retTreeSave = _retTree;
+      // we stay at the command line here
+      if( _retTree == NULL)
+	Message( "Can't continue from this point.");
+      else
+	DebugMsg( _retTree, "Skipped to: ");
+    }
+    else if( ret == CC_RETURN) return RC_RETURN;
+    else if( ret == CC_CONTINUE) return RC_OK; 
+    else if( ret == CC_STEP) return RC_OK;
   }
 }
 
@@ -1404,11 +1601,15 @@ historyIntialized = true;
 	  {
 	    DInterpreter::CommandCode ret=ExecuteLine();
 
-		// stop steppig when at main level
-		stepCount = 0;
-		debugMode = DEBUG_CLEAR;
+	    // stop steppig when at main level
+	    stepCount = 0;
+	    debugMode = DEBUG_CLEAR;
 
-	    if( ret == CC_CONTINUE)
+	    if( ret == CC_SKIP)
+	    {
+	      Message( "Can't continue from this point.");
+	    }		    
+	    else if( ret == CC_CONTINUE)
 	      {
 		if( static_cast<DSubUD*>
 		    (callStack.back()->GetPro())->GetTree() != NULL)

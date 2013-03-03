@@ -32,6 +32,7 @@
 #endif
 
 #include "strassenmatrix.hpp"
+#include "typetraits.hpp"
 
 using namespace std;
 
@@ -541,9 +542,9 @@ void Data_<SpDObj>::Inc()
 
 // 1. operators that always return a new result
 // EqOp
-// returns *this eq *r, //C deletes itself and right
+// returns *this eq *r
 template<class Sp>
-Data_<SpDByte>* Data_<Sp>::EqOp( BaseGDL* r)
+BaseGDL* Data_<Sp>::EqOp( BaseGDL* r)
 {
   Data_* right=static_cast<Data_*>(r);
 
@@ -617,8 +618,163 @@ Data_<SpDByte>* Data_<Sp>::EqOp( BaseGDL* r)
   //C delete this;
   return res;
 }
+// must handle overloads
+template<>
+BaseGDL* Data_<SpDObj>::EqOp( BaseGDL* r)
+{
+  if( Scalar())
+//   if( StrictScalar())
+  {
+//     DStructGDL* oStructGDL= GDLInterpreter::GetObjHeapNoThrow( (*this)[0]);
+//     if( oStructGDL != NULL) // object not valid -> default behaviour
+//     {
+//       DStructDesc* desc = oStructGDL->Desc();
+//   
+//       DFun* EQOverload = static_cast<DFun*>(desc->GetOperator( OOEQ));
+//       
+      DFun* EQOverload = static_cast<DFun*>(GDLInterpreter::GetObjHeapOperator( (*this)[0], OOEQ));
+      if( EQOverload != NULL)
+      {
+	ProgNodeP callingNode = interpreter->GetRetTree();
+	// hidden SELF is counted as well
+	int nParSub = EQOverload->NPar();
+	assert( nParSub >= 1); // SELF
+	if( nParSub < 3) // (SELF), LEFT, RIGHT
+	{
+	  throw GDLException( callingNode, EQOverload->ObjectName() +
+			  ": Incorrect number of arguments.",
+			  false, false);
+	}
+	EnvUDT* newEnv;
+	BaseGDL* self;
+	Guard<BaseGDL> selfGuard;
+	// Dup() here is not optimal
+	// avoid at least for internal overload routines (which do/must not change SELF or r)
+	bool internalDSubUD = EQOverload->GetTree()->IsWrappedNode();  
+	if( internalDSubUD)  
+	{
+	  self = this;
+	  newEnv= new EnvUDT( callingNode, EQOverload, &self);
+	  newEnv->SetNextParUnchecked( &self); // LEFT  parameter
+	  newEnv->SetNextParUnchecked( &r); // RVALUE  parameter, as reference to prevent cleanup in newEnv
+	}
+	else
+	{
+	  self = this->Dup();
+	  selfGuard.Init( self);
+	  newEnv= new EnvUDT( callingNode, EQOverload, &self);
+	  newEnv->SetNextParUnchecked( this->Dup()); // LEFT  parameter, as value
+	  newEnv->SetNextParUnchecked( r->Dup()); // RIGHT parameter, as value
+	}
+
+	
+	// better than auto_ptr: auto_ptr wouldn't remove newEnv from the stack
+	StackGuard<EnvStackT> guard(interpreter->CallStack());
+
+	interpreter->CallStack().push_back( newEnv); 
+	
+	// make the call
+	BaseGDL* res=interpreter->call_fun(static_cast<DSubUD*>(newEnv->GetPro())->GetTree());
+
+	if( !internalDSubUD && self != selfGuard.Get())
+	{
+	  // always put out warning first, in case of a later crash
+	  Warning( "WARNING: " + EQOverload->ObjectName() + 
+		": Assignment to SELF detected (GDL session still ok).");
+	  // assignment to SELF -> self was deleted and points to new variable
+	  // which it owns
+	  selfGuard.Release();
+	  if( self != NullGDL::GetSingleInstance())
+	    selfGuard.Reset(self);
+	}
+
+	return res;
+      }
+//     }
+  } // if( StrictScalar())
+  
+  // handle type conversion first
+  // here r can be of any GDL type (due to operator overloading)
+  if( r->Type() != GDL_OBJ)
+  {
+        throw GDLException("Unable to convert variable to type object reference.",true,false);
+  }
+
+  // same code as for other types from here
+  Data_* right=static_cast<Data_*>(r);
+  
+  ULong rEl=right->N_Elements();
+  ULong nEl=N_Elements();
+  //   if( nEl == 0)
+  // 	 nEl=N_Elements();
+  assert( rEl);
+  assert( nEl);
+  //  if( !rEl || !nEl) throw GDLException("Variable is undefined.");  
+
+  Data_<SpDByte>* res;
+
+  Ty s;
+  if( right->StrictScalar(s)) 
+    {
+      res= new Data_<SpDByte>( this->dim, BaseGDL::NOZERO);
+      if( nEl == 1)
+	{
+	  (*res)[0] = (s == (*this)[0]);
+	  return res;
+	}
+      TRACEOMP( __FILE__, __LINE__)
+#pragma omp parallel if (nEl >= CpuTPOOL_MIN_ELTS && (CpuTPOOL_MAX_ELTS == 0 || CpuTPOOL_MAX_ELTS <= nEl))
+	{
+#pragma omp for
+	  for( int i=0; i < nEl; ++i)
+	    (*res)[i] = ((*this)[i] == s);
+	}    }
+  else if( StrictScalar(s)) 
+    {
+      res= new Data_<SpDByte>( right->dim, BaseGDL::NOZERO);
+      if( rEl == 1)
+	{
+	  (*res)[0] = ((*right)[0] == s);
+	  return res;
+	}
+      TRACEOMP( __FILE__, __LINE__)
+#pragma omp parallel if (rEl >= CpuTPOOL_MIN_ELTS && (CpuTPOOL_MAX_ELTS == 0 || CpuTPOOL_MAX_ELTS <= rEl))
+	{
+#pragma omp for
+	  for( int i=0; i < rEl; ++i)
+	    (*res)[i] = ((*right)[i] == s);
+	}    }
+  else if( rEl < nEl) 
+    {
+      res= new Data_<SpDByte>( right->dim, BaseGDL::NOZERO);
+      TRACEOMP( __FILE__, __LINE__)
+#pragma omp parallel if (rEl >= CpuTPOOL_MIN_ELTS && (CpuTPOOL_MAX_ELTS == 0 || CpuTPOOL_MAX_ELTS <= rEl))
+	{
+#pragma omp for
+	  for( int i=0; i < rEl; ++i)
+	    (*res)[i] = ((*right)[i] == (*this)[i]);
+	}    }
+  else // ( rEl >= nEl)
+    {
+      res= new Data_<SpDByte>( this->dim, BaseGDL::NOZERO);
+      if( rEl == 1)
+	{
+	  (*res)[0] = ((*right)[0] == (*this)[0]);
+	  return res;
+	}
+      TRACEOMP( __FILE__, __LINE__)
+#pragma omp parallel if (nEl >= CpuTPOOL_MIN_ELTS && (CpuTPOOL_MAX_ELTS == 0 || CpuTPOOL_MAX_ELTS <= nEl))
+	{
+#pragma omp for
+	  for( int i=0; i < nEl; ++i)
+	    (*res)[i] = ((*right)[i] == (*this)[i]);
+	}    }
+  //C delete right;
+  //C delete this;
+  return res;
+}
 // invalid types
-Data_<SpDByte>* DStructGDL::EqOp( BaseGDL* r)
+BaseGDL* DStructGDL::EqOp( BaseGDL* r)
 {
   throw GDLException("Cannot apply operation to datatype STRUCT.",true,false);  
   return NULL;
@@ -639,7 +795,7 @@ Data_<SpDByte>* DStructGDL::EqOp( BaseGDL* r)
 // NeOp
 // returns *this ne *r, //C deletes itself and right
 template<class Sp>
-Data_<SpDByte>* Data_<Sp>::NeOp( BaseGDL* r)
+BaseGDL* Data_<Sp>::NeOp( BaseGDL* r)
 {
   Data_* right=static_cast<Data_*>(r);
 
@@ -712,8 +868,164 @@ Data_<SpDByte>* Data_<Sp>::NeOp( BaseGDL* r)
   //C delete this;
   return res;
 }
+
+// must handle overloads
+template<>
+BaseGDL* Data_<SpDObj>::NeOp( BaseGDL* r)
+{  
+  if( Scalar())
+//   if( StrictScalar())
+  {
+//     DStructGDL* oStructGDL= GDLInterpreter::GetObjHeapNoThrow( (*this)[0]);
+//     if( oStructGDL != NULL) // object not valid -> default behaviour
+//     {
+//       DStructDesc* desc = oStructGDL->Desc();
+//   
+//       DFun* NEOverload = static_cast<DFun*>(desc->GetOperator( OONE));
+//       
+      DFun* NEOverload = static_cast<DFun*>(GDLInterpreter::GetObjHeapOperator( (*this)[0], OONE));
+      if( NEOverload != NULL)
+      {
+	ProgNodeP callingNode = interpreter->GetRetTree();
+	// hidden SELF is counted as well
+	int nParSub = NEOverload->NPar();
+	assert( nParSub >= 1); // SELF
+	if( nParSub < 3) // (SELF), LEFT, RIGHT
+	{
+	  throw GDLException( callingNode, NEOverload->ObjectName() +
+			  ": Incorrect number of arguments.",
+			  false, false);
+	}
+	EnvUDT* newEnv;
+	BaseGDL* self;
+	Guard<BaseGDL> selfGuard;
+	// Dup() here is not optimal
+	// avoid at least for internal overload routines (which do/must not change SELF or r)
+	bool internalDSubUD = NEOverload->GetTree()->IsWrappedNode();  
+	if( internalDSubUD)  
+	{
+	  self = this;
+	  newEnv= new EnvUDT( callingNode, NEOverload, &self);
+	  newEnv->SetNextParUnchecked( &self); // LEFT  parameter
+	  newEnv->SetNextParUnchecked( &r); // RVALUE  parameter, as reference to prevent cleanup in newEnv
+	}
+	else
+	{
+	  self = this->Dup();
+	  selfGuard.Init( self);
+	  newEnv= new EnvUDT( callingNode, NEOverload, &self);
+	  newEnv->SetNextParUnchecked( this->Dup()); // LEFT  parameter, as value
+	  newEnv->SetNextParUnchecked( r->Dup()); // RIGHT parameter, as value
+	}
+
+	
+	// better than auto_ptr: auto_ptr wouldn't remove newEnv from the stack
+	StackGuard<EnvStackT> guard(interpreter->CallStack());
+
+	interpreter->CallStack().push_back( newEnv); 
+	
+	// make the call
+	BaseGDL* res=interpreter->call_fun(static_cast<DSubUD*>(newEnv->GetPro())->GetTree());
+
+	if( !internalDSubUD && self != selfGuard.Get())
+	{
+	  // always put out warning first, in case of a later crash
+	  Warning( "WARNING: " + NEOverload->ObjectName() + 
+		": Assignment to SELF detected (GDL session still ok).");
+	  // assignment to SELF -> self was deleted and points to new variable
+	  // which it owns
+	  selfGuard.Release();
+	  if( self != NullGDL::GetSingleInstance())
+	    selfGuard.Reset(self);
+	}
+
+	return res;
+      }
+//     }
+  } // if( StrictScalar())
+  
+  // handle type conversion first
+  // here r can be of any GDL type (due to operator overloading)
+  if( r->Type() != GDL_OBJ)
+  {
+        throw GDLException("Unable to convert variable to type object reference.",true,false);
+  }
+
+  // same code as for other types from here
+  Data_* right=static_cast<Data_*>(r);
+
+  ULong rEl=right->N_Elements();
+  ULong nEl=N_Elements();
+  assert( rEl);
+  assert( nEl);
+  //  if( !rEl || !nEl) throw GDLException("Variable is undefined.");  
+
+  Data_<SpDByte>* res;
+  
+  Ty s;
+  if( right->StrictScalar(s)) 
+    {
+      res= new Data_<SpDByte>( this->dim, BaseGDL::NOZERO);
+      if( nEl == 1)
+	{
+	  (*res)[0] = (s != (*this)[0]);
+	  return res;
+	}
+
+      TRACEOMP( __FILE__, __LINE__)
+#pragma omp parallel if (nEl >= CpuTPOOL_MIN_ELTS && (CpuTPOOL_MAX_ELTS == 0 || CpuTPOOL_MAX_ELTS <= nEl))
+	{
+#pragma omp for
+	  for( int i=0; i < nEl; ++i)
+	    (*res)[i] = ((*this)[i] != s);
+	}    }
+  else if( StrictScalar(s)) 
+    {
+      res= new Data_<SpDByte>( right->dim, BaseGDL::NOZERO);
+      if( rEl == 1)
+	{
+	  (*res)[0] = ((*right)[0] != s);
+	  return res;
+	}
+      TRACEOMP( __FILE__, __LINE__)
+#pragma omp parallel if (rEl >= CpuTPOOL_MIN_ELTS && (CpuTPOOL_MAX_ELTS == 0 || CpuTPOOL_MAX_ELTS <= rEl))
+	{
+#pragma omp for
+	  for( int i=0; i < rEl; ++i)
+	    (*res)[i] = ((*right)[i] != s);
+	}    }
+  else if( rEl < nEl) 
+    {
+      res= new Data_<SpDByte>( right->dim, BaseGDL::NOZERO);
+      TRACEOMP( __FILE__, __LINE__)
+#pragma omp parallel if (rEl >= CpuTPOOL_MIN_ELTS && (CpuTPOOL_MAX_ELTS == 0 || CpuTPOOL_MAX_ELTS <= rEl))
+	{
+#pragma omp for
+	  for( int i=0; i < rEl; ++i)
+	    (*res)[i] = ((*right)[i] != (*this)[i]);
+	}    }
+  else // ( rEl >= nEl)
+    {
+      res= new Data_<SpDByte>( this->dim, BaseGDL::NOZERO);
+      if( rEl == 1)
+	{
+	  (*res)[0] = ((*right)[0] != (*this)[0]);
+	  return res;
+	}
+      TRACEOMP( __FILE__, __LINE__)
+#pragma omp parallel if (nEl >= CpuTPOOL_MIN_ELTS && (CpuTPOOL_MAX_ELTS == 0 || CpuTPOOL_MAX_ELTS <= nEl))
+	{
+#pragma omp for
+	  for( int i=0; i < nEl; ++i)
+	    (*res)[i] = ((*right)[i] != (*this)[i]);
+	}    }
+  //C delete right;
+  //C delete this;
+  return res;
+}
+
 // invalid types
-Data_<SpDByte>* DStructGDL::NeOp( BaseGDL* r)
+BaseGDL* DStructGDL::NeOp( BaseGDL* r)
 {
   throw GDLException("Cannot apply operation to datatype STRUCT.",true,false);  
   return NULL;
@@ -734,7 +1046,7 @@ Data_<SpDByte>* DStructGDL::NeOp( BaseGDL* r)
 // LeOp
 // returns *this le *r, //C deletes itself and right
 template<class Sp>
-Data_<SpDByte>* Data_<Sp>::LeOp( BaseGDL* r)
+BaseGDL* Data_<Sp>::LeOp( BaseGDL* r)
 {
   Data_* right=static_cast<Data_*>(r);
 
@@ -807,31 +1119,31 @@ Data_<SpDByte>* Data_<Sp>::LeOp( BaseGDL* r)
   return res;
 }
 // invalid types
-Data_<SpDByte>* DStructGDL::LeOp( BaseGDL* r)
+BaseGDL* DStructGDL::LeOp( BaseGDL* r)
 {
   throw GDLException("Cannot apply operation to datatype STRUCT.",true,false);  
   return NULL;
 }
 template<>
-Data_<SpDByte>* Data_<SpDPtr>::LeOp( BaseGDL* r)
+BaseGDL* Data_<SpDPtr>::LeOp( BaseGDL* r)
 {
   throw GDLException("Cannot apply operation to datatype PTR.",true,false);  
   return NULL;
 }
 template<>
-Data_<SpDByte>* Data_<SpDObj>::LeOp( BaseGDL* r)
+BaseGDL* Data_<SpDObj>::LeOp( BaseGDL* r)
 {
   throw GDLException("Cannot apply operation to datatype OBJECT.",true,false);  
   return NULL;
 }
 template<>
-Data_<SpDByte>* Data_<SpDComplex>::LeOp( BaseGDL* r)
+BaseGDL* Data_<SpDComplex>::LeOp( BaseGDL* r)
 {
   throw GDLException("Cannot apply operation to datatype "+str+".",true,false);  
   return NULL;
 }
 template<>
-Data_<SpDByte>* Data_<SpDComplexDbl>::LeOp( BaseGDL* r)
+BaseGDL* Data_<SpDComplexDbl>::LeOp( BaseGDL* r)
 {
   throw GDLException("Cannot apply operation to datatype "+str+".",true,false);  
   return NULL;
@@ -840,7 +1152,7 @@ Data_<SpDByte>* Data_<SpDComplexDbl>::LeOp( BaseGDL* r)
 // LtOp
 // returns *this lt *r, //C deletes itself and right
 template<class Sp>
-Data_<SpDByte>* Data_<Sp>::LtOp( BaseGDL* r)
+BaseGDL* Data_<Sp>::LtOp( BaseGDL* r)
 {
   Data_* right=static_cast<Data_*>(r);
 
@@ -913,31 +1225,31 @@ Data_<SpDByte>* Data_<Sp>::LtOp( BaseGDL* r)
   return res;
 }
 // invalid types
-Data_<SpDByte>* DStructGDL::LtOp( BaseGDL* r)
+BaseGDL* DStructGDL::LtOp( BaseGDL* r)
 {
   throw GDLException("Cannot apply operation to datatype STRUCT.",true,false);  
   return NULL;
 }
 template<>
-Data_<SpDByte>* Data_<SpDPtr>::LtOp( BaseGDL* r)
+BaseGDL* Data_<SpDPtr>::LtOp( BaseGDL* r)
 {
   throw GDLException("Cannot apply operation to datatype PTR.",true,false);  
   return NULL;
 }
 template<>
-Data_<SpDByte>* Data_<SpDObj>::LtOp( BaseGDL* r)
+BaseGDL* Data_<SpDObj>::LtOp( BaseGDL* r)
 {
   throw GDLException("Cannot apply operation to datatype OBJECT.",true,false);  
   return NULL;
 }
 template<>
-Data_<SpDByte>* Data_<SpDComplex>::LtOp( BaseGDL* r)
+BaseGDL* Data_<SpDComplex>::LtOp( BaseGDL* r)
 {
   throw GDLException("Cannot apply operation to datatype "+str+".",true,false);  
   return NULL;
 }
 template<>
-Data_<SpDByte>* Data_<SpDComplexDbl>::LtOp( BaseGDL* r)
+BaseGDL* Data_<SpDComplexDbl>::LtOp( BaseGDL* r)
 {
   throw GDLException("Cannot apply operation to datatype "+str+".",true,false);  
   return NULL;
@@ -946,7 +1258,7 @@ Data_<SpDByte>* Data_<SpDComplexDbl>::LtOp( BaseGDL* r)
 // GeOp
 // returns *this ge *r, //C deletes itself and right
 template<class Sp>
-Data_<SpDByte>* Data_<Sp>::GeOp( BaseGDL* r)
+BaseGDL* Data_<Sp>::GeOp( BaseGDL* r)
 {
   Data_* right=static_cast<Data_*>(r);
 
@@ -1019,31 +1331,31 @@ Data_<SpDByte>* Data_<Sp>::GeOp( BaseGDL* r)
   return res;
 }
 // invalid types
-Data_<SpDByte>* DStructGDL::GeOp( BaseGDL* r)
+BaseGDL* DStructGDL::GeOp( BaseGDL* r)
 {
   throw GDLException("Cannot apply operation to datatype STRUCT.",true,false);  
   return NULL;
 }
 template<>
-Data_<SpDByte>* Data_<SpDPtr>::GeOp( BaseGDL* r)
+BaseGDL* Data_<SpDPtr>::GeOp( BaseGDL* r)
 {
   throw GDLException("Cannot apply operation to datatype PTR.",true,false);  
   return NULL;
 }
 template<>
-Data_<SpDByte>* Data_<SpDObj>::GeOp( BaseGDL* r)
+BaseGDL* Data_<SpDObj>::GeOp( BaseGDL* r)
 {
   throw GDLException("Cannot apply operation to datatype OBJECT.",true,false);  
   return NULL;
 }
 template<>
-Data_<SpDByte>* Data_<SpDComplex>::GeOp( BaseGDL* r)
+BaseGDL* Data_<SpDComplex>::GeOp( BaseGDL* r)
 {
   throw GDLException("Cannot apply operation to datatype "+str+".",true,false);  
   return NULL;
 }
 template<>
-Data_<SpDByte>* Data_<SpDComplexDbl>::GeOp( BaseGDL* r)
+BaseGDL* Data_<SpDComplexDbl>::GeOp( BaseGDL* r)
 {
   throw GDLException("Cannot apply operation to datatype "+str+".",true,false);  
   return NULL;
@@ -1052,7 +1364,7 @@ Data_<SpDByte>* Data_<SpDComplexDbl>::GeOp( BaseGDL* r)
 // GtOp
 // returns *this gt *r, //C deletes itself and right
 template<class Sp>
-Data_<SpDByte>* Data_<Sp>::GtOp( BaseGDL* r)
+BaseGDL* Data_<Sp>::GtOp( BaseGDL* r)
 {
   Data_* right=static_cast<Data_*>(r);
 
@@ -1125,31 +1437,31 @@ Data_<SpDByte>* Data_<Sp>::GtOp( BaseGDL* r)
   return res;
 }
 // invalid types
-Data_<SpDByte>* DStructGDL::GtOp( BaseGDL* r)
+BaseGDL* DStructGDL::GtOp( BaseGDL* r)
 {
   throw GDLException("Cannot apply operation to datatype STRUCT.",true,false);  
   return NULL;
 }
 template<>
-Data_<SpDByte>* Data_<SpDPtr>::GtOp( BaseGDL* r)
+BaseGDL* Data_<SpDPtr>::GtOp( BaseGDL* r)
 {
   throw GDLException("Cannot apply operation to datatype PTR.",true,false);  
   return NULL;
 }
 template<>
-Data_<SpDByte>* Data_<SpDObj>::GtOp( BaseGDL* r)
+BaseGDL* Data_<SpDObj>::GtOp( BaseGDL* r)
 {
   throw GDLException("Cannot apply operation to datatype OBJECT.",true,false);  
   return NULL;
 }
 template<>
-Data_<SpDByte>* Data_<SpDComplex>::GtOp( BaseGDL* r)
+BaseGDL* Data_<SpDComplex>::GtOp( BaseGDL* r)
 {
   throw GDLException("Cannot apply operation to datatype "+str+".",true,false);  
   return NULL;
 }
 template<>
-Data_<SpDByte>* Data_<SpDComplexDbl>::GtOp( BaseGDL* r)
+BaseGDL* Data_<SpDComplexDbl>::GtOp( BaseGDL* r)
 {
   throw GDLException("Cannot apply operation to datatype "+str+".",true,false);  
   return NULL;
@@ -1191,7 +1503,7 @@ Data_<Sp>* Data_<Sp>::MatrixOp( BaseGDL* r, bool transpose, bool transposeResult
 #pragma omp parallel if (nOp >= CpuTPOOL_MIN_ELTS && (CpuTPOOL_MAX_ELTS == 0 || CpuTPOOL_MAX_ELTS <= nOp)) default(shared)
 	{
 #pragma omp for 
-	  for( int colA=0; colA < nCol; colA++)   // res dim 0
+	  for( SizeT colA=0; colA < nCol; colA++)   // res dim 0
 	    for( SizeT rowB=0; rowB < nRow; rowB++) // res dim 1
 	      (*res)[ rowB * nCol + colA] += (*this)[colA] * (*right)[rowB];
 	}
@@ -1312,7 +1624,7 @@ Data_<Sp>* Data_<Sp>::MatrixOp( BaseGDL* r, bool transpose, bool transposeResult
 #pragma omp parallel if (nOp >= CpuTPOOL_MIN_ELTS && (CpuTPOOL_MAX_ELTS == 0 || CpuTPOOL_MAX_ELTS <= nOp)) default(shared)
 		{
 #pragma omp for
-		  for( int colA=0; colA < nCol; ++colA) // res dim 0
+		  for( SizeT colA=0; colA < nCol; ++colA) // res dim 0
 		    for( SizeT rIx=0, rowBnCol=0; rIx < rIxEnd;
 			 rIx += nColEl, rowBnCol += nCol) // res dim 1
 		      {
@@ -1329,7 +1641,7 @@ Data_<Sp>* Data_<Sp>::MatrixOp( BaseGDL* r, bool transpose, bool transposeResult
 #pragma omp parallel if (nOp >= CpuTPOOL_MIN_ELTS && (CpuTPOOL_MAX_ELTS == 0 || CpuTPOOL_MAX_ELTS <= nOp)) default(shared)
 		{
 #pragma omp for
-		  for( int colA=0; colA < nCol; ++colA) // res dim 0
+		  for( SizeT colA=0; colA < nCol; ++colA) // res dim 0
 		    for( SizeT rIx=0, rowBnCol=0; rIx < nRow; ++rIx, rowBnCol += nCol) // res dim 1
 		      {
 			Ty& resEl = (*res)[ rowBnCol + colA];
@@ -1348,7 +1660,7 @@ Data_<Sp>* Data_<Sp>::MatrixOp( BaseGDL* r, bool transpose, bool transposeResult
 #pragma omp parallel if (nOp >= CpuTPOOL_MIN_ELTS && (CpuTPOOL_MAX_ELTS == 0 || CpuTPOOL_MAX_ELTS <= nOp)) default(shared)
 		{
 #pragma omp for
-		  for( int colA=0; colA < nCol; ++colA) // res dim 0
+		  for( SizeT colA=0; colA < nCol; ++colA) // res dim 0
 		    for( SizeT rIx=0, rowBnCol=0; rIx < rIxEnd;
 			 rIx += nColEl, ++rowBnCol) // res dim 1
 		      {
@@ -1365,7 +1677,7 @@ Data_<Sp>* Data_<Sp>::MatrixOp( BaseGDL* r, bool transpose, bool transposeResult
 #pragma omp parallel if (nOp >= CpuTPOOL_MIN_ELTS && (CpuTPOOL_MAX_ELTS == 0 || CpuTPOOL_MAX_ELTS <= nOp)) default(shared)
 		{
 #pragma omp for
-		  for( int colA=0; colA < nCol; ++colA) // res dim 0
+		  for( SizeT colA=0; colA < nCol; ++colA) // res dim 0
 		    for( SizeT rIx=0; rIx < nRow; ++rIx) // res dim 1
 		      {
 			Ty& resEl = (*res)[ rIx + colA * nRow];
@@ -2337,7 +2649,7 @@ Data_<SpDObj>* Data_<SpDObj>::XorOpS( BaseGDL* r)
 // Adds right to itself, //C deletes right
 // right must always have more or same number of elements
 template<class Sp>
-Data_<Sp>* Data_<Sp>::Add( BaseGDL* r)
+BaseGDL* Data_<Sp>::Add( BaseGDL* r)
 {
   Data_* right=static_cast<Data_*>(r);
 
@@ -2361,12 +2673,13 @@ Data_<Sp>* Data_<Sp>::Add( BaseGDL* r)
   return this;
 }
 template<class Sp>
-Data_<Sp>* Data_<Sp>::AddInv( BaseGDL* r)
+BaseGDL* Data_<Sp>::AddInv( BaseGDL* r)
 {
+  assert( this->Type() != GDL_OBJ); // should never be called via this
   return Add( r);
 }
 template<>
-Data_<SpDString>* Data_<SpDString>::AddInv( BaseGDL* r)
+BaseGDL* Data_<SpDString>::AddInv( BaseGDL* r)
 {
   Data_* right=static_cast<Data_*>(r);
 
@@ -2401,19 +2714,206 @@ DStructGDL* DStructGDL::AddInv( BaseGDL* r)
   return this;
 }
 template<>
-Data_<SpDPtr>* Data_<SpDPtr>::Add( BaseGDL* r)
+BaseGDL* Data_<SpDPtr>::Add( BaseGDL* r)
 {
   throw GDLException("Cannot apply operation to datatype PTR.",true,false);  
   return this;
 }
 template<>
-Data_<SpDObj>* Data_<SpDObj>::Add( BaseGDL* r)
+BaseGDL* Data_<SpDObj>::Add( BaseGDL* r)
 {
-  throw GDLException("Cannot apply operation to datatype OBJECT.",true,false);  
-  return this;
+  // overload here
+  Data_* self;
+  DFun* plusOverload;
+  
+  ProgNodeP callingNode = interpreter->GetRetTree();
+
+  if( !Scalar())
+  {
+    if( r->Type() == GDL_OBJ && r->Scalar())
+    {
+      self = static_cast<Data_*>( r);
+      plusOverload = static_cast<DFun*>(GDLInterpreter::GetObjHeapOperator( (*self)[0], OOPlus));
+      if( plusOverload == NULL)
+      {
+	throw GDLException( callingNode, "Cannot apply not overloaded operator to datatype OBJECT.", true, false);
+      }
+    }
+    else
+      {
+	throw GDLException( callingNode, "Cannot apply operation to non-scalar datatype OBJECT.", true, false);
+      }
+  }
+  else
+  {
+    // Scalar()
+    self = static_cast<Data_*>( this);
+    plusOverload = static_cast<DFun*>(GDLInterpreter::GetObjHeapOperator( (*self)[0], OOPlus));
+    if( plusOverload == NULL)
+    {
+      if( r->Type() == GDL_OBJ && r->Scalar())
+      {
+	self = static_cast<Data_*>( r);
+	plusOverload = static_cast<DFun*>(GDLInterpreter::GetObjHeapOperator( (*self)[0], OOPlus));
+	if( plusOverload == NULL)
+	{
+	  throw GDLException(callingNode,"Cannot apply not overloaded operator to datatype OBJECT.",true, false);  
+	} 
+      }
+      else
+      {
+	throw GDLException( callingNode, "Cannot apply not overloaded operator to datatype OBJECT.", true, false);
+      }
+    }
+  }
+
+  assert( self->Scalar());
+  assert( plusOverload != NULL);
+
+  // hidden SELF is counted as well
+  int nParSub = plusOverload->NPar();
+  assert( nParSub >= 1); // SELF
+  if( nParSub < 3) // (SELF), LEFT, RIGHT
+  {
+    throw GDLException( callingNode, plusOverload->ObjectName() +
+		    ": Incorrect number of arguments.",
+		    false, false);
+  }
+  EnvUDT* newEnv;
+  Guard<BaseGDL> selfGuard;
+  BaseGDL* thisP;
+  // Dup() here is not optimal
+  // avoid at least for internal overload routines (which do/must not change SELF or r)
+  bool internalDSubUD = plusOverload->GetTree()->IsWrappedNode();  
+  if( internalDSubUD)  
+  {
+    thisP = this;
+    newEnv= new EnvUDT( callingNode, plusOverload, &self);
+    newEnv->SetNextParUnchecked( &thisP); // LEFT  parameter, as reference to prevent cleanup in newEnv
+    newEnv->SetNextParUnchecked( &r); // RVALUE  parameter, as reference to prevent cleanup in newEnv
+  }
+  else
+  {
+    self = self->Dup();
+    selfGuard.Init( self);
+    newEnv= new EnvUDT( callingNode, plusOverload, &self);
+    newEnv->SetNextParUnchecked( this->Dup()); // LEFT  parameter, as value
+    newEnv->SetNextParUnchecked( r->Dup()); // RIGHT parameter, as value
+  }
+
+  
+  // better than auto_ptr: auto_ptr wouldn't remove newEnv from the stack
+  StackGuard<EnvStackT> guard(interpreter->CallStack());
+
+  interpreter->CallStack().push_back( newEnv); 
+  
+  // make the call
+  BaseGDL* res=interpreter->call_fun(static_cast<DSubUD*>(newEnv->GetPro())->GetTree());
+
+  if( !internalDSubUD && self != selfGuard.Get())
+  {
+    // always put out warning first, in case of a later crash
+    Warning( "WARNING: " + plusOverload->ObjectName() + 
+	  ": Assignment to SELF detected (GDL session still ok).");
+    // assignment to SELF -> self was deleted and points to new variable
+    // which it owns
+    selfGuard.Release();
+    if( static_cast<BaseGDL*>(self) != NullGDL::GetSingleInstance())
+      selfGuard.Reset(self);
+  }
+  return res;
 }
+// difference from above: Order of parameters in call
+template<>
+BaseGDL* Data_<SpDObj>::AddInv( BaseGDL* r)
+{
+  if( r->Type() == GDL_OBJ && r->Scalar())
+  {
+    return r->Add( this); // for right order of parameters
+  }
+    
+  // overload here
+  Data_* self;
+  DFun* plusOverload;
+  
+  ProgNodeP callingNode = interpreter->GetRetTree();
+
+  if( !Scalar())
+  {
+    throw GDLException( callingNode, "Cannot apply operation to non-scalar datatype OBJECT.", true, false);
+  }
+  else
+  {
+    // Scalar()
+    self = static_cast<Data_*>( this);
+    plusOverload = static_cast<DFun*>(GDLInterpreter::GetObjHeapOperator( (*self)[0], OOPlus));
+    if( plusOverload == NULL)
+    {
+	throw GDLException( callingNode, "Cannot apply not overloaded operator to datatype OBJECT.", true, false);
+    }
+  }
+
+  assert( self->Scalar());
+  assert( plusOverload != NULL);
+
+  // hidden SELF is counted as well
+  int nParSub = plusOverload->NPar();
+  assert( nParSub >= 1); // SELF
+  if( nParSub < 3) // (SELF), LEFT, RIGHT
+  {
+    throw GDLException( callingNode, plusOverload->ObjectName() +
+		    ": Incorrect number of arguments.",
+		    false, false);
+  }
+  EnvUDT* newEnv;
+  Guard<BaseGDL> selfGuard;
+  BaseGDL* thisP;
+  // Dup() here is not optimal
+  // avoid at least for internal overload routines (which do/must not change SELF or r)
+  bool internalDSubUD = plusOverload->GetTree()->IsWrappedNode();  
+  if( internalDSubUD)  
+  {
+    thisP = this;
+    newEnv= new EnvUDT( callingNode, plusOverload, &self);
+    // order different to Add
+    newEnv->SetNextParUnchecked( &r); // RVALUE  parameter, as reference to prevent cleanup in newEnv
+    newEnv->SetNextParUnchecked( &thisP); // LEFT  parameter, as reference to prevent cleanup in newEnv
+  }
+  else
+  {
+    self = self->Dup();
+    selfGuard.Init( self);
+    newEnv= new EnvUDT( callingNode, plusOverload, &self);
+    // order different to Add
+    newEnv->SetNextParUnchecked( r->Dup()); // RIGHT parameter, as value
+    newEnv->SetNextParUnchecked( this->Dup()); // LEFT  parameter, as value
+  }
+
+  
+  // better than auto_ptr: auto_ptr wouldn't remove newEnv from the stack
+  StackGuard<EnvStackT> guard(interpreter->CallStack());
+
+  interpreter->CallStack().push_back( newEnv); 
+  
+  // make the call
+  BaseGDL* res=interpreter->call_fun(static_cast<DSubUD*>(newEnv->GetPro())->GetTree());
+
+  if( !internalDSubUD && self != selfGuard.Get())
+  {
+    // always put out warning first, in case of a later crash
+    Warning( "WARNING: " + plusOverload->ObjectName() + 
+	  ": Assignment to SELF detected (GDL session still ok).");
+    // assignment to SELF -> self was deleted and points to new variable
+    // which it owns
+    selfGuard.Release();
+    if( static_cast<BaseGDL*>(self) != NullGDL::GetSingleInstance())
+      selfGuard.Reset(self);
+  }
+  return res;
+}
+
 template<class Sp>
-Data_<Sp>* Data_<Sp>::AddS( BaseGDL* r)
+BaseGDL* Data_<Sp>::AddS( BaseGDL* r)
 {
   Data_* right=static_cast<Data_*>(r);
 
@@ -2438,12 +2938,12 @@ Data_<Sp>* Data_<Sp>::AddS( BaseGDL* r)
   return this;
 }
 template<class Sp>
-Data_<Sp>* Data_<Sp>::AddInvS( BaseGDL* r)
+BaseGDL* Data_<Sp>::AddInvS( BaseGDL* r)
 {
   return AddS( r);
 }
 template<>
-Data_<SpDString>* Data_<SpDString>::AddInvS( BaseGDL* r)
+BaseGDL* Data_<SpDString>::AddInvS( BaseGDL* r)
 {
   Data_* right=static_cast<Data_*>(r);
 
@@ -2479,22 +2979,26 @@ DStructGDL* DStructGDL::AddInvS( BaseGDL* r)
   return this;
 }
 template<>
-Data_<SpDPtr>* Data_<SpDPtr>::AddS( BaseGDL* r)
+BaseGDL* Data_<SpDPtr>::AddS( BaseGDL* r)
 {
   throw GDLException("Cannot apply operation to datatype PTR.",true,false);  
   return this;
 }
 template<>
-Data_<SpDObj>* Data_<SpDObj>::AddS( BaseGDL* r)
+BaseGDL* Data_<SpDObj>::AddS( BaseGDL* r)
 {
-  throw GDLException("Cannot apply operation to datatype OBJECT.",true,false);  
-  return this;
+  return Add( r);
+}
+template<>
+BaseGDL* Data_<SpDObj>::AddInvS( BaseGDL* r)
+{
+  return AddInv( r);
 }
 
 // Sub
 // substraction: left=left-right
 template<class Sp>
-Data_<Sp>* Data_<Sp>::Sub( BaseGDL* r)
+BaseGDL* Data_<Sp>::Sub( BaseGDL* r)
 {
   Data_* right=static_cast<Data_*>(r);
 
@@ -2518,7 +3022,7 @@ Data_<Sp>* Data_<Sp>::Sub( BaseGDL* r)
 }
 // inverse substraction: left=right-left
 template<class Sp>
-Data_<Sp>* Data_<Sp>::SubInv( BaseGDL* r)
+BaseGDL* Data_<Sp>::SubInv( BaseGDL* r)
 {
   Data_* right=static_cast<Data_*>(r);
 
@@ -2556,40 +3060,219 @@ DStructGDL* DStructGDL::SubInv( BaseGDL* r)
   return this;
 }
 template<>
-Data_<SpDString>* Data_<SpDString>::Sub( BaseGDL* r)
+BaseGDL* Data_<SpDString>::Sub( BaseGDL* r)
 {
   throw GDLException("Cannot apply operation to datatype STRING.",true,false);  
   return this;
 }
 template<>
-Data_<SpDString>* Data_<SpDString>::SubInv( BaseGDL* r)
+BaseGDL* Data_<SpDString>::SubInv( BaseGDL* r)
 {
   throw GDLException("Cannot apply operation to datatype STRING.",true,false);  
   return this;
 }
 template<>
-Data_<SpDPtr>* Data_<SpDPtr>::Sub( BaseGDL* r)
+BaseGDL* Data_<SpDPtr>::Sub( BaseGDL* r)
 {
   throw GDLException("Cannot apply operation to datatype PTR.",true,false);  
   return this;
 }
 template<>
-Data_<SpDPtr>* Data_<SpDPtr>::SubInv( BaseGDL* r)
+BaseGDL* Data_<SpDPtr>::SubInv( BaseGDL* r)
 {
   throw GDLException("Cannot apply operation to datatype PTR.",true,false);  
   return this;
 }
 template<>
-Data_<SpDObj>* Data_<SpDObj>::Sub( BaseGDL* r)
+BaseGDL* Data_<SpDObj>::Sub( BaseGDL* r)
 {
-  throw GDLException("Cannot apply operation to datatype OBJECT.",true,false);  
-  return this;
+  // overload here
+  Data_* self;
+  DFun* plusOverload;
+  
+  ProgNodeP callingNode = interpreter->GetRetTree();
+
+  if( !Scalar())
+  {
+    if( r->Type() == GDL_OBJ && r->Scalar())
+    {
+      self = static_cast<Data_*>( r);
+      plusOverload = static_cast<DFun*>(GDLInterpreter::GetObjHeapOperator( (*self)[0], OOMinus));
+      if( plusOverload == NULL)
+      {
+	throw GDLException( callingNode, "Cannot apply not overloaded operator to datatype OBJECT.", true, false);
+      }
+    }
+    else
+      {
+	throw GDLException( callingNode, "Cannot apply operation to non-scalar datatype OBJECT.", true, false);
+      }
+  }
+  else
+  {
+    // Scalar()
+    self = static_cast<Data_*>( this);
+    plusOverload = static_cast<DFun*>(GDLInterpreter::GetObjHeapOperator( (*self)[0], OOMinus));
+    if( plusOverload == NULL)
+    {
+      if( r->Type() == GDL_OBJ && r->Scalar())
+      {
+	self = static_cast<Data_*>( r);
+	plusOverload = static_cast<DFun*>(GDLInterpreter::GetObjHeapOperator( (*self)[0], OOMinus));
+	if( plusOverload == NULL)
+	{
+	  throw GDLException(callingNode,"Cannot apply not overloaded operator to datatype OBJECT.",true, false);  
+	} 
+      }
+      else
+      {
+	throw GDLException( callingNode, "Cannot apply not overloaded operator to datatype OBJECT.", true, false);
+      }
+    }
+  }
+
+  assert( self->Scalar());
+  assert( plusOverload != NULL);
+
+  // hidden SELF is counted as well
+  int nParSub = plusOverload->NPar();
+  assert( nParSub >= 1); // SELF
+  if( nParSub < 3) // (SELF), LEFT, RIGHT
+  {
+    throw GDLException( callingNode, plusOverload->ObjectName() +
+		    ": Incorrect number of arguments.",
+		    false, false);
+  }
+  EnvUDT* newEnv;
+  Guard<BaseGDL> selfGuard;
+  BaseGDL* thisP;
+  // Dup() here is not optimal
+  // avoid at least for internal overload routines (which do/must not change SELF or r)
+  bool internalDSubUD = plusOverload->GetTree()->IsWrappedNode();  
+  if( internalDSubUD)  
+  {
+    thisP = this;
+    newEnv= new EnvUDT( callingNode, plusOverload, &self);
+    newEnv->SetNextParUnchecked( &thisP); // LEFT  parameter, as reference to prevent cleanup in newEnv
+    newEnv->SetNextParUnchecked( &r); // RVALUE  parameter, as reference to prevent cleanup in newEnv
+  }
+  else
+  {
+    self = self->Dup();
+    selfGuard.Init( self);
+    newEnv= new EnvUDT( callingNode, plusOverload, &self);
+    newEnv->SetNextParUnchecked( this->Dup()); // LEFT  parameter, as value
+    newEnv->SetNextParUnchecked( r->Dup()); // RIGHT parameter, as value
+  }
+
+  
+  // better than auto_ptr: auto_ptr wouldn't remove newEnv from the stack
+  StackGuard<EnvStackT> guard(interpreter->CallStack());
+
+  interpreter->CallStack().push_back( newEnv); 
+  
+  // make the call
+  BaseGDL* res=interpreter->call_fun(static_cast<DSubUD*>(newEnv->GetPro())->GetTree());
+
+  if( !internalDSubUD && self != selfGuard.Get())
+  {
+    // always put out warning first, in case of a later crash
+    Warning( "WARNING: " + plusOverload->ObjectName() + 
+	  ": Assignment to SELF detected (GDL session still ok).");
+    // assignment to SELF -> self was deleted and points to new variable
+    // which it owns
+    selfGuard.Release();
+    if( static_cast<BaseGDL*>(self) != NullGDL::GetSingleInstance())
+      selfGuard.Reset(self);
+  }
+  return res;
 }
 template<>
-Data_<SpDObj>* Data_<SpDObj>::SubInv( BaseGDL* r)
+BaseGDL* Data_<SpDObj>::SubInv( BaseGDL* r)
 {
-  throw GDLException("Cannot apply operation to datatype OBJECT.",true,false);  
-  return this;
+  if( r->Type() == GDL_OBJ && r->Scalar())
+  {
+    return r->Sub( this); // for right order of parameters
+  }
+    
+  // overload here
+  Data_* self;
+  DFun* plusOverload;
+  
+  ProgNodeP callingNode = interpreter->GetRetTree();
+
+  if( !Scalar())
+  {
+    throw GDLException( callingNode, "Cannot apply operation to non-scalar datatype OBJECT.", true, false);
+  }
+  else
+  {
+    // Scalar()
+    self = static_cast<Data_*>( this);
+    plusOverload = static_cast<DFun*>(GDLInterpreter::GetObjHeapOperator( (*self)[0], OOMinus));
+    if( plusOverload == NULL)
+    {
+	throw GDLException( callingNode, "Cannot apply not overloaded operator to datatype OBJECT.", true, false);
+    }
+  }
+
+  assert( self->Scalar());
+  assert( plusOverload != NULL);
+
+  // hidden SELF is counted as well
+  int nParSub = plusOverload->NPar();
+  assert( nParSub >= 1); // SELF
+  if( nParSub < 3) // (SELF), LEFT, RIGHT
+  {
+    throw GDLException( callingNode, plusOverload->ObjectName() +
+		    ": Incorrect number of arguments.",
+		    false, false);
+  }
+  EnvUDT* newEnv;
+  Guard<BaseGDL> selfGuard;
+  BaseGDL* thisP;
+  // Dup() here is not optimal
+  // avoid at least for internal overload routines (which do/must not change SELF or r)
+  bool internalDSubUD = plusOverload->GetTree()->IsWrappedNode();  
+  if( internalDSubUD)  
+  {
+    thisP = this;
+    newEnv= new EnvUDT( callingNode, plusOverload, &self);
+    // order different to Add
+    newEnv->SetNextParUnchecked( &r); // RVALUE  parameter, as reference to prevent cleanup in newEnv
+    newEnv->SetNextParUnchecked( &thisP); // LEFT  parameter, as reference to prevent cleanup in newEnv
+  }
+  else
+  {
+    self = self->Dup();
+    selfGuard.Init( self);
+    newEnv= new EnvUDT( callingNode, plusOverload, &self);
+    // order different to Add
+    newEnv->SetNextParUnchecked( r->Dup()); // RIGHT parameter, as value
+    newEnv->SetNextParUnchecked( this->Dup()); // LEFT  parameter, as value
+  }
+
+  
+  // better than auto_ptr: auto_ptr wouldn't remove newEnv from the stack
+  StackGuard<EnvStackT> guard(interpreter->CallStack());
+
+  interpreter->CallStack().push_back( newEnv); 
+  
+  // make the call
+  BaseGDL* res=interpreter->call_fun(static_cast<DSubUD*>(newEnv->GetPro())->GetTree());
+
+  if( !internalDSubUD && self != selfGuard.Get())
+  {
+    // always put out warning first, in case of a later crash
+    Warning( "WARNING: " + plusOverload->ObjectName() + 
+	  ": Assignment to SELF detected (GDL session still ok).");
+    // assignment to SELF -> self was deleted and points to new variable
+    // which it owns
+    selfGuard.Release();
+    if( static_cast<BaseGDL*>(self) != NullGDL::GetSingleInstance())
+      selfGuard.Reset(self);
+  }
+  return res;
 }
 template<class Sp>
 Data_<Sp>* Data_<Sp>::SubS( BaseGDL* r)

@@ -206,7 +206,7 @@ public:
   // returns environment data, by value (but that by C++ reference)
   BaseGDL*& GetKW(SizeT ix) { return env[ix];}
 
-  // used by HELP, SetNextPar(...), and internal overload routines
+  // used by HELP, SetNextPar(...)
   SizeT EnvSize() const { return env.size();}
 
   // next four are used by Parameter...(...) functions
@@ -343,7 +343,7 @@ void resize( SizeT s)
 		return;
     }
     // this should never happen (or only in extreme rarely cases)
-    // hence the performance will go down
+    // the performance will go down
     // s > defaultLength
     T* newArr = new T[ s]; // ctor called
 	if( eArr != reinterpret_cast<T*>(buf))
@@ -422,6 +422,9 @@ public:
   EnvUDT( ProgNodeP callindNode_, DSub* newPro, BaseGDL** self); 
 
   DLong GetOnError() const { return onError;}
+
+  ProgNodeP GetCatchNode() const { return catchNode;} 
+  BaseGDL** GetCatchVar() const { return catchVar;} 
 
   SizeT NJump() const { return nJump;}
   int   LastJump() const { return lastJump;}
@@ -588,7 +591,7 @@ public:
 //     T* res = dynamic_cast<T*>( p);
 //     if( res != NULL) return res;
     T* res = static_cast<T*>( p->Convert2( T::t, BaseGDL::COPY));
-    Guard( res);
+    this->Guard( res);
     return res;
   }
   // same as before for keywords
@@ -603,7 +606,7 @@ public:
 //     T* res = dynamic_cast<T*>( p);
 //     if( res != NULL) return res;
     T* res = static_cast<T*>( p->Convert2( T::t, BaseGDL::COPY));
-    Guard( res);
+    this->Guard( res);
     return res;
   }
 
@@ -618,7 +621,7 @@ public:
 //     T* res = dynamic_cast<T*>( p);
 //     if( res != NULL) return res;
     T* res = static_cast<T*>( p->Convert2( T::t, BaseGDL::COPY));
-    Guard( res);
+    this->Guard( res);
     return res;
   }
   // same as before for keywords
@@ -632,7 +635,7 @@ public:
 //     T* res = dynamic_cast<T*>( p);
 //     if( res != NULL) return res;
     T* res = static_cast<T*>( p->Convert2( T::t, BaseGDL::COPY));
-    Guard( res);
+    this->Guard( res);
     return res;
   }
 
@@ -661,7 +664,8 @@ public:
   // this one together with a static int holding the index is faster
   // (after the first call)
   bool KeywordSet( SizeT ix);
-
+  // GD added -- possibly very wrong?
+  bool KeywordPresent( const std::string& kw);
   bool KeywordPresent( SizeT ix)
   { return EnvBaseT::KeywordPresent( ix);}
 

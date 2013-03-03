@@ -88,6 +88,9 @@ protected:
 
   static void AdjustTypes(std::auto_ptr<BaseGDL>& a, 
 			  std::auto_ptr<BaseGDL>& b);
+  // for overloaded operators
+  static void AdjustTypesObj(std::auto_ptr<BaseGDL>& a, 
+			  std::auto_ptr<BaseGDL>& b);
 
   BaseGDL*   cData;           // constant data
   DVar*      var;             // ptr to variable 
@@ -312,6 +315,7 @@ public:
   friend class REF_EXPRNode;
   friend class ParameterNode;
   friend class ARRAYEXPRNode;
+  friend class ARRAYEXPR_FCALLNode;
   friend class EXPRNode;
   friend class SYSVARNode;
 };
@@ -1384,7 +1388,7 @@ class ParameterNode: public DefaultNode
 public:
   ParameterNode( const RefDNode& refNode): DefaultNode( refNode) {}
   virtual void Parameter( EnvBaseT* actEnv);
-  virtual bool ParameterDirect( BaseGDL*& paramP);
+  virtual bool ParameterDirect( BaseGDL*& paramP); // returns isReference
   //   virtual void ParameterVarNum( EnvBaseT* actEnv); // for variable number of parameters
 };
 
@@ -1433,7 +1437,7 @@ class REF_EXPRNode: public ParameterNode
 public:
   REF_EXPRNode( const RefDNode& refNode): ParameterNode( refNode) {}
   void Parameter( EnvBaseT* actEnv);
-  bool ParameterDirect( BaseGDL*& paramP);
+  bool ParameterDirect( BaseGDL*& paramP);// returns isReference
   //   void ParameterVarNum( EnvBaseT* actEnv); // for variable number of parameters
 };
 class REF_EXPRVNNode: public ParameterNode
@@ -1449,7 +1453,7 @@ class REF_CHECKNode: public ParameterNode
 public:
   REF_CHECKNode( const RefDNode& refNode): ParameterNode( refNode) {}
   void Parameter( EnvBaseT* actEnv);
-  bool ParameterDirect( BaseGDL*& paramP);
+  bool ParameterDirect( BaseGDL*& paramP);// returns isReference
   //   void ParameterVarNum( EnvBaseT* actEnv); // for variable number of parameters
 };
 class REF_CHECKVNNode: public ParameterNode
@@ -1465,7 +1469,7 @@ class REFNode: public ParameterNode
 public:
   REFNode( const RefDNode& refNode): ParameterNode( refNode) {}
   void Parameter( EnvBaseT* actEnv);
-  bool ParameterDirect( BaseGDL*& paramP);
+  bool ParameterDirect( BaseGDL*& paramP);// returns isReference
   //   void ParameterVarNum( EnvBaseT* actEnv); // for variable number of parameters
 };
 class REFVNNode: public ParameterNode

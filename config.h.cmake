@@ -27,7 +27,7 @@
 #cmakedefine HAVE_MEMORY_H 1
 #cmakedefine HAVE_NEXTTOWARD 1
 #cmakedefine HAVE_OLDPLPLOT 1
-#cmakedefine HAVE_PLPLOT_BEFORE_5994 1
+#cmakedefine HAVE_PLPLOT_SLABELFUNC 1
 #ifndef HAVE_STDINT_H
 #cmakedefine HAVE_STDINT_H 1
 #endif
@@ -66,5 +66,6 @@
 #cmakedefine USE_PYTHON 1
 #cmakedefine USE_UDUNITS 1
 #cmakedefine USE_PSLIB 1
+#cmakedefine USE_EIGEN 1
 
 #endif

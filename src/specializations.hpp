@@ -17,6 +17,12 @@
  ***************************************************************************/
 
 // basic_op.cpp
+
+template<> 
+BaseGDL* Data_<SpDObj>::EqOp( BaseGDL*);
+template<> 
+BaseGDL* Data_<SpDObj>::NeOp( BaseGDL*);
+
 template<> 
 Data_<SpDFloat>* Data_<SpDFloat>::NotOp();
 template<> 
@@ -209,41 +215,41 @@ Data_<SpDPtr>* Data_<SpDPtr>::XorOpSNew( BaseGDL* r);
 // template<> 
 // Data_<SpDByte>* Data_<SpDPtr>::NeOp( BaseGDL* r);
 template<> 
-Data_<SpDByte>* Data_<SpDPtr>::LeOp( BaseGDL* r);
+BaseGDL* Data_<SpDPtr>::LeOp( BaseGDL* r);
 template<> 
-Data_<SpDByte>* Data_<SpDComplex>::LeOp( BaseGDL* r);
+BaseGDL* Data_<SpDComplex>::LeOp( BaseGDL* r);
 template<> 
-Data_<SpDByte>* Data_<SpDComplexDbl>::LeOp( BaseGDL* r);
+BaseGDL* Data_<SpDComplexDbl>::LeOp( BaseGDL* r);
 template<> 
-Data_<SpDByte>* Data_<SpDPtr>::LtOp( BaseGDL* r);
+BaseGDL* Data_<SpDPtr>::LtOp( BaseGDL* r);
 template<> 
-Data_<SpDByte>* Data_<SpDComplex>::LtOp( BaseGDL* r);
+BaseGDL* Data_<SpDComplex>::LtOp( BaseGDL* r);
 template<> 
-Data_<SpDByte>* Data_<SpDComplexDbl>::LtOp( BaseGDL* r);
+BaseGDL* Data_<SpDComplexDbl>::LtOp( BaseGDL* r);
 template<> 
-Data_<SpDByte>* Data_<SpDPtr>::GeOp( BaseGDL* r);
+BaseGDL* Data_<SpDPtr>::GeOp( BaseGDL* r);
 template<> 
-Data_<SpDByte>* Data_<SpDComplex>::GeOp( BaseGDL* r);
+BaseGDL* Data_<SpDComplex>::GeOp( BaseGDL* r);
 template<> 
-Data_<SpDByte>* Data_<SpDComplexDbl>::GeOp( BaseGDL* r);
+BaseGDL* Data_<SpDComplexDbl>::GeOp( BaseGDL* r);
 template<> 
-Data_<SpDByte>* Data_<SpDPtr>::GtOp( BaseGDL* r);
+BaseGDL* Data_<SpDPtr>::GtOp( BaseGDL* r);
 template<> 
-Data_<SpDByte>* Data_<SpDComplex>::GtOp( BaseGDL* r);
+BaseGDL* Data_<SpDComplex>::GtOp( BaseGDL* r);
 template<> 
-Data_<SpDByte>* Data_<SpDComplexDbl>::GtOp( BaseGDL* r);
+BaseGDL* Data_<SpDComplexDbl>::GtOp( BaseGDL* r);
 template<> 
-Data_<SpDString>* Data_<SpDString>::AddInv( BaseGDL* r);
+BaseGDL* Data_<SpDString>::AddInv( BaseGDL* r);
 template<> 
-Data_<SpDPtr>* Data_<SpDPtr>::Add( BaseGDL* r);
+BaseGDL* Data_<SpDPtr>::Add( BaseGDL* r);
 template<> 
-Data_<SpDString>* Data_<SpDString>::Sub( BaseGDL* r);
+BaseGDL* Data_<SpDString>::Sub( BaseGDL* r);
 template<> 
-Data_<SpDString>* Data_<SpDString>::SubInv( BaseGDL* r);
+BaseGDL* Data_<SpDString>::SubInv( BaseGDL* r);
 template<> 
-Data_<SpDPtr>* Data_<SpDPtr>::Sub( BaseGDL* r);
+BaseGDL* Data_<SpDPtr>::Sub( BaseGDL* r);
 template<> 
-Data_<SpDPtr>* Data_<SpDPtr>::SubInv( BaseGDL* r);
+BaseGDL* Data_<SpDPtr>::SubInv( BaseGDL* r);
 template<> 
 Data_<SpDString>* Data_<SpDString>::LtMark( BaseGDL* r);
 template<> 
