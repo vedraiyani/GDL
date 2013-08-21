@@ -300,8 +300,7 @@ OFmtA( ostream* os, SizeT offs, SizeT r, int w)
     }
 
   return tCountOut;
-}
-
+} 
 // F code ****************************************************
 // other
 template<class Sp> SizeT Data_<Sp>::
@@ -675,8 +674,11 @@ OFmtI( ostream* os, SizeT offs, SizeT r, int w, int d, char f,
       (*os) << oct << setw(w) << setfill(f) << (*this)[ i];
   else if ( oMode == BIN)
     for( SizeT i=offs; i<endEl; ++i)
+#ifdef _MSC_VER
+      (*os) << binstr((int)(*this)[ i], w);
+#else
       (*os) << binstr((*this)[ i], w);
-//       (*os) << binstr((std::bitset<32>)i, w);
+#endif
   else if ( oMode == HEX)
     for( SizeT i=offs; i<endEl; ++i)
       (*os) << uppercase << hex << setw(w) << setfill(f) << (*this)[ i];
@@ -710,11 +712,15 @@ OFmtI( ostream* os, SizeT offs, SizeT r, int w, int d, char f,
   else if ( oMode == BIN)
     for( SizeT i=offs; i<endEl; ++i)
     {
-//       if (w > 32) 
-// 	(*os) << binstr((std::bitset<32>)i >> 32, w - 32);
-//       (*os) << binstr((std::bitset<32>)i, w <= 32 ? w : 32);
-      if (w > 32) (*os) << binstr((*this)[ i] >> 32, w - 32);
+#ifdef _MSC_VER
+      if (w > 32)
+	(*os) << binstr((int)(*this)[ i] >> 32, w - 32);
+      (*os) << binstr((int)(*this)[ i], w <= 32 ? w : 32);
+#else
+      if (w > 32) 
+	(*os) << binstr((*this)[ i] >> 32, w - 32);
       (*os) << binstr((*this)[ i], w <= 32 ? w : 32);
+#endif
     }
   else if ( oMode == HEX)
     for( SizeT i=offs; i<endEl; ++i)
@@ -953,6 +959,205 @@ OFmtI( ostream* os, SizeT offs, SizeT r, int w, int d, char f,
   return tCountOut;
 }
 
+// C code ****************************************************
+    void j2ymdhms(DDouble jd, DLong &iMonth, DLong &iDay , DLong &iYear ,
+                  DLong &iHour , DLong &iMinute, DDouble &Second)
+    {
+    DDouble JD,Z,F,a;
+    DLong A,B,C,D,E;
+    JD = jd + 0.5;
+    Z = floor(JD);
+    F = JD - Z;
+
+    if (Z < 2299161) A = (DLong)Z;
+    else {
+      a = (DLong) ((Z - 1867216.25) / 36524.25);
+      A = (DLong) (Z + 1 + a - (DLong)(a / 4));
+    }
+
+    B = A + 1524;
+    C = (DLong) ((B - 122.1) / 365.25);
+    D = (DLong) (365.25 * C);
+    E = (DLong) ((B - D) / 30.6001);
+
+    // month
+    iMonth = E < 14 ? E - 1 : E - 13;
+    // iday
+    iDay=B - D - (DLong)(30.6001 * E);
+
+    // year
+    iYear = iMonth > 2 ? C - 4716 : C - 4715;
+    // hours
+    iHour = (DLong) (F * 24);
+    F -= (DDouble)iHour / 24;
+    // minutes
+    iMinute = (DLong) (F * 1440);
+    F -= (DDouble)iMinute / 1440;
+    // seconds
+    Second = F * 86400;
+  }
+   static struct 
+   {
+     DLong iMonth;
+     DLong iDay;
+     DLong iYear;
+     DLong iHour;
+     DLong iMinute;
+     DLong dow;
+     DLong icap;
+     DDouble Second;
+   } mytime;
+   
+// other
+ 
+ template<class Sp> SizeT Data_<Sp>::
+ OFmtCal( ostream* os, SizeT offs, SizeT r, int w, 
+			int d, char f, BaseGDL::Cal_IOMode cMode)
+ {
+   DDoubleGDL* cVal = static_cast<DDoubleGDL*>
+   ( this->Convert2( GDL_DOUBLE, BaseGDL::COPY));
+   SizeT retVal = cVal->OFmtCal( os, offs, r, w, d, f, cMode);
+   delete cVal;
+   return retVal;
+ }
+void outA( ostream* os, string s, int w) 
+{
+  if (w==-1) w=3;
+  if (w < 0) {
+    (*os) << left;
+    (*os) << setw(-w) << s;
+  }
+  else if (w == 0) {
+    (*os) << right;
+    (*os) << s;
+  }
+  else {
+    (*os) << right;
+    (*os) << setw(w) << s.substr(0, w);
+  }
+}
+ //double
+ template<> SizeT Data_<SpDDouble>::
+ OFmtCal( ostream* os, SizeT offs, SizeT r, int w, 
+			int d, char f, BaseGDL::Cal_IOMode cMode)
+ {
+   static string theMonth[12]={"January","February","March","April","May","June",
+      "July","August","September","October","November","December"};
+   static string theMONTH[12]={"JANUARY","FEBRUARY","MARCH","APRIL","MAY","JUNE",
+      "JULY","AUGUST","SEPTEMBER","OCTOBER","NOVEMBER","DECEMBER"};
+   static string themonth[12]={"january","february","march","april","may","june",
+      "july","august","september","october","november","december"};
+   static string theDAY[7]={"MONDAY","TUESDAY","WEDNESDAY","THURSDAY","FRIDAY","SATURDAY","SUNDAY"};
+   static string theDay[7]={"Monday","Tuesday","Wednesday","Thursday","Friday","Saturday","Sunday"};
+   static string theday[7]={"monday","tuesday","wednesday","thursday","friday","saturday","sunday"};
+   static string capa[2]={"am","pm"};
+   static string cApa[2]={"Am","Pm"};
+   static string cAPa[2]={"AM","PM"};
+   
+   DLong iMonth, iDay , iYear , iHour , iMinute, dow, icap;
+   DDouble Second;
+   SizeT nTrans = ToTransfer();
+
+  // transfer count
+  SizeT tCount = nTrans - offs;
+  if( r < tCount) tCount = r;
+
+  SizeT endEl = offs + tCount;
+ 
+  
+  for( SizeT i=offs; i<endEl; ++i)
+  {
+    j2ymdhms((*this)[ i], iMonth, iDay, iYear, iHour, iMinute, Second);
+    // DayOfWeek
+    dow=((DLong)((*this)[i]))%7;
+    //capa:
+    icap=(iHour>11);
+    if( cMode == DEFAULT) 
+    {
+      fprintf(stderr,"cdef\n");
+    }
+    else if( cMode == CMOA)
+    {
+      outA(os, theMONTH[iMonth], w);//std::cout << theMONTH[iMonth];
+    }
+    else if( cMode == CMoA) 
+    {
+      outA(os, theMonth[iMonth], w);
+    }
+    else if ( cMode == CmoA)
+    {
+      outA(os, themonth[iMonth], w);
+    }
+    else if ( cMode == CDWA) 
+    {
+      outA(os, theDAY[dow], w);
+    }
+    else if ( cMode == CDwA) 
+    {
+      outA(os,theDay[dow], w);
+    }
+    else if ( cMode == CdwA) 
+    {
+      outA(os, theday[dow], w);
+    }
+    else if( cMode == CapA) 
+    {
+      outA(os, capa[icap], w);
+    }
+    else if( cMode == CApA) 
+    {
+      outA(os, cApa[icap], w);
+    }
+    else if( cMode == CAPA) 
+    {
+      outA(os, cAPa[icap], w);
+    }
+    //integer
+    else if ( cMode == CMOI) 
+    {
+      if (w==-1) w=2; 
+      ZeroPad( os, w, d, f, iMonth);
+    }
+    else if ( cMode == CYI) 
+    {
+      if (w==-1) w=4; 
+      ZeroPad( os, w, d, f, iYear);
+    }
+    else if ( cMode == CHI) 
+    {
+      if (w==-1) w=2; 
+      ZeroPad( os, w, d, f, iHour);
+    }
+    else if ( cMode == ChI) 
+    {
+      if (w==-1) w=2; 
+      ZeroPad( os, w, d, f, iHour%12);
+    }
+    else if ( cMode == CDI) 
+    {
+      if (w==-1) w=2; 
+      ZeroPad( os, w, d, f, iDay);
+    }
+    else if ( cMode == CMI) 
+    {
+      if (w==-1) w=2; 
+      ZeroPad( os, w, d, f, iMinute);
+    }
+    else if ( cMode == CSI) 
+    {
+      if (w==-1) {w=2; d=0;}; 
+      ZeroPad( os, w, d, f, (DLong)Second);
+    }
+    //Float
+    else if ( cMode == CSF) 
+    {
+      if (w==-1) {w=5; d=4;} 
+//      SetField( w, d, 6,  16, 25);
+      OutAuto( *os, Second, w, d, f);
+    }
+  }
+  return tCount;
+ }
 
 //#include "instantiate_templates.hpp"
 

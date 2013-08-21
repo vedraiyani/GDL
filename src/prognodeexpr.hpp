@@ -19,6 +19,7 @@
 #define prognodeexpr_hpp__
 
 #include "prognode.hpp"
+#include "dpro.hpp"
 
 
 class UnaryExpr: public DefaultNode
@@ -58,8 +59,8 @@ protected:
 public:
   BinaryExprNC( const RefDNode& refNode);
 
-  void AdjustTypesNC( std::auto_ptr<BaseGDL>& g1, BaseGDL*& e1, 
-		      std::auto_ptr<BaseGDL>& g2, BaseGDL*& e2);
+  void AdjustTypesNC( Guard<BaseGDL>& g1, BaseGDL*& e1, 
+		      Guard<BaseGDL>& g2, BaseGDL*& e2);
   // for overloaded operators 
   void SetupGuards( Guard<BaseGDL>& g1, BaseGDL*& e1,
 		    Guard<BaseGDL>& g2, BaseGDL*& e2);
@@ -110,9 +111,13 @@ public:
 
 class FCALL_LIB_DIRECTNode: public LeafNode
 {
+  LibFunDirect libFunDirectFun;
 public:
   FCALL_LIB_DIRECTNode( const RefDNode& refNode): LeafNode( refNode)
-  {}
+  {
+    assert( this->libFun != NULL);
+    libFunDirectFun = static_cast<DLibFunDirect*>(this->libFun)->FunDirect();
+  }
   BaseGDL** LEval();
   BaseGDL* Eval();
 };

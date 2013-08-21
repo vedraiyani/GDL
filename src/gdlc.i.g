@@ -201,8 +201,10 @@ protected:
     {
         public:
         enum ExCode {
-            NONE=0, // normal RETALL
-            RUN     // RETALL from .RUN command
+            NONE=0 // normal RETALL
+            ,RUN   // RETALL from .RUN command
+            ,RESET // RETALL from .RESET command
+            ,FULL_RESET // RETALL from .FULL_RESET command
         };  
 
         private:
@@ -319,6 +321,13 @@ public:
                     }
             }
     }
+    static void HeapErase( DPtr id) // for LIST
+    {
+        if( id != 0)
+            {
+              heap.erase( id); 
+            }
+    }
     static void FreeHeapDirect( DPtr id, HeapT::iterator it)
     {
         delete (*it).second.get();
@@ -405,7 +414,7 @@ std::cout << "<ObjHeapVar" << id << "> = " << (*it).second.Count() << std::endl;
     }
    static void DecRefObj( DObjGDL* p)
     {
-        SizeT nEl=p->N_Elements();
+        SizeT nEl=p->Size();//N_Elements();
         for( SizeT ix=0; ix < nEl; ix++)
         {
             DObj id= (*p)[ix];
@@ -482,7 +491,7 @@ std::cout << add << " + <ObjHeapVar" << id << ">" << std::endl;
     }
    static void IncRefObj( DObjGDL* p)
     {
-        SizeT nEl=p->N_Elements();
+        SizeT nEl=p->Size();//N_Elements();
         for( SizeT ix=0; ix < nEl; ix++)
         {
             DObj id= (*p)[ix];
@@ -495,13 +504,15 @@ std::cout << add << " + <ObjHeapVar" << id << ">" << std::endl;
     static BaseGDL*& GetHeap( DPtr ID)
     {
         HeapT::iterator it=heap.find( ID);
-        if( it == heap.end()) throw HeapException();
+        if( it == heap.end()) 
+            throw HeapException();
         return it->second.get();
     }
     static DStructGDL*& GetObjHeap( DObj ID)
     {
         ObjHeapT::iterator it=objHeap.find( ID);
-        if( it == objHeap.end()) throw HeapException();
+        if( it == objHeap.end()) 
+            throw HeapException();
         return it->second.get();
     }
 
@@ -513,12 +524,12 @@ std::cout << add << " + <ObjHeapVar" << id << ">" << std::endl;
         if( it == objHeap.end()) return NULL;
         return it->second.get()->Desc()->GetOperator( opIx);
     }
-    // static DStructGDL* GetObjHeapNoThrow( DObj ID)
-    // {
-    //     ObjHeapT::iterator it=objHeap.find( ID);
-    //     if( it == objHeap.end()) return NULL;
-    //     return it->second.get();
-    // }
+    static DStructGDL* GetObjHeapNoThrow( DObj ID)
+    {
+        ObjHeapT::iterator it=objHeap.find( ID);
+        if( it == objHeap.end()) return NULL;
+        return it->second.get();
+    }
 //     static DStructGDL*& GetObjHeap( DObj ID, ObjHeapT::iterator& it)
 //     {
 // //         ObjHeapT::iterator it=objHeap.find( ID);
@@ -632,6 +643,21 @@ std::cout << add << " + <ObjHeapVar" << id << ">" << std::endl;
         return ret;
     }
 
+
+    static void ResetHeap() // purges both heaps
+    {
+        for( HeapT::iterator it=heap.begin(); it != heap.end(); ++it)
+        {
+           delete (*it).second.get();
+           heap.erase( it->first); 
+        }
+        for( ObjHeapT::iterator it=objHeap.begin(); it != objHeap.end(); ++it)
+        {
+            delete (*it).second.get();
+            objHeap.erase( it->first); 
+        }
+    }
+
     // name of data
     static const std::string Name( BaseGDL* p) // const
     {
@@ -698,17 +724,22 @@ std::cout << add << " + <ObjHeapVar" << id << ">" << std::endl;
     {
         DString msgPrefix = SysVar::MsgPrefix();
 
-        EnvStackT::reverse_iterator upEnv = callStack.rbegin();
-        //EnvStackT::reverse_iterator env = upEnv++;
-        upEnv++;
-        for(; 
-            upEnv != callStack.rend();
-            ++upEnv /*,++env*/)
+        // EnvStackT::reverse_iterator upEnv = callStack.rbegin();
+        // //EnvStackT::reverse_iterator env = upEnv++;
+        // upEnv++;
+        // for(; 
+        //     upEnv != callStack.rend();
+        //     ++upEnv /*,++env*/)
+        
+        long actIx = callStack.size() - 2;
+        for( ; actIx >= 0; --actIx)
         {
-            std::cerr << msgPrefix << std::right << std::setw( w) << "";
-            std::cerr << std::left << std::setw(16) << (*upEnv)->GetProName();
+            EnvStackT::pointer_type upEnv = callStack[ actIx]; 
 
-            std::string file = (*upEnv)->GetFilename();
+            std::cerr << msgPrefix << std::right << std::setw( w) << "";
+            std::cerr << std::left << std::setw(16) << upEnv->GetProName();
+
+            std::string file = upEnv->GetFilename();
             if( file != "")
             {              
 //                 ProgNodeP cNode= (*env)->CallingNode();
@@ -720,14 +751,13 @@ std::cout << add << " + <ObjHeapVar" << id << ">" << std::endl;
 //                 {
 //                     std::cerr << std::right << std::setw(6) << "";
 //                 }                
-
 //                 ProgNodeP cNode= (*env)->CallingNode();
 //                 if( cNode != NULL && cNode->getLine() != 0)
 //                 {       
 //                     (*upEnv)->SetLineNumber( cNode->getLine());
 //                 }
 
-                int lineNumber = (*upEnv)->GetLineNumber();
+                int lineNumber = upEnv->GetLineNumber();
                 if( lineNumber != 0)
                 {       
                     std::cerr << std::right << std::setw(6) << lineNumber;
@@ -1025,7 +1055,7 @@ statement returns[ RetCode retCode]
         |   CONTINUE
         |   GOTO
         |   RETF 
-        | RETP
+        |   RETP
         )
 
         // control-c and debugging
@@ -1109,6 +1139,9 @@ statement returns[ RetCode retCode]
         // .CONTINUE does not work)
         _retTree = last; 
 
+        if( last->IsWrappedNode())
+            throw e; // WRAPPED_... nodes should not stop inside
+
         // set !ERROR_STATE sys var 
         static DStructDesc* errorStateDesc = SysVar::Error_State()->Desc();
         static unsigned nameTag = errorStateDesc->TagIndex( "NAME");
@@ -1176,9 +1209,11 @@ statement returns[ RetCode retCode]
         SysVar::SetErr_String( e.getMessage());
 
             // look if ON_ERROR is set somewhere
-            for( EnvStackT::reverse_iterator i = callStack.rbegin();
-                i != callStack.rend(); ++i)
+            // for( EnvStackT::reverse_iterator i = callStack.rbegin();
+            //     i != callStack.rend(); ++i)
+            for( long ix = callStack.size() - 1; ix>=0; --ix)
             {
+                EnvUDT** i = &callStack[ ix];
                 DLong oE = -1;
                 EnvUDT* envUD = dynamic_cast<EnvUDT*>(*i);
                 if( envUD != NULL)
@@ -1194,32 +1229,40 @@ statement returns[ RetCode retCode]
                     else if( oE == 1) 
                     {
                         EnvUDT* cS_begin = 
-                        static_cast<EnvUDT*>(*callStack.begin());
+                        static_cast<EnvUDT*>(callStack[0]);
+                        // static_cast<EnvUDT*>(*callStack.begin());
                         targetEnv = cS_begin;  
                     }
                     // 2 -> caller of routine which called ON_ERROR
                     else if( oE == 2)
                     {
                         // set to caller, handle nested
-                        while( static_cast<EnvUDT*>(*(++i))->GetOnError() == 2 
-                               && i != callStack.rend());
+                        while( ix > 0 && static_cast<EnvUDT*>(callStack[--ix])->GetOnError() == 2)
+                            ; // just set ix
 
-                        if( i == callStack.rend())
-                        {
-                            EnvUDT* cS_begin = 
-                            static_cast<EnvUDT*>(*callStack.begin());
-                            targetEnv = cS_begin;
-                        }
-                        else
-                        {
-                            EnvUDT* iUDT = static_cast<EnvUDT*>(*i);
-                            targetEnv = iUDT;
-                        }
+                        EnvUDT* iUDT = static_cast<EnvUDT*>(callStack[ix]);
+                        targetEnv = iUDT;
+
+
+                        // while( static_cast<EnvUDT*>(*(++i))->GetOnError() == 2 
+                        //        && i != callStack.rend());
+                        // if( i == callStack.rend())
+                        // {
+                        //     EnvUDT* cS_begin = 
+                        //     static_cast<EnvUDT*>(*callStack.begin());
+                        //     targetEnv = cS_begin;
+                        // }
+                        // else
+                        // {
+                        //     EnvUDT* iUDT = static_cast<EnvUDT*>(*i);
+                        //     targetEnv = iUDT;
+                        // }
                     }   
                     // 3 -> routine which called ON_ERROR
                     else if( oE == 3)
                     {
-                        EnvUDT* iUDT = static_cast<EnvUDT*>(*i);
+                        EnvUDT* iUDT = static_cast<EnvUDT*>(callStack[ix]);
+                        // EnvUDT* iUDT = static_cast<EnvUDT*>(*i);
                         targetEnv = iUDT;
                     }
                     
@@ -1313,7 +1356,7 @@ l_deref returns [BaseGDL** res]
 
     assert( actEnv != NULL);
 
-    auto_ptr<BaseGDL> e1_guard;
+    Guard<BaseGDL> e1_guard;
     BaseGDL* e1;
     ProgNodeP evalExpr = _t->getFirstChild();
     if( NonCopyNode( evalExpr->getType()))
@@ -1330,7 +1373,7 @@ l_deref returns [BaseGDL** res]
             if( !callStack.back()->Contains( e1)) 
                 {
                     //                if( actEnv != NULL)
-                    actEnv->Guard( e1); 
+                    actEnv->DeleteAtExit( e1); 
                     //                else
                     //                    e1_guard.reset( e1);
                 }
@@ -1340,7 +1383,7 @@ l_deref returns [BaseGDL** res]
             e1 = evalExpr->Eval();
 
             //      if( actEnv != NULL)
-            actEnv->Guard( e1); 
+            actEnv->DeleteAtExit( e1); 
             //      else
             //          e1_guard.reset(e1);
         }
@@ -1384,7 +1427,7 @@ l_ret_expr returns [BaseGDL** res]
     : res=l_deref
     | #(QUESTION e1=expr
             { 
-                auto_ptr<BaseGDL> e1_guard(e1);
+                Guard<BaseGDL> e1_guard(e1);
                 if( e1->True())
                 {
                     res=l_ret_expr(_t);
@@ -1421,16 +1464,16 @@ l_ret_expr returns [BaseGDL** res]
     | // here ASSIGN and ASSIGN_REPLACE are identical
       #(ASSIGN // can it occur at all?
             { 
-                auto_ptr<BaseGDL> r_guard;
+                Guard<BaseGDL> r_guard;
             } 
             ( e1=tmp_expr
                 {
-                    r_guard.reset( e1);
+                    r_guard.Init( e1);
                 }
             | e1=lib_function_call
                 {
                     if( !callStack.back()->Contains( e1)) 
-                        r_guard.reset( e1);
+                        r_guard.Init( e1);
                 }
             )
             res=l_ret_expr
@@ -1445,16 +1488,16 @@ l_ret_expr returns [BaseGDL** res]
         )
     | #(ASSIGN_ARRAYEXPR_MFCALL // here as return value of l_function
             { 
-                auto_ptr<BaseGDL> r_guard;
+                Guard<BaseGDL> r_guard;
             } 
             ( e1=tmp_expr
                 {
-                    r_guard.reset( e1);
+                    r_guard.Init( e1);
                 }
             | e1=lib_function_call
                 {
                     if( !callStack.back()->Contains( e1)) 
-                        r_guard.reset( e1);
+                        r_guard.Init( e1);
                 }
             )
             res=l_arrayexpr_mfcall_as_mfcall
@@ -1469,16 +1512,16 @@ l_ret_expr returns [BaseGDL** res]
         )
     | #(ASSIGN_REPLACE 
             { 
-                auto_ptr<BaseGDL> r_guard;
+                Guard<BaseGDL> r_guard;
             } 
             ( e1=tmp_expr
                 {
-                    r_guard.reset( e1);
+                    r_guard.Init( e1);
                 }
             | e1=lib_function_call
                 {
                     if( !callStack.back()->Contains( e1)) 
-                        r_guard.reset( e1);
+                        r_guard.Init( e1);
                 }
             )
             res=l_ret_expr
@@ -1621,31 +1664,31 @@ l_decinc_dot_expr [int dec_inc] returns [BaseGDL* res]
     : #(dot:DOT 
             { 
                 SizeT nDot=dot->nDot;
-                auto_ptr<DotAccessDescT> aD( new DotAccessDescT(nDot+1));
+                Guard<DotAccessDescT> aD( new DotAccessDescT(nDot+1));
             } 
-            l_dot_array_expr[ aD.get()] 
-            (tag_array_expr[ aD.get()] /* nDot times*/ )+ 
+            l_dot_array_expr[ aD.Get()] 
+            (tag_array_expr[ aD.Get()] /* nDot times*/ )+ 
         )         
         {
             if( dec_inc == DECSTATEMENT) 
             {
-                aD->Dec(); 
+                aD.Get()->Dec(); 
                 res = NULL;
             }
             else if( dec_inc == INCSTATEMENT)
             {
-                aD->Inc();
+                aD.Get()->Inc();
                 res = NULL;
             }
             else
             {
-                if( dec_inc == DEC) aD->Dec(); //*** aD->Assign( dec_inc);
-                else if( dec_inc == INC) aD->Inc();
+                if( dec_inc == DEC) aD.Get()->Dec(); //*** aD->Assign( dec_inc);
+                else if( dec_inc == INC) aD.Get()->Inc();
 //                
-                res=aD->ADResolve();
+                res=aD.Get()->ADResolve();
                 
-                if( dec_inc == POSTDEC) aD->Dec();
-                else if( dec_inc == POSTINC) aD->Inc();
+                if( dec_inc == POSTDEC) aD.Get()->Dec();
+                else if( dec_inc == POSTINC) aD.Get()->Inc();
             }
         }
     ;
@@ -1658,7 +1701,7 @@ l_decinc_expr [int dec_inc] returns [BaseGDL* res]
 }
     : #(QUESTION e1=expr
             { 
-                auto_ptr<BaseGDL> e1_guard(e1);
+                Guard<BaseGDL> e1_guard(e1);
 
                 if( e1->True())
                 {
@@ -1673,7 +1716,7 @@ l_decinc_expr [int dec_inc] returns [BaseGDL* res]
         ) // trinary operator
     | #(ASSIGN 
             { 
-                auto_ptr<BaseGDL> r_guard;
+                Guard<BaseGDL> r_guard;
             } 
 //             ( e1=tmp_expr
 //                 {
@@ -1686,11 +1729,11 @@ l_decinc_expr [int dec_inc] returns [BaseGDL* res]
 //                 }
 //             )
             ( e1=indexable_expr
-            | e1=indexable_tmp_expr { r_guard.reset( e1);}
+            | e1=indexable_tmp_expr { r_guard.Init( e1);}
             | e1=lib_function_call
                 {
                     if( !callStack.back()->Contains( e1)) 
-                        r_guard.reset( e1); // guard if no global data
+                        r_guard.Init( e1); // guard if no global data
                 }
             )
             { 
@@ -1706,14 +1749,14 @@ l_decinc_expr [int dec_inc] returns [BaseGDL* res]
         )
     | #(ASSIGN_ARRAYEXPR_MFCALL
             { 
-                auto_ptr<BaseGDL> r_guard;
+                Guard<BaseGDL> r_guard;
             } 
             ( e1=indexable_expr
-            | e1=indexable_tmp_expr { r_guard.reset( e1);}
+            | e1=indexable_tmp_expr { r_guard.Init( e1);}
             | e1=lib_function_call
                 {
                     if( !callStack.back()->Contains( e1)) 
-                        r_guard.reset( e1); // guard if no global data
+                        r_guard.Init( e1); // guard if no global data
                 }
             )
             { 
@@ -1731,7 +1774,7 @@ l_decinc_expr [int dec_inc] returns [BaseGDL* res]
                     {
                         delete *tmp;
 
-                        if( r_guard.get() == e1)
+                        if( r_guard.Get() == e1)
                             *tmp = r_guard.release();
                         else          
                             *tmp = e1->Dup();
@@ -1757,16 +1800,16 @@ l_decinc_expr [int dec_inc] returns [BaseGDL* res]
         )
     | #(ASSIGN_REPLACE 
             { 
-                auto_ptr<BaseGDL> r_guard;
+                Guard<BaseGDL> r_guard;
             } 
             ( e1=tmp_expr
                 {
-                    r_guard.reset( e1);
+                    r_guard.Init( e1);
                 }
             | e1=lib_function_call
                 {
                     if( !callStack.back()->Contains( e1)) 
-                        r_guard.reset( e1);
+                        r_guard.Init( e1);
                 }
             )
             { 
@@ -1785,7 +1828,7 @@ l_decinc_expr [int dec_inc] returns [BaseGDL* res]
             {
                 delete *tmp;
 
-                if( r_guard.get() == e1)
+                if( r_guard.Get() == e1)
                   *tmp = r_guard.release();
                 else  
                   *tmp = e1->Dup();
@@ -1807,12 +1850,15 @@ l_decinc_expr [int dec_inc] returns [BaseGDL* res]
         //BaseGDL** e = l_arrayexpr_mfcall_as_mfcall( _t);
         self=expr mp2:IDENTIFIER
         {  
-                auto_ptr<BaseGDL> self_guard(self);
+                Guard<BaseGDL> self_guard(self);
         
                 EnvUDT* newEnv;
 
+                DObjGDL* selfObj = NULL;
+                if( self->Type() == GDL_OBJ)
+                    selfObj = static_cast<DObjGDL*>( self);
                 try {
-                    newEnv=new EnvUDT( self, mp2, "", true);
+                    newEnv=new EnvUDT( selfObj, mp2, "", true);
                     self_guard.release();
                 }
                 catch( GDLException& ex)
@@ -1971,7 +2017,7 @@ l_expr [BaseGDL* right] returns [BaseGDL** res]
   //     _t = _t->getFirstChild();
   //     e1=expr(_t);
   //     _t = _retTree;
-  //     auto_ptr<BaseGDL> e1_guard(e1);
+  //     Guard<BaseGDL> e1_guard(e1);
   //     if( e1->True())
   //     {
   //         res=l_expr(_t, right);
@@ -2020,7 +2066,7 @@ l_expr [BaseGDL* right] returns [BaseGDL** res]
   //     res=l_sys_var(_t);
   //     // _t = _retTree; // ok
       
-  //     auto_ptr<BaseGDL> conv_guard; //( rConv);
+  //     Guard<BaseGDL> conv_guard; //( rConv);
   //     BaseGDL* rConv = right;
   //     if( !(*res)->EqType( right))
   //     {
@@ -2078,7 +2124,7 @@ l_expr [BaseGDL* right] returns [BaseGDL** res]
   //       _t = _t->getFirstChild();
         
   //       SizeT nDot = tIn->nDot;
-  //       auto_ptr<DotAccessDescT> aD( new DotAccessDescT(nDot+1));
+  //       Guard<DotAccessDescT> aD( new DotAccessDescT(nDot+1));
         
   //       l_dot_array_expr(_t, aD.get());
   //       _t = _retTree;
@@ -2556,10 +2602,10 @@ tag_expr [DotAccessDescT* aD] // 2nd...
 		_t = _t->getFirstChild();
 		e=expr(_t);
 		
-		auto_ptr<BaseGDL> e_guard(e);
+		Guard<BaseGDL> e_guard(e);
 		
 		SizeT tagIx;
-		int ret=e->Scalar2index(tagIx);
+		int ret=e->Scalar2Index(tagIx);
 		if( ret < 1) // this is a return code, not the index
             throw GDLException( tIn, "Expression must be a scalar"
                                 " >= 0 in this context: "+Name(e),true,false);
@@ -2581,7 +2627,7 @@ tag_expr [DotAccessDescT* aD] // 2nd...
 }
     : #(EXPR e=expr
             // {
-            //     auto_ptr<BaseGDL> e_guard(e);
+            //     Guard<BaseGDL> e_guard(e);
                 
             //     SizeT tagIx;
             //     int ret=e->Scalar2index(tagIx);
@@ -3106,7 +3152,7 @@ l_arrayexpr_mfcall [BaseGDL* right] returns [BaseGDL** res]
         self=expr mp2:IDENTIFIER
 
         {  
-            auto_ptr<BaseGDL> self_guard(self);
+            Guard<BaseGDL> self_guard(self);
         
             try {
                 newEnv=new EnvUDT( self, mp2, "", true);
@@ -3137,10 +3183,10 @@ l_arrayexpr_mfcall [BaseGDL* right] returns [BaseGDL** res]
         #(dot:DOT  // struct assignment
             { 
                 SizeT nDot=dot->nDot;
-                auto_ptr<DotAccessDescT> aD( new DotAccessDescT(nDot+1));
+                Guard<DotAccessDescT> aD( new DotAccessDescT(nDot+1));
             } 
-            l_dot_array_expr[ aD.get()] 
-            (tag_array_expr[ aD.get()] /* nDot times*/ )+ 
+            l_dot_array_expr[ aD.Get()] 
+            (tag_array_expr[ aD.Get()] /* nDot times*/ )+ 
         )
         {
             if( right == NULL)
@@ -3148,7 +3194,7 @@ l_arrayexpr_mfcall [BaseGDL* right] returns [BaseGDL** res]
                                 "Struct expression not allowed in this context.",
                                 true,false);
             
-            aD->ADAssign( right);
+            aD.Get()->ADAssign( right);
 
             res=NULL;
 
@@ -3164,10 +3210,10 @@ l_arrayexpr_mfcall_as_arrayexpr [BaseGDL* right] returns [BaseGDL** res]
             #(dot:DOT  // struct assignment
             { 
                 SizeT nDot=dot->nDot;
-                auto_ptr<DotAccessDescT> aD( new DotAccessDescT(nDot+1));
+                Guard<DotAccessDescT> aD( new DotAccessDescT(nDot+1));
             } 
-            l_dot_array_expr[ aD.get()] 
-            (tag_array_expr[ aD.get()] /* nDot times*/ )+ 
+            l_dot_array_expr[ aD.Get()] 
+            (tag_array_expr[ aD.Get()] /* nDot times*/ )+ 
             )         
         )
         {
@@ -3176,7 +3222,7 @@ l_arrayexpr_mfcall_as_arrayexpr [BaseGDL* right] returns [BaseGDL** res]
                                 "Struct expression not allowed in this context.",
                                 true,false);
             
-            aD->ADAssign( right);
+            aD.Get()->ADAssign( right);
 
             res=NULL;
         }
@@ -3197,7 +3243,7 @@ l_arrayexpr_mfcall_as_mfcall returns[ BaseGDL** res]
  
                 self=expr mp2:IDENTIFIER
                 {  
-                    auto_ptr<BaseGDL> self_guard(self);
+                    Guard<BaseGDL> self_guard(self);
                     
                     newEnv=new EnvUDT( self, mp2, "", true);
 
@@ -3251,7 +3297,7 @@ l_function_call returns[ BaseGDL** res]
 // needed because N_ELEMENTS must handle undefined variables different
 parameter_def_n_elements [EnvBaseT* actEnv] 
 {
-    auto_ptr<EnvBaseT> guard(actEnv); 
+    Guard<EnvBaseT> guard(actEnv); 
     _retTree = _t;
 //     bool interruptEnableIn = interruptEnable;
     if( _retTree != NULL)
@@ -3322,7 +3368,7 @@ parameter_def_n_elements [EnvBaseT* actEnv]
 parameter_def [EnvBaseT* actEnv] 
 {
     // as actEnv is not on the stack guard it here
-    auto_ptr<EnvBaseT> guard(actEnv); 
+    Guard<EnvBaseT> guard(actEnv); 
 
     EnvBaseT* callerEnv = callStack.back();
     EnvBaseT* oldNewEnv = callerEnv->GetNewEnv();
@@ -3387,7 +3433,7 @@ parameter_def [EnvBaseT* actEnv]
 // for library subroutines, their number of parameters is already checked in the compiler
 parameter_def_nocheck [EnvBaseT* actEnv] 
 {
-    auto_ptr<EnvBaseT> guard(actEnv); 
+    Guard<EnvBaseT> guard(actEnv); 
 
     EnvBaseT* callerEnv = callStack.back();
     EnvBaseT* oldNewEnv = callerEnv->GetNewEnv();
@@ -3431,7 +3477,7 @@ parameter_def_nocheck [EnvBaseT* actEnv]
 
 arrayindex_list returns [ArrayIndexListT* aL]
 {
-    IxExprListT      cleanupList; // for cleanup
+    // IxExprListT      cleanupList; // for cleanup
     IxExprListT      ixExprList;
     SizeT nExpr;
     BaseGDL* s;
@@ -3441,9 +3487,9 @@ arrayindex_list returns [ArrayIndexListT* aL]
 // 	match(antlr::RefAST(_t),ARRAYIX);
 	_t = _t->getFirstChild();
 	
-	aL = ax->arrIxList;
+	aL = ax->arrIxList; // vs. ax->arrIxListNoAssoc
 	assert( aL != NULL);
-	
+
 	nExpr = aL->NParam();
 	if( nExpr == 0)
 	{
@@ -3453,6 +3499,8 @@ arrayindex_list returns [ArrayIndexListT* aL]
 	}
 	
 	while( true) {
+        IxExprListT* cleanupList = aL->GetCleanupIx(); // for cleanup
+
         assert( _t != NULL);
         if( NonCopyNode( _t->getType()))
             {
@@ -3464,13 +3512,13 @@ arrayindex_list returns [ArrayIndexListT* aL]
                 s=lib_function_call(_t);
                 //_t = _retTree;
                 if( !callStack.back()->Contains( s)) 
-                    cleanupList.push_back( s);
+                    cleanupList->push_back( s);
             }				
         else
             {
                 s=_t->Eval(); //indexable_tmp_expr(_t);
                 //_t = _retTree;
-                cleanupList.push_back( s);
+                cleanupList->push_back( s);
             }
 			
         assert( s != NULL);
@@ -3481,7 +3529,7 @@ arrayindex_list returns [ArrayIndexListT* aL]
         _t = _t->getNextSibling();
 	}
 
-	aL->Init( ixExprList, &cleanupList);
+	aL->Init( ixExprList);//, &cleanupList);
 	
 	_retTree = ax->getNextSibling();//retTree;
 	return aL;
@@ -3495,7 +3543,7 @@ arrayindex_list returns [ArrayIndexListT* aL]
             )*
         )
     ;
-
+/*
 arrayindex_list_noassoc returns [ArrayIndexListT* aL]
 {
     IxExprListT      cleanupList; // for cleanup
@@ -3561,12 +3609,12 @@ arrayindex_list_noassoc returns [ArrayIndexListT* aL]
             )*
         )
     ;
-
+*/
 // for _overloadBracketsLeftSide/_overloadBracketsRightSide
 arrayindex_list_overload [IxExprListT& indexList]
 {
     ArrayIndexListT* aL;
-    IxExprListT      cleanupList; // for cleanup
+    // IxExprListT      cleanupList; // for cleanup
     IxExprListT      ixExprList;
     SizeT nExpr;
     BaseGDL* s;
@@ -3578,14 +3626,16 @@ arrayindex_list_overload [IxExprListT& indexList]
 	
 	aL = ax->arrIxListNoAssoc;
 	assert( aL != NULL);
-	
+
 	nExpr = aL->NParam();
 	if( nExpr == 0)
 	{
-        aL->InitAsOverloadIndex( ixExprList, NULL, indexList);
+        aL->InitAsOverloadIndex( ixExprList, /* NULL,*/ indexList);
         _retTree = ax->getNextSibling();//retTree;
         return;
 	}
+	
+    IxExprListT* cleanupList = aL->GetCleanupIx();
 	
 	while( true) {
         assert( _t != NULL);
@@ -3596,16 +3646,17 @@ arrayindex_list_overload [IxExprListT& indexList]
             }
         else if( _t->getType() ==  GDLTokenTypes::FCALL_LIB)
             {
-                s=lib_function_call(_t);
+                // s=lib_function_call(_t);
+                s = static_cast<FCALL_LIBNode*>(_t)->EvalFCALL_LIB(); 
                 //_t = _retTree;
                 if( !callStack.back()->Contains( s)) 
-                    cleanupList.push_back( s);
+                    cleanupList->push_back( s);
             }				
         else
             {
                 s=_t->Eval(); //indexable_tmp_expr(_t);
                 //_t = _retTree;
-                cleanupList.push_back( s);
+                cleanupList->push_back( s);
             }
 			
         ixExprList.push_back( s);
@@ -3615,7 +3666,7 @@ arrayindex_list_overload [IxExprListT& indexList]
         _t = _t->getNextSibling();
 	}
 
-    aL->InitAsOverloadIndex( ixExprList, &cleanupList, indexList);
+    aL->InitAsOverloadIndex( ixExprList, /*&cleanupList,*/ indexList);
 	
 	_retTree = ax->getNextSibling();//retTree;
 	return;

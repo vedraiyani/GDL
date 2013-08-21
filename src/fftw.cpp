@@ -35,8 +35,8 @@ namespace lib {
 
   using namespace std;
 
-  static int szdbl=sizeof(double);
-  static int szflt=sizeof(float);
+//   static int szdbl=sizeof(double);
+//   static int szflt=sizeof(float);
 
   template < typename T>
   T* fftw_template(BaseGDL* p0,
@@ -77,7 +77,7 @@ TRACEOMP( __FILE__, __LINE__)
 #pragma omp parallel if (nEl >= CpuTPOOL_MIN_ELTS && (CpuTPOOL_MAX_ELTS == 0 || CpuTPOOL_MAX_ELTS <= nEl))
 {
 #pragma omp for
-	for( int i=0; i<nEl; ++i) {
+	for( OMPInt i=0; i<nEl; ++i) {
 	  out[i][0] /= nEl;
 	  out[i][1] /= nEl;
 	}
@@ -108,7 +108,7 @@ TRACEOMP( __FILE__, __LINE__)
 #pragma omp parallel if (nEl >= CpuTPOOL_MIN_ELTS && (CpuTPOOL_MAX_ELTS == 0 || CpuTPOOL_MAX_ELTS <= nEl))
 {
 #pragma omp for
-	for( int i=0; i<nEl; ++i) {
+	for( OMPInt i=0; i<nEl; ++i) {
 	  out_f[i][0] /= nEl;
 	  out_f[i][1] /= nEl;
 	}
@@ -176,11 +176,11 @@ TRACEOMP( __FILE__, __LINE__)
 
       DComplexDblGDL *p0C;
 
-      auto_ptr<BaseGDL> guard_p0C;
+      Guard<BaseGDL> guard_p0C;
 
       if( p0->Type() != GDL_COMPLEXDBL) {
 	p0C = static_cast<DComplexDblGDL*>(p0->Convert2( GDL_COMPLEXDBL, BaseGDL::COPY));
-        guard_p0C.reset(p0C); 
+        guard_p0C.Init(p0C); 
       } else
       {
 	  if( overwrite)
@@ -209,7 +209,7 @@ TRACEOMP( __FILE__, __LINE__)
 
       DComplexGDL* p0C = static_cast<DComplexGDL*>
 	(p0->Convert2( GDL_COMPLEX, BaseGDL::COPY));
-      auto_ptr<BaseGDL> guard_p0C( p0C); 
+      Guard<BaseGDL> guard_p0C( p0C); 
       return fftw_template< DComplexGDL> (p0C, nEl, dbl, overwrite, direct);
 
     }

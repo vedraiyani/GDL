@@ -51,21 +51,27 @@
 #include <string>
 // #include <string.h> // memcopy
 #include <cstring> // memcopy
-#include <deque>
+// #include <deque>
 #include <complex>
 #include <vector>
 #include <valarray>
 #include <cassert>
-// #include <cstdio>
-
-// undef for releases (should not give diagnostics)
-// define for the CVS (where the default sizes can easily be adjusted)
-//#define GDL_CVS_VERSION
-#undef GDL_CVS_VERSION
-
-#ifdef GDL_CVS_VERSION
 #include <iostream>
+
+#undef USE_MPFR
+
+#ifdef USE_MPFR
+#include "mpreal.h"
 #endif
+
+// // undef for releases (should not give diagnostics)
+// // define for the CVS (where the default sizes can easily be adjusted)
+// #define GDL_CVS_VERSION
+// //#undef GDL_CVS_VERSION
+// // ?
+// #ifdef GDL_CVS_VERSION
+// #include <iostream>
+// #endif
 
 //#define TRACE_OMP_CALLS
 #undef TRACE_OMP_CALLS
@@ -79,6 +85,7 @@
 // SA: fixing bug no. 3296360
 typedef unsigned long long int      SizeT;
 typedef long long int RangeT;
+typedef long long int OMPInt;
 
 const SizeT MAXRANK=8;         // arrays are limited to 8 dimensions
 const std::string MAXRANK_STR("8");  // for use in strings (error messages)
@@ -110,12 +117,26 @@ typedef unsigned char          DByte;
 #ifdef _MSC_VER
 typedef __int64               DLong64;
 typedef unsigned __int64      DULong64;
+
 #else
 //typedef long int               DLong64;
 //typedef unsigned long int      DULong64;
 typedef long long int          DLong64;
 typedef unsigned long long int DULong64;
 #endif
+
+#ifdef USE_MPFR
+
+typedef __int128               DLong128;
+typedef unsigned __int128      DULong128;
+
+typedef long double            DLDouble;
+typedef std::complex<DLDouble> DComplexLDbl;
+
+
+typedef mpfr::mpreal           DArbitrary;
+#endif
+
 
 typedef short                  DInt;
 typedef unsigned short         DUInt;
@@ -126,16 +147,18 @@ typedef double                 DDouble;
 typedef std::string            DString;
 typedef SizeT                  DPtr; // ptr to heap
 typedef DPtr                   DObj; // ptr to object heap
-typedef std::complex<float>    DComplex;
-typedef std::complex<double>   DComplexDbl;
-
+typedef std::complex<DFloat>   DComplex;
+typedef std::complex<DDouble>  DComplexDbl;
 
 // list of identifiers (used in several places)
-typedef std::deque<std::string>       IDList;
-typedef std::deque<std::string>       StrArr;
+typedef std::vector<std::string>       IDList;
+typedef std::vector<std::string>       StrArr;
+
+// for dpro
+typedef std::vector<std::string> KeyVarListT;
 
 // used by file.cpp and in other places 
-typedef std::deque<DString>           FileListT;
+typedef std::vector<DString>           FileListT;
 
 //typedef std::valarray<SizeT>          AllIxT;
 
@@ -186,6 +209,18 @@ inline int FindInIDList(IDList& idL,const std::string& s)
 
   return -1;
 }
+// TODO: make a template
+inline int FindInKeyVarListT(KeyVarListT& idL,const std::string& s)
+{
+//   int ix=0;
+  for(KeyVarListT::iterator i=idL.begin(); i != idL.end(); ++i)//, ++ix) 
+    if( *i==s) 
+      {
+	return i - idL.begin();
+      }
+
+  return -1;
+}
 
 // as auto_ptr is obsoleted Guard offers an alternative
 template <class T>
@@ -194,6 +229,16 @@ class Guard
 private:
   T*      guarded;
   
+  Guard& operator=( Guard& r)
+  {
+    if( &r == this) return;
+    delete guarded;
+    guarded = r.guarded;
+    r.guarded = NULL;
+    return *this;
+  }
+  
+
 public:
   Guard(): guarded( NULL)
   {}
@@ -210,15 +255,37 @@ public:
     delete guarded;
     guarded = newGuarded;
   }  
+  // for compatibiltiy with replaced auto_ptr
+  void reset( T* newGuarded)
+  {
+    delete guarded;
+    guarded = newGuarded;
+  }  
   void Release()
   {
     guarded = NULL;
   }  
-  T* Get()
+  T* release()
+  {
+    T* g = guarded;
+    guarded = NULL;
+    return g;
+  }  
+  T* Get() const
   {
     return guarded;
   }  
-  bool IsNull()
+  // for compatibiltiy with replaced auto_ptr
+  T* get() const
+  {
+    return guarded;
+  }  
+  // for compatibiltiy with replaced auto_ptr
+  T* operator->() const
+  {
+    return guarded;
+  }
+  bool IsNull() const
   {
     return guarded == NULL;
   }
@@ -228,6 +295,9 @@ public:
     delete guarded;
   }
 };
+
+
+
 
 // like auto_ptr but for arrays (delete[] is used upon destruction)
 template <class T>
@@ -352,388 +422,6 @@ public:
   T* Release() { T* r=container; container=NULL; return r;}
 };
 
-// #define GDLARRAY_CACHE
-#undef GDLARRAY_CACHE
-
-#define GDLARRAY_DEBUG
-// #undef GDLARRAY_DEBUG
-
-// const SizeT smallArraySize = 27;
-// const SizeT maxArrayCache = 1000 * 1000; // ComplexDbl is 16 bytes
-
-template <class T>
-class GDLArray
-{
-private:
-	enum GDLArrayConstants
-	{
-		smallArraySize = 27,
-		maxCache = 1000 * 1000 // ComplexDbl is 16 bytes
-	};
-		
-	typedef T Ty;
-
-#ifdef GDLARRAY_CACHE
-		
-	static SizeT cacheSize;
-	static T* cache;
-	static T* Cached( SizeT newSize);
-#endif
-		
-	T scalar[ smallArraySize];
-	T*    buf;
-	SizeT sz;
-
-public:
-  	GDLArray() throw() : buf( NULL), sz( 0) {}
-  
-#ifndef GDLARRAY_CACHE
-
-  GDLArray( const GDLArray& cp) : sz( cp.size())
-  {
-    try {
-		buf = (cp.size() > smallArraySize) ? new T[ cp.size()] : scalar;
-    } catch (std::bad_alloc&) { ThrowGDLException("Array requires more memory than available"); }
-/*#pragma omp parallel if (sz >= CpuTPOOL_MIN_ELTS && (CpuTPOOL_MAX_ELTS == 0 || CpuTPOOL_MAX_ELTS <= sz))
-{
-#pragma omp for*/
-    std::memcpy(buf,cp.buf,sz*sizeof(T));
-   
-//     for( SizeT i=0; i<sz; ++i)
-//       buf[ i] = cp.buf[ i];
-// }
-  }
-
-  GDLArray( SizeT s, bool b) : sz( s)
-  {
-	  try {
-		buf = (s > smallArraySize) ? new T[ s] : scalar;
-    } catch (std::bad_alloc&) { ThrowGDLException("Array requires more memory than available"); }
-  }
-  
-  GDLArray( T val, SizeT s) : sz( s)
-  {
-	  try {
-	    buf = (s > smallArraySize) ? new T[ s] : scalar;
-    } catch (std::bad_alloc&) { ThrowGDLException("Array requires more memory than available"); }
-/*#pragma omp parallel if (sz >= CpuTPOOL_MIN_ELTS && (CpuTPOOL_MAX_ELTS == 0 || CpuTPOOL_MAX_ELTS <= sz))
-{
-#pragma omp for*/
-    for( SizeT i=0; i<sz; ++i)
-      buf[ i] = val;
-// }
-  }
-  
-  GDLArray( const T* arr, SizeT s) : sz( s)
-  {
-	try
-	{
-		buf = ( s > smallArraySize ) ? new T[ s]: scalar;
-	}
-	catch ( std::bad_alloc& ) { ThrowGDLException ( "Array requires more memory than available" ); }
-/*#pragma omp parallel if (sz >= CpuTPOOL_MIN_ELTS && (CpuTPOOL_MAX_ELTS == 0 || CpuTPOOL_MAX_ELTS <= sz))
-{
-#pragma omp for*/
-    
-    std::memcpy(buf,arr,sz*sizeof(T));
-//     for( SizeT i=0; i<sz; ++i)
-//       buf[ i] = arr[ i];
-
-// }
-  }
-
-  ~GDLArray() throw()
-  {
-  if( buf != scalar) 
-      	delete[] buf; // buf == NULL also possible
-  }
-#else
-
-  // use definition in datatypes.cpp
-  GDLArray( const GDLArray& cp) ;
-  GDLArray( SizeT s, bool b) ;
-  GDLArray( T val, SizeT s) ;
-  GDLArray( const T* arr, SizeT s) ;
-  ~GDLArray() throw();
-
-#endif // GDLARRAY_DEBUG
-  
-
-
-  explicit GDLArray( const T& s) throw() : /*scalar( s),*/ buf( scalar), sz( 1)
-  { scalar[0] = s;}
-
-  T& operator[]( SizeT ix) throw()
-  {
-    // if( ix >= sz) 
-    assert( ix < sz);
-    return buf[ ix];
-  }
-  const T& operator[]( SizeT ix) const throw()
-  {
-//     if( ix >= sz) // debug 
-      assert( ix < sz);
-    return buf[ ix];
-  }
-
-// private: // disable
-// only used (indirect) by DStructGDL::DStructGDL(const DStructGDL& d_)
-void InitFrom( const GDLArray& right )
-{
-// 	// assert( sz == right.size());
-// 	if ( sz != right.size() )
-// 		ThrowGDLException ( "GDLArray::operator= operands have not same size (this: " + i2s ( sz ) +", right: " + i2s ( right.size() ) + ")");
-	assert( &right != this);
- 	assert ( sz == right.size() );
-    std::memcpy(buf,right.buf,sz*sizeof(T));
-}
-
-GDLArray& operator= ( const GDLArray& right )
-{
-// 	if ( sz != right.size() )
-// 		ThrowGDLException ( "GDLArray::operator= operands have not same size (this: " + i2s ( sz ) +", right: " + i2s ( right.size() ) + ")");
-
-    assert( this != &right);
-	assert( sz == right.size());
-//   	if ( &right != this )
-       {
-// 		if ( sz == right.size() )
-		{
-			/*#pragma omp parallel if (sz >= CpuTPOOL_MIN_ELTS && (CpuTPOOL_MAX_ELTS == 0 || CpuTPOOL_MAX_ELTS <= sz))
-			{
-			#pragma omp for*/
-			for ( SizeT i=0; i<sz; ++i )
-				buf[ i] = right.buf[ i];
-			return *this;
-// }
-		}
-// 		else
-		{
-			if ( buf != scalar )
-				delete[] buf;
-			sz = right.size();
-			buf = ( sz>smallArraySize ) ? new T[ sz] : scalar;
-			/*#pragma omp parallel if (sz >= CpuTPOOL_MIN_ELTS && (CpuTPOOL_MAX_ELTS == 0 || CpuTPOOL_MAX_ELTS <= sz))
-			{
-			#pragma omp for*/
-			for ( SizeT i=0; i<sz; ++i )
-				buf[ i] = right.buf[ i];
-			return *this;
-		}
-		}
-	//       }
-}
-
-  GDLArray& operator+=( const GDLArray& right) throw()
-  {
-/*#pragma omp parallel if (sz >= CpuTPOOL_MIN_ELTS && (CpuTPOOL_MAX_ELTS == 0 || CpuTPOOL_MAX_ELTS <= sz))
-{
-#pragma omp for*/
-    for( SizeT i=0; i<sz; ++i)
-      buf[ i] += right.buf[ i];
-// }
-    return *this;
-  }
-  GDLArray& operator-=( const GDLArray& right) throw()
-  {
-/*#pragma omp parallel if (sz >= CpuTPOOL_MIN_ELTS && (CpuTPOOL_MAX_ELTS == 0 || CpuTPOOL_MAX_ELTS <= sz))
-{
-#pragma omp for*/
-    for( SizeT i=0; i<sz; ++i)
-      buf[ i] -= right.buf[ i];
-// }
-    return *this;
-  }
-//   GDLArray&operator*=( const GDLArray& right) throw()
-//   {
-//     for( SizeT i=0; i<sz; ++i)
-//       buf[ i] *= right.buf[ i];
-//     return *this;
-//   }
-//   GDLArray&operator/=( const GDLArray& right)
-//   {
-//     for( SizeT i=0; i<sz; ++i)
-//       buf[ i] /= right.buf[ i]; // can be 0
-//     return *this;
-//   }
-
-// private: // disable
-  GDLArray& operator+=( const T& right) throw()
-  {
-/*#pragma omp parallel if (sz >= CpuTPOOL_MIN_ELTS && (CpuTPOOL_MAX_ELTS == 0 || CpuTPOOL_MAX_ELTS <= sz))
-{
-#pragma omp for*/
-    for( SizeT i=0; i<sz; ++i)
-      buf[ i] += right;
-// }
-    return *this;
-  }
-  GDLArray& operator-=( const T& right) throw()
-  {
-/*#pragma omp parallel if (sz >= CpuTPOOL_MIN_ELTS && (CpuTPOOL_MAX_ELTS == 0 || CpuTPOOL_MAX_ELTS <= sz))
-{
-#pragma omp for*/
-    for( SizeT i=0; i<sz; ++i)
-      buf[ i] -= right;
-// }
-    return *this;
-  }
-//   GDLArray&operator*=( const T& right) throw()
-//   {
-//     for( SizeT i=0; i<sz; ++i)
-//       buf[ i] *= right;
-//     return *this;
-//   }
-//   GDLArray&operator/=( const T& right)
-//   {
-//     for( SizeT i=0; i<sz; ++i)
-//       buf[ i] /= right; // can be 0
-//     return *this;
-//   }
-
-  void SetBuffer( T* b) throw()
-  {
-    buf = b;
-  }
-  T* GetBuffer() throw()
-  {
-    return buf;
-  }
-  void SetBufferSize( SizeT s) throw()
-  {
-    sz = s;
-  }
-
-  SizeT size() const throw()
-  {
-    return sz;
-  }
-
-void SetSize( SizeT newSz ) // only used in DStructGDL::DStructGDL( const string& name_) (dstructgdl.cpp)
-{
-	assert ( sz == 0);
-	if ( newSz > smallArraySize )
-	{
-		try
-		{
-			buf = new T[ newSz];
-		}
-		catch ( std::bad_alloc& )
-		{
-			ThrowGDLException ( "Array requires more memory than available" );
-		}
-	}
-	else
-	{
-// default constructed instances have buf == NULL and size == 0
-// make sure buf is set corectly if such instances are resized
-		buf = scalar;
-	}
-	sz = newSz;
-// 	assert ( newSz > sz );
-// 	if ( newSz > smallArraySize )
-// 	{
-// 		try
-// 		{
-// 			T* newBuf = new T[ newSz];
-// 			/*#pragma omp parallel if (sz >= CpuTPOOL_MIN_ELTS && (CpuTPOOL_MAX_ELTS == 0 || CpuTPOOL_MAX_ELTS <= sz))
-// 			{
-// 			#pragma omp for*/
-// 			for ( SizeT i=0; i<sz; ++i )
-// 				newBuf[ i] = buf[ i];
-// // }
-// 			if ( buf != scalar )
-// 				delete[] buf;
-// 			buf = newBuf;
-// 		}
-// 		catch ( std::bad_alloc& )
-// 		{
-// 			ThrowGDLException ( "Array requires more memory than available" );
-// 		}
-// 	}
-// 	else
-// 	{
-// // default constructed instances have buf == NULL and size == 0
-// // make sure buf is set corectly if such instances are resized
-// 		buf = scalar;
-// 	}
-// 	sz = newSz;
-}
-
-//   T min() const
-//   {
-//     T res = buf[ 0];
-//     for( SizeT i=1; i<sz; ++i)
-//       if( res > buf[ i]) res = buf[ i];
-//     return res;
-//   }
-//   T max() const
-//   {
-//     T res = buf[ 0];
-//     for( SizeT i=1; i<sz; ++i)
-//       if( res < buf[ i]) res = buf[ i];
-//     return res;
-//   }
-}; // GDLArray
-
-template<>
-inline void GDLArray<DString>::InitFrom( const GDLArray& right )
-{
-	assert( &right != this);
- 	assert ( sz == right.size() );
-	for ( SizeT i=0; i<sz; ++i )
-		buf[ i] = right.buf[ i];
-}
-
-template<>
-inline GDLArray<DString>::GDLArray( const GDLArray& cp) : sz( cp.size())
-  {
-    try {
-		buf = (cp.size() > smallArraySize) ? new Ty[ cp.size()] : scalar;
-    } catch (std::bad_alloc&) { ThrowGDLException("Array requires more memory than available"); }
-/*#pragma omp parallel if (sz >= CpuTPOOL_MIN_ELTS && (CpuTPOOL_MAX_ELTS == 0 || CpuTPOOL_MAX_ELTS <= sz))
-{
-#pragma omp for*/
-     for( SizeT i=0; i<sz; ++i)
-       buf[ i] = cp.buf[ i];
-// }
-  }
-
-template<>
-inline GDLArray<DString>::GDLArray( const Ty* arr, SizeT s) : sz( s)
-  {
-    try {
-    buf = (s > smallArraySize) ? new Ty[ s]: scalar;
-    } catch (std::bad_alloc&) { ThrowGDLException("Array requires more memory than available"); }
-/*#pragma omp parallel if (sz >= CpuTPOOL_MIN_ELTS && (CpuTPOOL_MAX_ELTS == 0 || CpuTPOOL_MAX_ELTS <= sz))
-{
-#pragma omp for*/
-     for( SizeT i=0; i<sz; ++i)
-       buf[ i] = arr[ i];
-// }
-  }
-
-// friend  GDLArray pow(const GDLArray& left, const GDLArray& right);
-
-// friend  GDLArray pow(const GDLArray& left, const T& right);
-
-// friend  GDLArray pow(const T& left, const GDLArray& right);
-
-// };
-
-// template<class Ty>
-//     GDLArray<Ty> pow(const GDLArray<Ty>& left,
-//         const GDLArray<Ty>& right)
-// {
-//   GDLArray<Ty> res( left.size);
-  
-//   for( SizeT i=0; i<left.size(); ++i)
-//     res[ i] = pow(left[i],right[i]);
-// }
-// template<class Ty>
-//     GDLArray<Ty> pow(const GDLArray<Ty> left, const Ty& right);
-// template<class Ty>
-//     GDLArray<Ty> pow(const Ty& left, const GDLArray<Ty>& right);
 
 // this data structure is optimized for list sizes < ExprListDefaultLength
 // ExprListDefaultLength should be set such that it will probably never exceed
@@ -811,23 +499,26 @@ typedef ExprListT::iterator ExprListIterT;
 //
 // GDLGuard< gsl_matrix> gsl_matrix_guard( matrix, gsl_matrix_free);
 // (of course no explicit call to the gsl-cleanup function must be done anymore)
-template< typename GSLType, typename cleanupReturnType=void>
+template< typename GSLType, typename cleanupReturnType=void, typename cleanupArgType=GSLType>
 class GDLGuard
 {
   GSLType* gslObject;
   
-  cleanupReturnType (*gslDestructor)(GSLType*);
+  // note: cleanupArgType must be GSLType, 
+  // except for free( void*) with GSLType==void* 
+  // where it must be void
+  cleanupReturnType (*gslDestructor)(cleanupArgType*);
   
   GDLGuard() {}
   
 public:
   GDLGuard( void (*d)(GSLType*)): gslObject( NULL), gslDestructor(d) {}
-  GDLGuard( GSLType* o, cleanupReturnType (*d)(GSLType*)): gslObject( o), gslDestructor(d) {}
+  GDLGuard( GSLType* o, cleanupReturnType (*d)(cleanupArgType*)): gslObject( o), gslDestructor(d) {}
   ~GDLGuard()
   {
-    (*gslDestructor)( gslObject);
+    (*gslDestructor)( (cleanupArgType*)gslObject);
   }
-  void Set( GSLType* o)
+  void Init( GSLType* o)
   {
     assert( gslObject == NULL);
     gslObject = o;
@@ -850,5 +541,75 @@ typedef GDLGuard< FILE, int> FILEGuard;
 //     fclose( fp);
 //   }
 // };
+
+
+class FreeListT 
+{
+  typedef void* PType;
+  PType* freeList;
+  SizeT sz;
+  SizeT endIx;
+
+public:
+  FreeListT(): freeList(NULL), sz(0), endIx(0) {}
+  
+  SizeT size() const { return endIx;}
+  void resize( SizeT s) { endIx = s;}
+  PType pop_back() { assert(endIx > 0); return freeList[endIx--];}
+//   PType back() const { assert(endIx > 0); assert( freeList != NULL); return freeList[endIx];}
+  void push_back( PType p) { assert( endIx < (sz-1));  assert( freeList != NULL); freeList[++endIx] = p;}
+  
+  char* Init( SizeT s, char* res, SizeT sizeOfType)
+  {
+    endIx = s;
+    
+    //freeList[0] = res; // the ptr to free (not implemented)
+    for( size_t i=1; i<=endIx; ++i)
+    {
+      freeList[ i] = res;
+      res += sizeOfType;
+    } 
+    return res;
+  }  
+//   PType& operator[]( SizeT i)
+//   {
+//     return freeList[ i];
+//   }
+//   PType operator[]( SizeT i) const
+//   {
+//     return freeList[ i+1];
+//   }
+  
+  void reserve( SizeT s)
+  {
+    assert( endIx == 0);
+
+    // alloc one more
+    if( ++s == sz)
+      return;
+    
+    free( freeList);
+    freeList = (PType*) malloc( s * sizeof(PType));
+    if( freeList == NULL) // error
+    {
+      freeList = (PType*) malloc( sz * sizeof(PType));
+      if( freeList == NULL)
+      {
+	std::cerr << "% Error allocating free list. Probably already too late. Sorry.\n"
+	  "Try to save what to save and immediately exit GDL session."<<std::endl;	
+      }
+      else
+      {
+	std::cerr << "% Error allocating free list. Segmentation fault pending.\n"
+	  "Try to save what to save and immediately exit GDL session."<<std::endl;
+      }
+      return;
+    }
+    sz = s;
+  }
+  
+};
+
+//typedef std::vector< void*> FreeListT;	
 
 #endif

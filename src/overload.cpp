@@ -21,6 +21,10 @@
 #include "overload.hpp"
 #include "prognodeexpr.hpp"
 #include "dinterpreter.hpp"
+// #include "basic_pro.hpp"
+#include "nullgdl.hpp"
+#include "list.hpp"
+#include "hash.hpp"
 
 using namespace std;
 
@@ -126,6 +130,7 @@ void _GDL_OBJECT_OverloadBracketsLeftSide( EnvUDT* e)
   GDLDelete( *objRefP);
   *objRefP = rValue->Dup();
 }
+
 
 BaseGDL* _GDL_OBJECT_OverloadBracketsRightSide( EnvUDT* e)
 {
@@ -270,7 +275,7 @@ BaseGDL* _GDL_OBJECT_OverloadEQOp( EnvUDT* e)
 #pragma omp parallel if (nEl >= CpuTPOOL_MIN_ELTS && (CpuTPOOL_MAX_ELTS == 0 || CpuTPOOL_MAX_ELTS <= nEl))
 	{
 #pragma omp for
-	  for( int i=0; i < nEl; ++i)
+	  for( OMPInt i=0; i < nEl; ++i)
 	    (*res)[i] = ((*left)[i] == s);
 	}    }
   else if( left->StrictScalar(s)) 
@@ -285,7 +290,7 @@ BaseGDL* _GDL_OBJECT_OverloadEQOp( EnvUDT* e)
 #pragma omp parallel if (rEl >= CpuTPOOL_MIN_ELTS && (CpuTPOOL_MAX_ELTS == 0 || CpuTPOOL_MAX_ELTS <= rEl))
 	{
 #pragma omp for
-	  for( int i=0; i < rEl; ++i)
+	  for( OMPInt i=0; i < rEl; ++i)
 	    (*res)[i] = ((*right)[i] == s);
 	}    }
   else if( rEl < nEl) 
@@ -295,7 +300,7 @@ BaseGDL* _GDL_OBJECT_OverloadEQOp( EnvUDT* e)
 #pragma omp parallel if (rEl >= CpuTPOOL_MIN_ELTS && (CpuTPOOL_MAX_ELTS == 0 || CpuTPOOL_MAX_ELTS <= rEl))
 	{
 #pragma omp for
-	  for( int i=0; i < rEl; ++i)
+	  for( OMPInt i=0; i < rEl; ++i)
 	    (*res)[i] = ((*right)[i] == (*left)[i]);
 	}    }
   else // ( rEl >= nEl)
@@ -310,7 +315,7 @@ BaseGDL* _GDL_OBJECT_OverloadEQOp( EnvUDT* e)
 #pragma omp parallel if (nEl >= CpuTPOOL_MIN_ELTS && (CpuTPOOL_MAX_ELTS == 0 || CpuTPOOL_MAX_ELTS <= nEl))
 	{
 #pragma omp for
-	  for( int i=0; i < nEl; ++i)
+	  for( OMPInt i=0; i < nEl; ++i)
 	    (*res)[i] = ((*right)[i] == (*left)[i]);
 	}    }
   return res;
@@ -320,7 +325,7 @@ BaseGDL* _GDL_OBJECT_OverloadNEOp( EnvUDT* e)
 {
   SizeT nParam = e->NParam(); // number of parameters actually given
 //   int envSize = e->EnvSize(); // number of parameters + keywords 'e' (pro) has defined
-  if( nParam < 2) // consider implicit SELF
+  if( nParam < 3) // consider implicit SELF
     ThrowFromInternalUDSub( e, "Two parameters are needed: LEFT, RIGHT.");
 
   // default behavior: Exact like scalar indexing
@@ -358,7 +363,7 @@ BaseGDL* _GDL_OBJECT_OverloadNEOp( EnvUDT* e)
 #pragma omp parallel if (nEl >= CpuTPOOL_MIN_ELTS && (CpuTPOOL_MAX_ELTS == 0 || CpuTPOOL_MAX_ELTS <= nEl))
 	{
 #pragma omp for
-	  for( int i=0; i < nEl; ++i)
+	  for( OMPInt i=0; i < nEl; ++i)
 	    (*res)[i] = ((*left)[i] != s);
 	}    }
   else if( left->StrictScalar(s)) 
@@ -373,7 +378,7 @@ BaseGDL* _GDL_OBJECT_OverloadNEOp( EnvUDT* e)
 #pragma omp parallel if (rEl >= CpuTPOOL_MIN_ELTS && (CpuTPOOL_MAX_ELTS == 0 || CpuTPOOL_MAX_ELTS <= rEl))
 	{
 #pragma omp for
-	  for( int i=0; i < rEl; ++i)
+	  for( OMPInt i=0; i < rEl; ++i)
 	    (*res)[i] = ((*right)[i] != s);
 	}    }
   else if( rEl < nEl) 
@@ -383,7 +388,7 @@ BaseGDL* _GDL_OBJECT_OverloadNEOp( EnvUDT* e)
 #pragma omp parallel if (rEl >= CpuTPOOL_MIN_ELTS && (CpuTPOOL_MAX_ELTS == 0 || CpuTPOOL_MAX_ELTS <= rEl))
 	{
 #pragma omp for
-	  for( int i=0; i < rEl; ++i)
+	  for( OMPInt i=0; i < rEl; ++i)
 	    (*res)[i] = ((*right)[i] != (*left)[i]);
 	}    }
   else // ( rEl >= nEl)
@@ -398,7 +403,7 @@ BaseGDL* _GDL_OBJECT_OverloadNEOp( EnvUDT* e)
 #pragma omp parallel if (nEl >= CpuTPOOL_MIN_ELTS && (CpuTPOOL_MAX_ELTS == 0 || CpuTPOOL_MAX_ELTS <= nEl))
 	{
 #pragma omp for
-	  for( int i=0; i < nEl; ++i)
+	  for( OMPInt i=0; i < nEl; ++i)
 	    (*res)[i] = ((*right)[i] != (*left)[i]);
 	}    }
   return res;
@@ -410,6 +415,7 @@ BaseGDL* _GDL_OBJECT_OverloadNEOp( EnvUDT* e)
 BaseGDL* _GDL_OBJECT_OverloadReportIllegalOperation( EnvUDT* e)
 {
   ThrowFromInternalUDSub( e, "Operation illegal with object reference types.");
+  return 0;
 }
 
 // set up the _overload... subroutines for GDL_OBJECT
@@ -420,9 +426,15 @@ void SetupOverloadSubroutines()
 //   in call_fun eventually (in GDLInterpreter::statement) tree->Run() is called
   DStructDesc* gdlObjectDesc = FindInStructList(structList, GDL_OBJECT_NAME);
   assert( gdlObjectDesc != NULL);
+  DStructDesc* listDesc = FindInStructList(structList, "LIST");
+  assert( listDesc != NULL);
+  DStructDesc* hashDesc = FindInStructList(structList, "HASH");
+  assert( hashDesc != NULL);
+  
+  WRAPPED_FUNNode *tree;
   
   // automatically adds "SELF" parameter (object name is != "")
-  DFun *_overloadIsTrue = new DFun("_OVERLOADISTRUE",GDL_OBJECT_NAME,"*INTERNAL*");
+  DFun *_overloadIsTrue = new DFun("_OVERLOADISTRUE",GDL_OBJECT_NAME,"<INTERNAL_LIBRARY>");
   WRAPPED_FUNNode *tree1 = new WRAPPED_FUNNode(_GDL_OBJECT_OverloadIsTrue);
   _overloadIsTrue->SetTree( tree1);
 // we are NOT setting the operator to have (faster) default behavior
@@ -431,7 +443,7 @@ void SetupOverloadSubroutines()
   gdlObjectDesc->FunList().push_back(_overloadIsTrue);
 //   gdlObjectDesc->SetOperator(OOIsTrue,_overloadIsTrue);
 
-  DPro *_overloadBracketsLeftSide = new DPro("_OVERLOADBRACKETSLEFTSIDE",GDL_OBJECT_NAME,"*INTERNAL*");
+  DPro *_overloadBracketsLeftSide = new DPro("_OVERLOADBRACKETSLEFTSIDE",GDL_OBJECT_NAME,"<INTERNAL_LIBRARY>");
   _overloadBracketsLeftSide->AddPar("OBJREF")->AddPar("RVALUE")->AddPar("ISRANGE");
   _overloadBracketsLeftSide->AddPar("SUB1")->AddPar("SUB2")->AddPar("SUB3")->AddPar("SUB4");
   _overloadBracketsLeftSide->AddPar("SUB5")->AddPar("SUB6")->AddPar("SUB7")->AddPar("SUB8");
@@ -440,7 +452,7 @@ void SetupOverloadSubroutines()
   gdlObjectDesc->ProList().push_back(_overloadBracketsLeftSide);
 //   gdlObjectDesc->SetOperator(OOBracketsLeftSide,_overloadBracketsLeftSide);
 
-  DFun *_overloadBracketsRightSide = new DFun("_OVERLOADBRACKETSRIGHTSIDE",GDL_OBJECT_NAME,"*INTERNAL*");
+  DFun *_overloadBracketsRightSide = new DFun("_OVERLOADBRACKETSRIGHTSIDE",GDL_OBJECT_NAME,"<INTERNAL_LIBRARY>");
   _overloadBracketsRightSide->AddPar("ISRANGE");
   _overloadBracketsRightSide->AddPar("SUB1")->AddPar("SUB2")->AddPar("SUB3")->AddPar("SUB4");
   _overloadBracketsRightSide->AddPar("SUB5")->AddPar("SUB6")->AddPar("SUB7")->AddPar("SUB8");
@@ -449,32 +461,198 @@ void SetupOverloadSubroutines()
   gdlObjectDesc->FunList().push_back(_overloadBracketsRightSide);
 //   gdlObjectDesc->SetOperator(OOBracketsRightSide,_overloadBracketsRightSide);
 
-  DFun *_overloadEQ = new DFun("_OVERLOADEQ",GDL_OBJECT_NAME,"*INTERNAL*");
+   DFun *_overloadEQ = new DFun("_OVERLOADEQ",GDL_OBJECT_NAME,"<INTERNAL_LIBRARY>");
   _overloadEQ->AddPar("LEFT")->AddPar("RIGHT");
   WRAPPED_FUNNode *tree4 = new WRAPPED_FUNNode(_GDL_OBJECT_OverloadEQOp);
   _overloadEQ->SetTree( tree4);
   gdlObjectDesc->FunList().push_back(_overloadEQ);
 //   gdlObjectDesc->SetOperator(OOEQ,_overloadEQ);
 
-  DFun *_overloadNE = new DFun("_OVERLOADNE",GDL_OBJECT_NAME,"*INTERNAL*");
+  DFun *_overloadNE = new DFun("_OVERLOADNE",GDL_OBJECT_NAME,"<INTERNAL_LIBRARY>");
   _overloadNE->AddPar("LEFT")->AddPar("RIGHT");
   WRAPPED_FUNNode *tree5 = new WRAPPED_FUNNode(_GDL_OBJECT_OverloadNEOp);
   _overloadNE->SetTree( tree5);
   gdlObjectDesc->FunList().push_back(_overloadNE);
 //   gdlObjectDesc->SetOperator(OONE,_overloadNE);
 
-  DFun *_overloadPlus = new DFun("_OVERLOADPLUS",GDL_OBJECT_NAME,"*INTERNAL*");
+  DFun *_overloadPlus = new DFun("_OVERLOADPLUS",GDL_OBJECT_NAME,"<INTERNAL_LIBRARY>");
   _overloadPlus->AddPar("LEFT")->AddPar("RIGHT");
   WRAPPED_FUNNode *tree6 = new WRAPPED_FUNNode(_GDL_OBJECT_OverloadReportIllegalOperation);
   _overloadPlus->SetTree( tree6);
   gdlObjectDesc->FunList().push_back(_overloadPlus);
-//   gdlObjectDesc->SetOperator(OOPLUS,_overloadPlus);
+//   gdlObjectDesc->SetOperator(OOPlus,_overloadPlus);
 
-  DFun *_overloadMinus = new DFun("_OVERLOADMINUS",GDL_OBJECT_NAME,"*INTERNAL*");
+  DFun *_overloadMinus = new DFun("_OVERLOADMINUS",GDL_OBJECT_NAME,"<INTERNAL_LIBRARY>");
   _overloadMinus->AddPar("LEFT")->AddPar("RIGHT");
   WRAPPED_FUNNode *tree7 = new WRAPPED_FUNNode(_GDL_OBJECT_OverloadReportIllegalOperation);
   _overloadMinus->SetTree( tree7);
   gdlObjectDesc->FunList().push_back(_overloadMinus);
 //   gdlObjectDesc->SetOperator(OOMINUS,_overloadMinus);
 
+// LIST  
+  DFun *DFunLIST__overloadBracketsRightSide = new DFun("_OVERLOADBRACKETSRIGHTSIDE","LIST","<INTERNAL_LIBRARY>");
+  DFunLIST__overloadBracketsRightSide->AddPar("ISRANGE");
+  DFunLIST__overloadBracketsRightSide->AddPar("SUB1")->AddPar("SUB2")->AddPar("SUB3")->AddPar("SUB4");
+  DFunLIST__overloadBracketsRightSide->AddPar("SUB5")->AddPar("SUB6")->AddPar("SUB7")->AddPar("SUB8");
+  tree = new WRAPPED_FUNNode( lib::LIST___OverloadBracketsRightSide);
+  DFunLIST__overloadBracketsRightSide->SetTree( tree);
+  listDesc->FunList().push_back(DFunLIST__overloadBracketsRightSide);
+  listDesc->SetOperator(OOBracketsRightSide,DFunLIST__overloadBracketsRightSide);
+
+  DPro *DFunPro_overloadBracketsLeftSide = new DPro("_OVERLOADBRACKETSLEFTSIDE","LIST","<INTERNAL_LIBRARY>");
+  DFunPro_overloadBracketsLeftSide->AddPar("OBJREF")->AddPar("RVALUE")->AddPar("ISRANGE");
+  DFunPro_overloadBracketsLeftSide->AddPar("SUB1")->AddPar("SUB2")->AddPar("SUB3")->AddPar("SUB4");
+  DFunPro_overloadBracketsLeftSide->AddPar("SUB5")->AddPar("SUB6")->AddPar("SUB7")->AddPar("SUB8");
+  tree2 = new WRAPPED_PRONode(lib::LIST___OverloadBracketsLeftSide);
+  DFunPro_overloadBracketsLeftSide->SetTree( tree2); 
+  listDesc->ProList().push_back(DFunPro_overloadBracketsLeftSide);
+  listDesc->SetOperator(OOBracketsLeftSide,DFunPro_overloadBracketsLeftSide);
+
+  DFun *LIST_overloadPlus = new DFun("_OVERLOADPLUS","LIST","<INTERNAL_LIBRARY>");
+  LIST_overloadPlus->AddPar("LEFT")->AddPar("RIGHT");
+  tree6 = new WRAPPED_FUNNode(lib::LIST___OverloadPlus);
+  LIST_overloadPlus->SetTree( tree6);
+  listDesc->FunList().push_back(LIST_overloadPlus);
+  listDesc->SetOperator(OOPlus,LIST_overloadPlus);
+
+  DFun *LIST_overloadEQ = new DFun("_OVERLOADEQ","LIST","<INTERNAL_LIBRARY>");
+  LIST_overloadEQ->AddPar("LEFT")->AddPar("RIGHT");
+  tree4 = new WRAPPED_FUNNode(lib::LIST___OverloadEQOp);
+  LIST_overloadEQ->SetTree( tree4);
+  listDesc->FunList().push_back(LIST_overloadEQ);
+  listDesc->SetOperator(OOEQ,LIST_overloadEQ);
+
+  DFun *LIST_overloadNE = new DFun("_OVERLOADNE","LIST","<INTERNAL_LIBRARY>");
+  LIST_overloadNE->AddPar("LEFT")->AddPar("RIGHT");
+  tree4 = new WRAPPED_FUNNode(lib::LIST___OverloadNEOp);
+  LIST_overloadNE->SetTree( tree4);
+  listDesc->FunList().push_back(LIST_overloadNE);
+  listDesc->SetOperator(OONE,LIST_overloadNE);
+
+  DFun *LIST_overloadIsTrue = new DFun("_OVERLOADISTRUE","LIST","<INTERNAL_LIBRARY>");
+  tree4 = new WRAPPED_FUNNode(lib::LIST___OverloadIsTrue);
+  LIST_overloadIsTrue->SetTree( tree4);
+  listDesc->FunList().push_back(LIST_overloadIsTrue);
+  listDesc->SetOperator(OOIsTrue,LIST_overloadIsTrue);
+ 
+// LIST::ADD
+  DPro *DProLIST__ADD = new DPro("ADD","LIST","<INTERNAL_LIBRARY>");
+  DProLIST__ADD->AddKey("EXTRACT","EXTRACT")->AddKey("NO_COPY","NO_COPY");
+  DProLIST__ADD->AddPar("VALUE")->AddPar("INDEX");
+  tree2 = new WRAPPED_PRONode( lib::list__add);
+  DProLIST__ADD->SetTree( tree2);
+  listDesc->ProList().push_back(DProLIST__ADD);
+// LIST::REMOVE()
+  DFun *DFunLIST__REMOVE = new DFun("REMOVE","LIST","<INTERNAL_LIBRARY>");
+  DFunLIST__REMOVE->AddKey("ALL","ALL");
+  DFunLIST__REMOVE->AddPar("INDEX");
+  tree = new WRAPPED_FUNNode( lib::list__remove_fun);
+  DFunLIST__REMOVE->SetTree( tree);
+  listDesc->FunList().push_back(DFunLIST__REMOVE);
+// LIST::REMOVE PRO
+  DPro *DProLIST__REMOVE = new DPro("REMOVE","LIST","<INTERNAL_LIBRARY>");
+  DProLIST__REMOVE->AddKey("ALL","ALL");
+  DProLIST__REMOVE->AddPar("INDEX");
+  tree2 = new WRAPPED_PRONode( lib::list__remove_pro);
+  DProLIST__REMOVE->SetTree( tree2);
+  listDesc->ProList().push_back(DProLIST__REMOVE);
+// LIST::REVERSE PRO
+  DPro *DProLIST__REVERSE = new DPro("REVERSE","LIST","<INTERNAL_LIBRARY>");
+  tree2 = new WRAPPED_PRONode( lib::list__reverse);
+  DProLIST__REVERSE->SetTree( tree2);
+  listDesc->ProList().push_back(DProLIST__REVERSE);
+// LIST::ToArray()
+  DFun *DFunLIST__TOARRAY = new DFun("TOARRAY","LIST","<INTERNAL_LIBRARY>");
+  DFunLIST__TOARRAY->AddKey("TYPE","TYPE");
+  DFunLIST__TOARRAY->AddKey("MISSING","MISSING");
+  tree = new WRAPPED_FUNNode( lib::list__toarray);
+  DFunLIST__TOARRAY->SetTree( tree);
+  listDesc->FunList().push_back(DFunLIST__TOARRAY);
+
+  
+  
+// HASH  
+  DFun *DFunHASH__overloadBracketsRightSide = new DFun("_OVERLOADBRACKETSRIGHTSIDE","HASH","<INTERNAL_LIBRARY>");
+  DFunHASH__overloadBracketsRightSide->AddPar("ISRANGE");
+  DFunHASH__overloadBracketsRightSide->AddPar("SUB1")->AddPar("SUB2")->AddPar("SUB3")->AddPar("SUB4");
+  DFunHASH__overloadBracketsRightSide->AddPar("SUB5")->AddPar("SUB6")->AddPar("SUB7")->AddPar("SUB8");
+  tree = new WRAPPED_FUNNode( lib::HASH___OverloadBracketsRightSide);
+  DFunHASH__overloadBracketsRightSide->SetTree( tree);
+  hashDesc->FunList().push_back(DFunHASH__overloadBracketsRightSide);
+  hashDesc->SetOperator(OOBracketsRightSide,DFunHASH__overloadBracketsRightSide);
+
+  DPro *DProHASH_overloadBracketsLeftSide = new DPro("_OVERLOADBRACKETSLEFTSIDE","HASH","<INTERNAL_LIBRARY>");
+  DProHASH_overloadBracketsLeftSide->AddPar("OBJREF")->AddPar("RVALUE")->AddPar("ISRANGE");
+  DProHASH_overloadBracketsLeftSide->AddPar("SUB1")->AddPar("SUB2")->AddPar("SUB3")->AddPar("SUB4");
+  DProHASH_overloadBracketsLeftSide->AddPar("SUB5")->AddPar("SUB6")->AddPar("SUB7")->AddPar("SUB8");
+  tree2 = new WRAPPED_PRONode(lib::HASH___OverloadBracketsLeftSide);
+  DProHASH_overloadBracketsLeftSide->SetTree( tree2); 
+  hashDesc->ProList().push_back(DProHASH_overloadBracketsLeftSide);
+  hashDesc->SetOperator(OOBracketsLeftSide,DProHASH_overloadBracketsLeftSide);
+
+  DFun *HASH_overloadPlus = new DFun("_OVERLOADPLUS","HASH","<INTERNAL_LIBRARY>");
+  HASH_overloadPlus->AddPar("LEFT")->AddPar("RIGHT");
+  tree6 = new WRAPPED_FUNNode(lib::HASH___OverloadPlus);
+  HASH_overloadPlus->SetTree( tree6);
+  hashDesc->FunList().push_back(HASH_overloadPlus);
+  hashDesc->SetOperator(OOPlus,HASH_overloadPlus);
+ 
+  DFun *HASH_overloadEQ = new DFun("_OVERLOADEQ","HASH","<INTERNAL_LIBRARY>");
+  HASH_overloadEQ->AddPar("LEFT")->AddPar("RIGHT");
+  tree4 = new WRAPPED_FUNNode(lib::HASH___OverloadEQOp);
+  HASH_overloadEQ->SetTree( tree4);
+  hashDesc->FunList().push_back(HASH_overloadEQ);
+  hashDesc->SetOperator(OOEQ,HASH_overloadEQ);
+
+  DFun *HASH_overloadNE = new DFun("_OVERLOADNE","HASH","<INTERNAL_LIBRARY>");
+  HASH_overloadNE->AddPar("LEFT")->AddPar("RIGHT");
+  tree4 = new WRAPPED_FUNNode(lib::HASH___OverloadNEOp);
+  HASH_overloadNE->SetTree( tree4);
+  hashDesc->FunList().push_back(HASH_overloadNE);
+  hashDesc->SetOperator(OONE,HASH_overloadNE);
+ 
+  DFun *HASH_overloadIsTrue = new DFun("_OVERLOADISTRUE","HASH","<INTERNAL_LIBRARY>");
+  tree4 = new WRAPPED_FUNNode(lib::HASH___OverloadIsTrue);
+  HASH_overloadIsTrue->SetTree( tree4);
+  hashDesc->FunList().push_back(HASH_overloadIsTrue);
+  hashDesc->SetOperator(OOIsTrue,HASH_overloadIsTrue);
+ 
+// LIST::REMOVE()
+  DFun *DFunHASH__REMOVE = new DFun("REMOVE","HASH","<INTERNAL_LIBRARY>");
+  DFunHASH__REMOVE->AddKey("ALL","ALL");
+  DFunHASH__REMOVE->AddPar("INDEX");
+  tree = new WRAPPED_FUNNode( lib::hash__remove_fun);
+  DFunHASH__REMOVE->SetTree( tree);
+  hashDesc->FunList().push_back(DFunHASH__REMOVE);
+// LIST::REMOVE PRO
+  DPro *DProHASH__REMOVE = new DPro("REMOVE","HASH","<INTERNAL_LIBRARY>");
+  DProHASH__REMOVE->AddKey("ALL","ALL");
+  DProHASH__REMOVE->AddPar("INDEX");
+  tree2 = new WRAPPED_PRONode( lib::hash__remove_pro);
+  DProHASH__REMOVE->SetTree( tree2);
+  hashDesc->ProList().push_back(DProHASH__REMOVE);
+// LIST::HASKEY()
+  DFun *DFunHASH__HASKEY = new DFun("HASKEY","HASH","<INTERNAL_LIBRARY>");
+  DFunHASH__HASKEY->AddPar("KEYLIST");
+  tree = new WRAPPED_FUNNode( lib::hash__haskey);
+  DFunHASH__HASKEY->SetTree( tree);
+  hashDesc->FunList().push_back(DFunHASH__HASKEY);
+// LIST::KEYS()
+  DFun *DFunHASH__KEYS = new DFun("KEYS","HASH","<INTERNAL_LIBRARY>");
+  tree = new WRAPPED_FUNNode( lib::hash__keys);
+  DFunHASH__KEYS->SetTree( tree);
+  hashDesc->FunList().push_back(DFunHASH__KEYS);
+// LIST::VALUES()
+  DFun *DFunHASH__VALUES = new DFun("VALUES","HASH","<INTERNAL_LIBRARY>");
+  tree = new WRAPPED_FUNNode( lib::hash__values);
+  DFunHASH__VALUES->SetTree( tree);
+  hashDesc->FunList().push_back(DFunHASH__VALUES);
+// LIST::TOSTRUCT()
+  DFun *DFunHASH__TOSTRUCT = new DFun("TOSTRUCT","HASH","<INTERNAL_LIBRARY>");
+  DFunHASH__TOSTRUCT->AddKey("SKIPPED","SKIPPED");
+  DFunHASH__TOSTRUCT->AddKey("MISSING","MISSING");
+  tree = new WRAPPED_FUNNode( lib::hash__tostruct);
+  DFunHASH__TOSTRUCT->SetTree( tree);
+  hashDesc->FunList().push_back(DFunHASH__TOSTRUCT);
+  
 }

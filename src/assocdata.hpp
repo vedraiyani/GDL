@@ -31,7 +31,7 @@ class Assoc_: public Parent_
 
 public:
 	// memory management optimization
-static std::deque< void*> freeList;
+static std::vector< void*> freeList;
 
 	// operator new and delete
 static 	void* operator new( size_t bytes);
@@ -134,7 +134,7 @@ static	void operator delete( void *ptr);
     throw GDLException("Assoc_::GetInstance(...) called.");
   }
 
-  int Scalar2index(SizeT& ret) const 
+  int Scalar2Index(SizeT& ret) const 
   { 
     throw GDLException("File expression not allowed in this context.");
   }
@@ -346,7 +346,7 @@ static	void operator delete( void *ptr);
     throw GDLException("File expression not allowed in this context.");
   }
 
-  Parent_* MatrixOp( BaseGDL* r)   
+  Parent_* MatrixOp( BaseGDL* r, bool, bool)   
   {
     throw GDLException("File expression not allowed in this context.");
   }
@@ -382,6 +382,10 @@ static	void operator delete( void *ptr);
   }
   SizeT OFmtI( std::ostream* os, SizeT offs, SizeT num, int width, 
 		int minN, char fill, BaseGDL::IOMode oM = BaseGDL::DEC)
+  {
+    throw GDLException("File expression not allowed in this context.");
+  }
+  SizeT OFmtCal( std::ostream* os, SizeT offset, SizeT num, int width)
   {
     throw GDLException("File expression not allowed in this context.");
   }

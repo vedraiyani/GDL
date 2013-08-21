@@ -61,7 +61,7 @@ namespace lib {
 	title = "GDL "+i2s( wIx);
       }
 
-    DLong xPos=0, yPos=0;
+    DLong xPos=-1, yPos=-1;
     e->AssureLongScalarKWIfPresent( "XPOS", xPos);
     e->AssureLongScalarKWIfPresent( "YPOS", yPos);
 
@@ -80,8 +80,7 @@ namespace lib {
       cout << "xPos/yPos   :"<<  xPos << " " << yPos << endl;
       cout << "xSize/ySize :"<<  xSize << " " << ySize << endl;
     }
-
-    if( xSize <= 0 || ySize <= 0 || xPos < 0 || yPos < 0)
+    if( xSize <= 0 || ySize <= 0 || xPos < -1 || yPos < -1)
       e->Throw(  "Unable to create window "
 		 "(BadValue (integer parameter out of range for "
 		 "operation)).");
@@ -92,9 +91,10 @@ namespace lib {
     success = actDevice->CursorCrosshair();
     success = actDevice->UnsetFocus();
     bool doretain=true;
+    DLong retainType ; //=Graphics::getRetain();
+//    if (retainType=0) doretain=false;
     if( e->KeywordPresent( 3)) // RETAIN
     {
-      DLong retainType;
       e->AssureLongScalarKWIfPresent( "RETAIN", retainType);
       if (retainType=0) doretain=false;
     }
@@ -126,9 +126,12 @@ namespace lib {
                 xSize = 640;
                 ySize = 512;
             #endif
-	    bool success = actDevice->WOpen( 0, "GDL 0", xSize, ySize, 0, 0);
+	    bool success = actDevice->WOpen( 0, "GDL 0", xSize, ySize, -1, -1);
 	    if( !success)
 	      e->Throw( "Unable to create window.");
+        success = actDevice->CursorCrosshair();
+        success = actDevice->UnsetFocus();
+        //FIXME: ADD support for RETAIN (BackingSTORE))
 	    return;
 	  }
       }
@@ -151,6 +154,7 @@ namespace lib {
     // On the system I tested (Ubuntu 10.4), I was not able to have
     // the expected SHOW behavior, with IDL 7.0 and GDL :(
     // Help/suggestions welcome
+    // works for me (GD) on mandriva 2010.2
     bool show = true;
     if (nParam == 2) { 
       DIntGDL *showval = e->GetParAs<DIntGDL>(1);
@@ -161,12 +165,13 @@ namespace lib {
     // I don't know how to find the sub-window number (third parametre
     // in call XIconifyWindow())
     // Help/suggestions welcome
+    //GD: it is not a sub-window, but a screen number: xwd->screen, but that does not make window iconic any better!
 
     bool iconic = false;
     if( e->KeywordSet("ICONIC")) iconic=true;
 
     if (!actDevice->WShow( wIx, show, iconic)) 
-      e->Throw( "Window is closed and unavailable.");
+      e->Throw( "Window number "+i2s(wIx)+" out of range or no more windows.");
   }
 
   void wdelete( EnvT* e)

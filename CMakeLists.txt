@@ -59,8 +59,13 @@ set(PSLIBDIR "" CACHE PATH "Specify the pslib directory tree")
 set(GRIB OFF CACHE BOOL "Enable Grib ?")
 set(GRIBDIR "" CACHE PATH "Specifiy the GRIB directory tree")
 
-set(MAGICK ON CACHE BOOL "Enable Magick ?")
+
+set(MAGICK ON CACHE BOOL "Enable ImageMagick ?")
 set(MAGICKDIR "" CACHE PATH "Specifiy the ImageMagick directory tree")
+
+# GraphicsMagick is a good alternative to ImageMagick
+set(GRAPHICSMAGICK ON CACHE BOOL "Enable GraphicsMagick ?")
+set(GRAPHICSMAGICKDIR "" CACHE PATH "Specify the GraphicsMagick directory tree")
 
 set(NETCDF ON CACHE BOOL "Enable NetCDF ?")
 set(NETCDFDIR "" CACHE PATH "Specifiy the netCDF directory tree")
@@ -297,8 +302,51 @@ if(PLPLOT_FOUND)
 	  message(STATUS "warning, due to old plplot library, [XYZ]TICKFORMAT option for plot axis will not be supported.\n"
 	    "you should upgrade to plplot version > 5.9.6")
 	endif(HAVE_PLPLOT_SLABELFUNC)
+	check_library_exists("${PLPLOT_LIBRARIES}" plstrl "" PLPLOT_PRIVATE_NOT_HIDDEN)
+	if(PLPLOT_PRIVATE_NOT_HIDDEN)
+	  set(PLPLOT_PRIVATE_NOT_HIDDEN 1)
+	else(PLPLOT_PRIVATE_NOT_HIDDEN)
+	  message(STATUS "Using a plplot library without private functions - workarounds will be used.")
+	endif(PLPLOT_PRIVATE_NOT_HIDDEN)
+	check_library_exists("${PLPLOT_LIBRARIES}" c_pllegend "" PLPLOT_HAS_LEGEND)
+	if(PLPLOT_HAS_LEGEND)
+	  set(PLPLOT_HAS_LEGEND 1)
+	else(PLPLOT_HAS_LEGEND)
+	  message(STATUS "Your plplot lib is too old for some gdl functions, please upgrade.")
+	endif(PLPLOT_HAS_LEGEND)
 endif(PLPLOT_FOUND)
 	
+# GRAPHICSMAGICK is an alternative to the classical ImageMagick Lib.
+#
+# -DGRAPHICSMAGICK=ON|OFF
+# -DGRAPHICSMAGICKDIR=DIR
+if(GRAPHICSMAGICK)
+	if (MAGICK_FOUND)
+	   message("We prefer to use GraphicsMagick than ImageMagick")
+	   set(MAGICK off)
+	endif(MAGICK_FOUND)
+	set(CMAKE_PREFIX_PATH ${GRAPHICSMAGICKDIR})
+	find_package(GraphicsMagick QUIET)
+	set(USE_MAGICK ${GRAPHICSMAGICK_FOUND})
+	if(GRAPHICSMAGICK_FOUND)
+		include_directories(${GRAPHICSMAGICK_INCLUDE_DIR})	
+		set(LIBRARIES ${LIBRARIES} ${GRAPHICSMAGICK_LIBRARIES})		
+	else(GRAPHICSMAGICK_FOUND)
+		message( STATUS
+		"GRAPHICSMAGICK is strongly suggested but was not found.
+		Use -DGRAPHICSMAGICKDIR=DIR to specify the GraphicsMagick directory tree.
+		Use -DGRAPHICSMAGICK=OFF to not use it.
+                (suitable Fedora package: GraphicsMagick-c++-devel
+		   Debian/Ubuntu package: libgraphicsmagick++1-devel)\n")
+		message( STATUS 
+		"Looking for ImageMagick")
+	endif(GRAPHICSMAGICK_FOUND)
+endif(GRAPHICSMAGICK)
+
+if(GRAPHICSMAGICK_FOUND)
+	set(MAGICK OFF)
+endif(GRAPHICSMAGICK_FOUND)
+
 if(MAGICK) # support Magick
 	check_library_exists("${PLPLOT_LIBRARIES}" plGetDrvDir "" HAVE_PLGETDRVDIR)
 	if(HAVE_PLGETDRVDIR)
@@ -373,18 +421,18 @@ if(NETCDF)
 	find_package(NetCDF QUIET)
 	if(NETCDF_FOUND)
 		set(CMAKE_REQUIRED_INCLUDES ${NETCDF_INCLUDE_DIRS})
-		check_include_file_cxx(netcdfcpp.h HAVE_NETCDFCPP_H)
-		if(HAVE_NETCDFCPP_H)
+		check_include_file_cxx(netcdf.h HAVE_NETCDF_H)
+		if(HAVE_NETCDF_H)
 			set(LIBRARIES ${LIBRARIES} ${NETCDF_LIBRARIES})
 			set(LINK_DIRECTORIES ${LINK_DIRECTORIES} ${NETCDF_LIBRARY_DIRS})
 			include_directories(${NETCDF_INCLUDE_DIRS})
 			set(USE_NETCDF 1)
-		else(HAVE_NETCDFCPP_H)
+		else(HAVE_NETCDF_H)
 			message(FATAL_ERROR "NetCDF installation seems not to be usable.\n"
 			"This suggests a conflicting netCDF-HDF4 installation e.g.\n"
 			"- Uninstalling HDF4 after installation of NetCDF.\n"
 			"- Installing NetCDF before HDF4.")
-		endif(HAVE_NETCDFCPP_H)
+		endif(HAVE_NETCDF_H)
 		set(CMAKE_REQUIRED_INCLUDES)
 	else(NETCDF_FOUND)
 		message(FATAL_ERROR "NetCDF version 3.5.1 or later is required but was not found.\n"
@@ -562,8 +610,13 @@ if(PYTHON OR PYTHON_MODULE)
                   message("-- Found Python executable: ${PYTHON_EXECUTABLE}")
                 endif()
 	else()
+		if(PYTHONVERSION)
+			set(PythonLibs_FIND_VERSION ${PYTHONVERSION})
+		else()
+			set(PythonLibs_FIND_VERSION 2)
+		endif()
 		find_package(PythonLibs)
-                include(FindPythonInterp)
+		include(FindPythonInterp)
 	endif()
 	set(USE_PYTHON ${PYTHONLIBS_FOUND})
 	if(PYTHONLIBS_FOUND)
@@ -750,7 +803,6 @@ endif(WIN32 AND NOT CYGWIN)
 # AC, 12-oct-2011, solved by Marc 
 # set_target_properties(gdl PROPERTIES LINK_FLAGS "-Wl,-z,muldefs")
 # set_target_properties(gdl PROPERTIES LINK_FLAGS "-z muldefs")
-
 #
 if(CMAKE_BUILD_TYPE STREQUAL None OR NOT CMAKE_BUILD_TYPE)
 	set(FLAGS ${CMAKE_CXX_FLAGS})
@@ -763,6 +815,8 @@ elseif(CMAKE_BUILD_TYPE STREQUAL RelWithDebInfo)
 elseif(CMAKE_BUILD_TYPE STREQUAL MinSizeRel)
 	set(FLAGS ${CMAKE_CXX_FLAGS_MINSIZEREL})
 endif(CMAKE_BUILD_TYPE STREQUAL None OR NOT CMAKE_BUILD_TYPE)
+
+
 message(STATUS
 "Summary
 
@@ -792,6 +846,7 @@ module(MPICH     "MPICH      ")
 module(PYTHON    "Python     ")
 module(UDUNITS   "UDUNITS-2  ")
 module(EIGEN3    "EIGEN3     ")
+module(GRAPHICSMAGICK "GRAPHICSMAGICK")
 module(GRIB      "GRIB       ")
 set(GSHHS_LIBRARIES ${GSHHS_INCLUDE_DIR})
 module(GSHHS     "GSHHS      ")

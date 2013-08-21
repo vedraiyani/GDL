@@ -436,8 +436,20 @@ public:
 
     xleng = xSize;
     yleng = ySize;
-    xoff  = xPos==0?xMaxSize-xSize:xPos;
-    yoff  = yPos==0?yPos:yMaxSize-(yPos+ySize);
+
+    bool noPos=(xPos==-1 && yPos==-1);
+    xPos=max(0,xPos);
+    yPos=max(0,yPos);
+    static PLINT Quadx[4]={xMaxSize-xSize,0,0,xMaxSize-xSize};
+    static PLINT Quady[4]={0,0,yMaxSize-ySize,yMaxSize-ySize};
+    if (noPos)
+    { //no init given, use 4 quadrants:
+        xoff = Quadx[wIx%4];
+        yoff = Quady[wIx%4];
+    } else {
+      xoff  = xPos==0?xMaxSize-xSize:xPos;
+      yoff  = yPos==0?yPos:yMaxSize-(yPos+ySize);
+    }
     if (yoff <= 0) yoff=1;
     
     if (debug) cout <<xp<<" "<<yp<<" "<<xleng<<" "<<yleng<<" "<<xoff<<" "<<yoff<<endl;
@@ -463,14 +475,16 @@ public:
     // we use our own window handling
     winList[ wIx]->SETOPT( "drvopt","usepth=0");
 
-    // set color map
+    // avoid to set color map 0 -- makes plplot very slow (?)
     PLINT r[ctSize], g[ctSize], b[ctSize];
     actCT.Get( r, g, b);
-    //    winList[ wIx]->scmap0( r, g, b, ctSize); 
-    winList[ wIx]->scmap1( r, g, b, ctSize); 
+//    winList[ wIx]->scmap0( r, g, b, ctSize);
+    winList[ wIx]->scmap1( r, g, b, ctSize);
 
     winList[ wIx]->Init();
-    
+// get actual size, and resize to it (overcomes some window managers problems, solves bug #535)
+    bool success = WSize( actWin ,&xleng, &yleng, &xoff, &yoff);
+    ResizeWin((UInt)xleng, (UInt) yleng);
     // need to be called initially. permit to fix things
     winList[ wIx]->ssub(1,1);
     winList[ wIx]->adv(0);
@@ -569,7 +583,7 @@ public:
 	DString title = "GDL 0";
         DLong xSize, ySize;
         DefaultXYSize(&xSize, &ySize);
-	bool success = WOpen( 0, title, xSize, ySize, 0, 0);
+	bool success = WOpen( 0, title, xSize, ySize, -1, -1);
 	if( !success)
 	  return NULL;
 	if( actWin == -1)
@@ -679,6 +693,17 @@ public:
   {
     return CursorStandard(XC_crosshair);
   }
+  
+  void ResizeWin(UInt width, UInt height)
+  {
+    PLStream* pls;
+    plgpls( &pls);
+    XwDev *dev = (XwDev *) pls->dev;
+    if( dev == NULL) return;
+    XwDisplay *xwd = (XwDisplay *) dev->xwd;
+    XResizeWindow(xwd->display, dev->window, width, height);
+  }
+  
   bool UnsetFocus()
   {
     PLStream* pls;
@@ -955,7 +980,7 @@ public:
     //DByteGDL* p0B = e->GetParAs<DByteGDL>( 0);
     DByteGDL* p0B;
     p0B =static_cast<DByteGDL*>(p0->Convert2(GDL_BYTE,BaseGDL::COPY));
-    e->Guard( p0B);
+    e->DeleteAtExit( p0B);
     
     int width, height;
     DLong tru=0;
@@ -1055,7 +1080,7 @@ public:
     if (channel < 0 || channel > 3)
       e->Throw("Value of Channel is out of allowed range.");
 
-    std::auto_ptr<BaseGDL> chan_guard;
+    Guard<BaseGDL> chan_guard;
     if (channel == 0) {
       plimage_gdl(pls, &(*p0B)[0], width, height, tru, channel);
     } else if (rank == 3) {
@@ -1070,7 +1095,7 @@ public:
       }
       // Send just single channel
       plimage_gdl(pls, &(*p0B_chan)[0], width, height, tru, channel);
-      chan_guard.reset( p0B_chan); // delete upon exit
+      chan_guard.Init( p0B_chan); // delete upon exit
     } else if (rank == 2) {
       // Rank = 2 w/channel
       plimage_gdl(pls, &(*p0B)[0], width, height, tru, channel);

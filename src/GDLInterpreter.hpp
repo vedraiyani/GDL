@@ -3,7 +3,7 @@
 
 #include <antlr/config.hpp>
 #include "GDLInterpreterTokenTypes.hpp"
-/* $ANTLR 2.7.7 (20110618): "gdlc.i.g" -> "GDLInterpreter.hpp"$ */
+/* $ANTLR 2.7.7 (20120518): "gdlc.i.g" -> "GDLInterpreter.hpp"$ */
 #include <antlr/TreeParser.hpp>
 
 
@@ -148,8 +148,10 @@ protected:
     {
         public:
         enum ExCode {
-            NONE=0, // normal RETALL
-            RUN     // RETALL from .RUN command
+            NONE=0 // normal RETALL
+            ,RUN   // RETALL from .RUN command
+            ,RESET // RETALL from .RESET command
+            ,FULL_RESET // RETALL from .FULL_RESET command
         };  
 
         private:
@@ -266,6 +268,13 @@ public:
                     }
             }
     }
+    static void HeapErase( DPtr id) // for LIST
+    {
+        if( id != 0)
+            {
+              heap.erase( id); 
+            }
+    }
     static void FreeHeapDirect( DPtr id, HeapT::iterator it)
     {
         delete (*it).second.get();
@@ -352,7 +361,7 @@ std::cout << "<ObjHeapVar" << id << "> = " << (*it).second.Count() << std::endl;
     }
    static void DecRefObj( DObjGDL* p)
     {
-        SizeT nEl=p->N_Elements();
+        SizeT nEl=p->Size();//N_Elements();
         for( SizeT ix=0; ix < nEl; ix++)
         {
             DObj id= (*p)[ix];
@@ -429,7 +438,7 @@ std::cout << add << " + <ObjHeapVar" << id << ">" << std::endl;
     }
    static void IncRefObj( DObjGDL* p)
     {
-        SizeT nEl=p->N_Elements();
+        SizeT nEl=p->Size();//N_Elements();
         for( SizeT ix=0; ix < nEl; ix++)
         {
             DObj id= (*p)[ix];
@@ -442,13 +451,15 @@ std::cout << add << " + <ObjHeapVar" << id << ">" << std::endl;
     static BaseGDL*& GetHeap( DPtr ID)
     {
         HeapT::iterator it=heap.find( ID);
-        if( it == heap.end()) throw HeapException();
+        if( it == heap.end()) 
+            throw HeapException();
         return it->second.get();
     }
     static DStructGDL*& GetObjHeap( DObj ID)
     {
         ObjHeapT::iterator it=objHeap.find( ID);
-        if( it == objHeap.end()) throw HeapException();
+        if( it == objHeap.end()) 
+            throw HeapException();
         return it->second.get();
     }
 
@@ -460,12 +471,12 @@ std::cout << add << " + <ObjHeapVar" << id << ">" << std::endl;
         if( it == objHeap.end()) return NULL;
         return it->second.get()->Desc()->GetOperator( opIx);
     }
-    // static DStructGDL* GetObjHeapNoThrow( DObj ID)
-    // {
-    //     ObjHeapT::iterator it=objHeap.find( ID);
-    //     if( it == objHeap.end()) return NULL;
-    //     return it->second.get();
-    // }
+    static DStructGDL* GetObjHeapNoThrow( DObj ID)
+    {
+        ObjHeapT::iterator it=objHeap.find( ID);
+        if( it == objHeap.end()) return NULL;
+        return it->second.get();
+    }
 //     static DStructGDL*& GetObjHeap( DObj ID, ObjHeapT::iterator& it)
 //     {
 // //         ObjHeapT::iterator it=objHeap.find( ID);
@@ -579,6 +590,21 @@ std::cout << add << " + <ObjHeapVar" << id << ">" << std::endl;
         return ret;
     }
 
+
+    static void ResetHeap() // purges both heaps
+    {
+        for( HeapT::iterator it=heap.begin(); it != heap.end(); ++it)
+        {
+           delete (*it).second.get();
+           heap.erase( it->first); 
+        }
+        for( ObjHeapT::iterator it=objHeap.begin(); it != objHeap.end(); ++it)
+        {
+            delete (*it).second.get();
+            objHeap.erase( it->first); 
+        }
+    }
+
     // name of data
     static const std::string Name( BaseGDL* p) // const
     {
@@ -645,17 +671,22 @@ std::cout << add << " + <ObjHeapVar" << id << ">" << std::endl;
     {
         DString msgPrefix = SysVar::MsgPrefix();
 
-        EnvStackT::reverse_iterator upEnv = callStack.rbegin();
-        //EnvStackT::reverse_iterator env = upEnv++;
-        upEnv++;
-        for(; 
-            upEnv != callStack.rend();
-            ++upEnv /*,++env*/)
+        // EnvStackT::reverse_iterator upEnv = callStack.rbegin();
+        // //EnvStackT::reverse_iterator env = upEnv++;
+        // upEnv++;
+        // for(; 
+        //     upEnv != callStack.rend();
+        //     ++upEnv /*,++env*/)
+        
+        long actIx = callStack.size() - 2;
+        for( ; actIx >= 0; --actIx)
         {
-            std::cerr << msgPrefix << std::right << std::setw( w) << "";
-            std::cerr << std::left << std::setw(16) << (*upEnv)->GetProName();
+            EnvStackT::pointer_type upEnv = callStack[ actIx]; 
 
-            std::string file = (*upEnv)->GetFilename();
+            std::cerr << msgPrefix << std::right << std::setw( w) << "";
+            std::cerr << std::left << std::setw(16) << upEnv->GetProName();
+
+            std::string file = upEnv->GetFilename();
             if( file != "")
             {              
 //                 ProgNodeP cNode= (*env)->CallingNode();
@@ -667,14 +698,13 @@ std::cout << add << " + <ObjHeapVar" << id << ">" << std::endl;
 //                 {
 //                     std::cerr << std::right << std::setw(6) << "";
 //                 }                
-
 //                 ProgNodeP cNode= (*env)->CallingNode();
 //                 if( cNode != NULL && cNode->getLine() != 0)
 //                 {       
 //                     (*upEnv)->SetLineNumber( cNode->getLine());
 //                 }
 
-                int lineNumber = (*upEnv)->GetLineNumber();
+                int lineNumber = upEnv->GetLineNumber();
                 if( lineNumber != 0)
                 {       
                     std::cerr << std::right << std::setw(6) << lineNumber;
@@ -829,7 +859,6 @@ public:
 	public: void parameter_def_nocheck(ProgNodeP _t,
 		EnvBaseT* actEnv
 	);
-	public: ArrayIndexListT*  arrayindex_list_noassoc(ProgNodeP _t);
 	public: void arrayindex_list_overload(ProgNodeP _t,
 		IxExprListT& indexList
 	);

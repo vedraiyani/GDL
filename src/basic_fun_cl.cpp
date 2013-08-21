@@ -121,15 +121,15 @@ namespace lib {
     SizeT nParam=e->NParam(0); //,"SYSTIME");
     bool ret_seconds=false;
 
-    auto_ptr<BaseGDL> v_guard;
-    auto_ptr<BaseGDL> v1_guard;
+    Guard<BaseGDL> v_guard;
+    Guard<BaseGDL> v1_guard;
 
     if (nParam == 1) {
       //1 parameter, 
       //      1->current UTC time seconds
       //      default
       DIntGDL* v = static_cast<DIntGDL*>(e->GetParDefined(0)->Convert2(GDL_INT,BaseGDL::COPY));
-      v_guard.reset( v); //  e->Guard(v);
+      v_guard.Reset( v); //  e->Guard(v);
 
       if ( (*v)[0] == 1) //->EqualNoDelete( static_cDIntGDL(1)))
         ret_seconds=true;
@@ -140,7 +140,7 @@ namespace lib {
       //if the first param is 0, return the date of the second arg
       //if the first param is 1, return the 'double' of the second arg
       DIntGDL* v1 = static_cast<DIntGDL*>(e->GetParDefined(0)->Convert2(GDL_INT,BaseGDL::COPY));
-      v_guard.reset( v1); //  e->Guard(v1);
+      v_guard.Reset( v1); //  e->Guard(v1);
       DDoubleGDL* v2 = static_cast<DDoubleGDL*>(e->GetParDefined(1)->Convert2(GDL_DOUBLE,BaseGDL::COPY));
 
       if( (*v1)[0] == 0) { //v1->EqualNoDelete( DIntGDL(0))) { //0, read the second argument as time_t;
@@ -185,7 +185,9 @@ namespace lib {
         return new DDoubleGDL(Gregorian2Julian(tstruct));
     else 
       {
-       char *st=new char[MAX_DATE_STRING_LENGTH];
+       char st[MAX_DATE_STRING_LENGTH];
+//        char *st=new char[MAX_DATE_STRING_LENGTH];
+//        ArrayGuard<char> stGuard( st);
        const char *format="%a %h %d %T %Y";//my IDL date format.
        DStringGDL *S;
 
@@ -196,7 +198,7 @@ namespace lib {
        else
          S=new DStringGDL("");
 
-       delete st;
+       //delete st; should have been delete[]
 
        return S;
       }
@@ -204,12 +206,12 @@ namespace lib {
 
   BaseGDL* legendre(EnvT* e)
   {
-    auto_ptr<BaseGDL> x_guard;
-    auto_ptr<BaseGDL> l_guard;
-    auto_ptr<BaseGDL> m_guard;
+    Guard<BaseGDL> x_guard;
+    Guard<BaseGDL> l_guard;
+    Guard<BaseGDL> m_guard;
 
     SizeT nParam=e->NParam(2); //, "LEGENDRE");
-    auto_ptr<BaseGDL> guard;
+    Guard<BaseGDL> guard;
     int count;
     
     
@@ -243,7 +245,7 @@ namespace lib {
       } else {
 	mvals=new DIntGDL(0);
 	nEm=1;
-	guard.reset(mvals);
+	guard.Reset(mvals);
       }
 
     if(nEm == 0)
@@ -288,7 +290,7 @@ namespace lib {
       else
 	{
 	x_cast=  static_cast<DDoubleGDL*>(xvals->Convert2(GDL_DOUBLE,BaseGDL::COPY));
-	x_guard.reset(x_cast);//e->Guard( x_cast);
+	x_guard.Reset(x_cast);//e->Guard( x_cast);
 	}
 
       //lval check
@@ -317,7 +319,7 @@ namespace lib {
       else
 	{
 	  l_cast=static_cast<DIntGDL*>(lvals->Convert2(GDL_INT,BaseGDL::COPY));
-	  l_guard.reset(l_cast);//e->Guard( l_cast);
+	  l_guard.Reset(l_cast);//e->Guard( l_cast);
 	}
 
       //mval check
@@ -347,7 +349,7 @@ namespace lib {
 	{
 	  m_cast=static_cast<DIntGDL*>(mvals->Convert2(GDL_INT,BaseGDL::COPY));
 	  //e->Guard( m_cast);
-	  m_guard.reset(m_cast);
+	  m_guard.Reset(m_cast);
 	}
 
       //x,m,l are converted to the correct format (double, int, int) here
@@ -412,10 +414,10 @@ namespace lib {
 
   BaseGDL* gsl_exp(EnvT* e)
   {
-    auto_ptr<BaseGDL> cdr_guard;
-    auto_ptr<BaseGDL> cd_guard;
-    auto_ptr<BaseGDL> d_guard;
-    auto_ptr<BaseGDL> fr_guard;
+    Guard<BaseGDL> cdr_guard;
+    Guard<BaseGDL> cd_guard;
+    Guard<BaseGDL> d_guard;
+    Guard<BaseGDL> fr_guard;
 
 
     SizeT nParam = e->NParam(1);
@@ -447,11 +449,11 @@ namespace lib {
       if(v->Type() == GDL_COMPLEX) {
 	DComplexDblGDL* cd=
 	  static_cast<DComplexDblGDL*>(v->Convert2(GDL_COMPLEXDBL, BaseGDL::COPY));
-	cd_guard.reset(cd);//e->Guard( cd);
+	cd_guard.Reset(cd);//e->Guard( cd);
 
 	DComplexDblGDL* cdr =
 	  new DComplexDblGDL(v->Dim(), BaseGDL::NOZERO);
-	cdr_guard.reset(cdr);//e->Guard( cdr);
+	cdr_guard.Reset(cdr);//e->Guard( cdr);
 
 	if(nEl == 1) 
 	  (*cdr)[0]=
@@ -468,7 +470,7 @@ namespace lib {
       } else if(v->Type() == GDL_COMPLEXDBL) {
 	DComplexDblGDL* cd=
 	  static_cast<DComplexDblGDL*>(v->Convert2(GDL_COMPLEXDBL, BaseGDL::COPY));
-	cd_guard.reset(cd);//e->Guard( cd);
+	cd_guard.Reset(cd);//e->Guard( cd);
 
 	DComplexDblGDL* cdr =
 	  new DComplexDblGDL(v->Dim(), BaseGDL::NOZERO);
@@ -489,7 +491,7 @@ namespace lib {
 	
 	DDoubleGDL* d=static_cast<DDoubleGDL*>(v->Convert2(GDL_DOUBLE, 
 							   BaseGDL::COPY));
-	d_guard.reset(d);//e->Guard( d);
+	d_guard.Reset(d);//e->Guard( d);
 	if(nEl == 1) 
 	  (*dr)[0]=gsl_sf_exp((*d)[0]);
 	else
@@ -501,11 +503,11 @@ namespace lib {
 		v->Type() == GDL_LONG) {
 	
 	DFloatGDL *fr=new DFloatGDL(v->Dim(), BaseGDL::NOZERO);
-	fr_guard.reset(fr);//e->Guard( fr);
+	fr_guard.Reset(fr);//e->Guard( fr);
 
 	DDoubleGDL* d=static_cast<DDoubleGDL*>(v->Convert2(GDL_DOUBLE, 
 							   BaseGDL::COPY));
-	d_guard.reset(d);//e->Guard( d);
+	d_guard.Reset(d);//e->Guard( d);
 
 	if(nEl == 1) 
 	  (*dr)[0]=gsl_sf_exp((*d)[0]);

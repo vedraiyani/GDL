@@ -47,6 +47,7 @@
 
 */
 
+
 #define GM_EPS   1.0e-6
 #define GM_ITER  50
 #define GM_TINY  1.0e-18
@@ -62,7 +63,7 @@
     throw GDLException(e->CallingNode(), "Variable is undefined: "+e->GetParString(0));	\
   									\
   DType t0 = e->GetParDefined(0)->Type();				\
-  //if (t0 == GDL_COMPLEX || t0 == GDL_COMPLEXDBL)				\
+  //if (t0 == GDL_COMPLEX || t0 == GDL_COMPLEXDBL)			\
   //  e->Throw("Complex not implemented (GSL limitation). ");
 
 #define AC_2P1()							\
@@ -76,7 +77,7 @@
       p1 = new DIntGDL(1, BaseGDL::NOZERO);				\
       (*p1)[0]=0;							\
       nElp1=1;								\
-      t1 = GDL_INT;								\
+      t1 = GDL_INT;							\
       p1_float = new DFloatGDL(1, BaseGDL::NOZERO);			\
       (*p1_float)[0]=0.000;						\
     }									\
@@ -92,25 +93,25 @@
 									\
   //    throw GDLException(e->CallingNode(), "Variable is undefined: "+e->GetParString(1)); \
   									\
-//  DType t1 = e->GetParDefined(1)->Type();				\
-  //  if (t1 == GDL_COMPLEX || t1 == GDL_COMPLEXDBL)				\
+  //  DType t1 = e->GetParDefined(1)->Type();				\
+  //  if (t1 == GDL_COMPLEX || t1 == GDL_COMPLEXDBL)			\
   // e->Throw("Complex not implemented (GSL limitation). ");
 
-#define GM_DF2()							\
-  									\
-  DDoubleGDL* res;							\
-  if (nElp0 == 1 && nElp1 == 1)						\
-    res = new DDoubleGDL(1, BaseGDL::NOZERO);				\
-  else if (nElp0 > 1 && nElp1 == 1)					\
-    res = new DDoubleGDL(p0->Dim(), BaseGDL::NOZERO);			\
-  else if (nElp0 == 1 && nElp1 > 1)					\
-    res = new DDoubleGDL(p1->Dim(), BaseGDL::NOZERO);			\
-  else if (nElp0 <= nElp1)						\
-    res = new DDoubleGDL(p0->Dim(), BaseGDL::NOZERO);			\
-  else									\
-    res = new DDoubleGDL(p1->Dim(), BaseGDL::NOZERO);			\
-  									\
-  SizeT nElp = res->N_Elements();					\
+#define GM_DF2()					\
+							\
+  DDoubleGDL* res;					\
+  if (nElp0 == 1 && nElp1 == 1)				\
+    res = new DDoubleGDL(1, BaseGDL::NOZERO);		\
+  else if (nElp0 > 1 && nElp1 == 1)			\
+    res = new DDoubleGDL(p0->Dim(), BaseGDL::NOZERO);	\
+  else if (nElp0 == 1 && nElp1 > 1)			\
+    res = new DDoubleGDL(p1->Dim(), BaseGDL::NOZERO);	\
+  else if (nElp0 <= nElp1)				\
+    res = new DDoubleGDL(p0->Dim(), BaseGDL::NOZERO);	\
+  else							\
+    res = new DDoubleGDL(p1->Dim(), BaseGDL::NOZERO);	\
+							\
+  SizeT nElp = res->N_Elements();			\
 
 #define GM_CV0()					\
   static DInt doubleKWIx = e->KeywordIx("DOUBLE");	\
@@ -128,20 +129,20 @@
   else							\
     return res;
 
-#define GM_CC1()						\
-  static DInt coefKWIx = e->KeywordIx("ITER");			\
-  if(e->KeywordPresent(coefKWIx))				\
-    {								\
+#define GM_CC1()							\
+  static DInt coefKWIx = e->KeywordIx("ITER");				\
+  if(e->KeywordPresent(coefKWIx))					\
+    {									\
       cout << "ITER keyword not used, always return -1)" << endl;	\
-      e->SetKW( coefKWIx, new DLongGDL( -1));			\
+      e->SetKW( coefKWIx, new DLongGDL( -1));				\
     }
 
-#define AC_HELP()				\
-  if (e->KeywordSet("HELP")) {			\
+#define AC_HELP()							\
+  if (e->KeywordSet("HELP")) {						\
     string inline_help[]={						\
       "Usage: res="+e->GetProName()+"(x, [n,] double=double)",		\
       " -- x is a number or an array",					\
-      " -- n is a number or an array (if missing, set to 0)",					\
+      " -- n is a number or an array (if missing, set to 0)",		\
       " If x and n dimensions differ, reasonnable rules applied"};	\
     int size_of_s = sizeof(inline_help) / sizeof(inline_help[0]);	\
     e->Help(inline_help, size_of_s);					\
@@ -157,9 +158,14 @@
 #define isinf !_finite
 #endif
 
-using namespace std;
-
 namespace lib {
+
+using namespace std;
+using std::isinf;
+
+#if defined(USE_EIGEN)
+using namespace Eigen;
+#endif
 
   BaseGDL* beseli_fun(EnvT* e)
   {
@@ -172,8 +178,8 @@ namespace lib {
 
     // GSL Limitation for X : must be lower than ~708
     for (count = 0;count<nElp0;++count)
-	  if ((*p0)[count] > 708.)
-	    e->Throw("Value of X is out of allowed range.");
+      if ((*p0)[count] > 708.)
+	e->Throw("Value of X is out of allowed range.");
 
     // we need to check if N values (array) are Integer or not
     int test=0;
@@ -515,10 +521,10 @@ namespace lib {
 
     // we only issue a message
     if (nElpXpos != nElpYpos) {
-	cout << "SPL_INIT (warning): X and Y arrays do not have same lengths !" << endl;
-	// all next computations to be done on MIN(nElpXpos,nElpYpos) (except NaN/Inf checks)
-    	if (nElpXpos > nElpYpos)
-	  nElpXpos=nElpYpos;
+      cout << "SPL_INIT (warning): X and Y arrays do not have same lengths !" << endl;
+      // all next computations to be done on MIN(nElpXpos,nElpYpos) (except NaN/Inf checks)
+      if (nElpXpos > nElpYpos)
+	nElpXpos=nElpYpos;
     }
 
     // creating result array
@@ -564,10 +570,10 @@ namespace lib {
       }
     }
 
-    auto_ptr<BaseGDL> U_guard;
+    Guard<BaseGDL> U_guard;
     DDoubleGDL* U;
     U = new DDoubleGDL(nElpXpos, BaseGDL::NOZERO);
-    U_guard.reset(U); // delete upon exit
+    U_guard.Reset(U); // delete upon exit
     
     // may be we will have to check the size of these arrays ?
 
@@ -575,10 +581,10 @@ namespace lib {
     DDoubleGDL* YP0;
 
     if(Yderiv0 !=NULL && !isinf((*(YP0=e->GetKWAs<DDoubleGDL>(e->KeywordIx("YP0"))))[0] )){ 
-    // first derivative at the point X0 is defined and different to Inf
+      // first derivative at the point X0 is defined and different to Inf
       (*res)[0]=-0.5;
       (*U)[0] = ( 3. / ((*Xpos)[1]-(*Xpos)[0])) * (((*Ypos)[1]-(*Ypos)[0]) / 
-                ((*Xpos)[1]-(*Xpos)[0]) - (*YP0)[0] );
+						   ((*Xpos)[1]-(*Xpos)[0]) - (*YP0)[0] );
 
     }else{ 
       // YP0 is omitted or equal to Inf
@@ -608,7 +614,7 @@ namespace lib {
     DDoubleGDL* YPN;
 
     if(YderivN !=NULL && !isinf((*(YPN=e->GetKWAs<DDoubleGDL>(e->KeywordIx("YPN_1"))))[0] )){ 
-    // first derivative at the point XN-1 is defined and different to Inf 
+      // first derivative at the point XN-1 is defined and different to Inf 
       (*res)[nElpXpos-1] =0.;
       qn=0.5;
 
@@ -616,7 +622,7 @@ namespace lib {
       (*U)[nElpXpos-1]= (3./dx)*((*YPN)[0]-((*Ypos)[nElpXpos-1]-(*Ypos)[nElpXpos-2])/dx);
 
     }else{
-    // YPN_1 is omitted or equal to Inf
+      // YPN_1 is omitted or equal to Inf
       qn=0.;
       (*U)[nElpXpos-1]=0.;
     } 
@@ -624,7 +630,7 @@ namespace lib {
     (*res)[nElpXpos-1] =((*U)[nElpXpos-1]-qn*(*U)[nElpXpos-2])/(qn*(*res)[nElpXpos-2]+ 1.);
 
     for (count = nElpXpos-2; count != -1; --count){
-       (*res)[count] =(*res)[count]*(*res)[count+1]+(*U)[count];
+      (*res)[count] =(*res)[count]*(*res)[count+1]+(*U)[count];
     }
       
     GM_CV0();
@@ -730,144 +736,64 @@ namespace lib {
     return NULL;
   }
 
-  // AC 04-Feb-2013 : an experimental Fast Matrix Multiplication code
-  // require to be compiled with the Eigen Lib 
-  // (succesfully tested with Eigen 3.2 and gcc 4.1, 
-  // as fast as IDL 8 on M#transpose(M), with M=[400,60000] matrix multiply.)
-#if defined(USE_EIGEN)
-  
-  BaseGDL* matmul_fun( EnvT* e){
+  BaseGDL* matrix_multiply( EnvT* e)
+  {
+    BaseGDL* a = e->GetParDefined(0);
+    BaseGDL* b = e->GetParDefined(1);
 
-    if (e->KeywordSet("AVAILABLE")) return new DLongGDL(1);
-    
-    if (e->GetParDefined(0)->Type() == GDL_STRING)
-      e->Throw( "Array Type cannot be STRING here: "+ e->GetParString(0));
-    if (e->GetParDefined(1)->Type() == GDL_STRING)
-      e->Throw( "Array Type cannot be STRING here: "+ e->GetParString(1));
-    if (e->GetParDefined(0)->Type() == GDL_STRUCT)
-      e->Throw( "Array Type cannot be a STRUCTURE here: "+ e->GetParString(0));
-    if (e->GetParDefined(1)->Type() == GDL_STRUCT)
-      e->Throw( "Array Type cannot be STRUCTURE here: "+ e->GetParString(1));
-    
-    int debug=0;
-    if (e->KeywordSet("DEBUG") || (debug == 1)) {
-      cout << "Rank Matrix A : "<< e->GetParDefined(0)->Rank() << endl;
-      cout << "Dim Matrix A : " << e->GetParDefined(0)->Dim() << endl;
-      cout << "Rank Matrix B : "<< e->GetParDefined(1)->Rank() << endl;
-      cout << "Dim Matrix B : " << e->GetParDefined(1)->Dim() << endl;
-    }
+    DType aTy = a->Type();
+    if (!NumericType(aTy))
+      e->Throw("Array type cannot be " + a->TypeStr() + " here: " + e->GetParString(0));
+    DType bTy = b->Type();
+    if (!NumericType(bTy))
+      e->Throw("Array type cannot be " + b->TypeStr() + " here: " + e->GetParString(1));
 
-    if (e->GetParDefined(0)->Rank() > 2)
-      e->Throw( "Array must have 1 or 2 dimensions: "+ e->GetParString(0));
-    if (e->GetParDefined(1)->Rank() > 2)
-      e->Throw( "Array must have 1 or 2 dimensions: "+ e->GetParString(1));
-    
-    if ((e->GetParDefined(0)->Type() == GDL_COMPLEX) || (e->GetParDefined(0)->Type() == GDL_COMPLEXDBL))
-      e->Throw( "We are not ready here for COMPLEX type, plese use # operator: "+ e->GetParString(0));
-    if ((e->GetParDefined(1)->Type() == GDL_COMPLEX) || (e->GetParDefined(1)->Type() == GDL_COMPLEXDBL))
-      e->Throw( "We are not ready here for COMPLEX type, plese use # operator: "+ e->GetParString(1));
+    static int atIx = e->KeywordIx("ATRANSPOSE");
+    static int btIx = e->KeywordIx("BTRANSPOSE");
+    bool at = e->KeywordSet(atIx);
+    bool bt = e->KeywordSet(btIx);
 
-    DDoubleGDL* p0 = e->GetParAs<DDoubleGDL>(0);
-    DDoubleGDL* p1 = e->GetParAs<DDoubleGDL>(1);
-    
-    long NbCol0, NbRow0, NbCol1, NbRow1, tmp_permut;
-
-    if (e->GetParDefined(0)->Rank() == 2) {
-      NbCol0=p0->Dim(0);
-      NbRow0=p0->Dim(1);
-    } else {
-      NbCol0=p0->Dim(0);
-      NbRow0=1;
-    }
-    if (e->KeywordSet("ATRANSPOSE")) {
-      tmp_permut=NbCol0;
-      NbCol0=NbRow0;
-      NbRow0=tmp_permut;
-    } 
-    //    cout << "NbCol0, NbRow0 : "<< NbCol0 << " " << NbRow0 << endl;
-    MatrixXd m0 (NbCol0,NbRow0);
-
-    if (e->KeywordSet("ATRANSPOSE")) {
-      for (SizeT j=0; j<NbRow0; j++) 
-	for (SizeT i=0; i<NbCol0; i++)
-	  m0(i,j)=(*p0)[i*NbRow0+j];
-    }else {
-      for (SizeT i=0; i<NbCol0; i++) 
-	for (SizeT j=0; j<NbRow0; j++)
-	  m0(i,j)=(*p0)[j*NbCol0+i];
-    }
-
-    //    cout << m0 << endl;
-
-    if (e->GetParDefined(1)->Rank() == 2) {
-      NbCol1=p1->Dim(0);
-      NbRow1=p1->Dim(1);
-    } else {
-      NbCol1=p1->Dim(0);
-      NbRow1=1;
-    }
-    if (e->KeywordSet("BTRANSPOSE")) {
-      tmp_permut=NbCol1;
-      NbCol1=NbRow1;
-      NbRow1=tmp_permut;
-    } 
-
-    MatrixXd m1 (NbCol1,NbRow1);
-
-    if (e->KeywordSet("BTRANSPOSE")) {
-      for (SizeT j=0; j<NbRow1; j++) 
-	for (SizeT i=0; i<NbCol1; i++)
-	  m1(i,j)=(*p1)[i*NbRow1+j];
-    } else {
-      for (SizeT i=0; i<NbCol1; i++) 
-	for (SizeT j=0; j<NbRow1; j++)
-	  m1(i,j)=(*p1)[j*NbCol1+i];
-    }
-    if (NbRow0 != NbCol1)
-      e->Throw( "Incompatible dimensions [m,n]#[n,o] expected ");
-
-    if (e->KeywordSet("DEBUG") || (debug == 1)) {
-      cout << "NbCol0, NbRow0 : "<< NbCol0 << " " << NbRow0 << endl;
-      cout << "NbCol1, NbRow1 : "<< NbCol1 << " " << NbRow1 << endl;
-      //cout << m0 << endl;
-    }
-
-    MatrixXd tmp_res (NbCol0,NbRow1);
-    tmp_res=m0*m1;
-
-    dimension dim(NbCol0,NbRow1);
-
-    if ((e->GetParDefined(0)->Type() == GDL_DOUBLE) || (e->GetParDefined(1)->Type() == GDL_DOUBLE)) {
-      DDoubleGDL* res = new DDoubleGDL(dim, BaseGDL::NOZERO);
-      for (SizeT i=0; i<NbCol0; i++) 
-	for (SizeT j=0; j<NbRow1; j++)
-	  (*res)[j*NbCol0+i] = tmp_res(i,j);
-      return res;
-    } else {
-      DFloatGDL* res = new DFloatGDL(dim, BaseGDL::NOZERO);
-      for (SizeT i=0; i<NbCol0; i++) 
-	for (SizeT j=0; j<NbRow1; j++)
-	  (*res)[j*NbCol0+i] = tmp_res(i,j);      
-      return res;
-    }
-  }
-  
-#else
-  BaseGDL* matmul_fun( EnvT* e){
-    
-    if (e->KeywordSet("AVAILABLE")) {
-      if (!e->KeywordSet("QUIET")) {
-	Message(e->GetProName()+": GDL was compiled without Eigen Lib. support.");
-	Message(e->GetProName()+": This Lib. provides fast algo. for MATRIX_MULTIPLY() function");
+    if (a->Rank() > 2)
+      {
+	e->Throw("Array must have 1 or 2 dimensions: " + e->GetParString(0));
       }
-      return new DLongGDL(0);
+    if (b->Rank() > 2)
+      {
+	e->Throw("Array must have 1 or 2 dimensions: " + e->GetParString(1));
+      }
+
+    // code from ProgNode::AdjustTypes()
+    Guard<BaseGDL> aGuard;
+    Guard<BaseGDL> bGuard;
+
+    // GDL_COMPLEX op GDL_DOUBLE = GDL_COMPLEXDBL
+    DType cxTy = PromoteComplexOperand( aTy, bTy);
+    if( cxTy != GDL_UNDEF)
+    {
+      a = a->Convert2( cxTy, BaseGDL::COPY);
+      aGuard.Init( a);
+      b = b->Convert2( cxTy, BaseGDL::COPY);
+      bGuard.Init( b);
+    }
+    else
+    {
+      DType cTy = PromoteMatrixOperands( aTy, bTy);
+
+      if( aTy != cTy)
+	{
+	  a = a->Convert2( cTy, BaseGDL::COPY);
+	  aGuard.Init( a);
+	}
+      if( bTy != cTy)
+	{
+	  b = b->Convert2( cTy, BaseGDL::COPY);
+	  bGuard.Init( b);
+	}
     }
     
-    e->Throw( "sorry, MATMUL not ready. GDL must be compiled with Eigen lib.");
-    return NULL;
+    // might use eigen3
+    return a->MatrixOp( b, at, bt);
   }
   
-#endif
-
 } // namespace
 

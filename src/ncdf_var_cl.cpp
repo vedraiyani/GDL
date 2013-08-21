@@ -31,7 +31,7 @@
 #include <gsl/gsl_sys.h>
 #include <gsl/gsl_linalg.h>
 #include <gsl/gsl_sf.h>
-#include <netcdfcpp.h>
+#include <netcdf.h>
 
 #include "datatypes.hpp"
 #include "math_utl.hpp"
@@ -57,27 +57,10 @@ namespace lib {
   
   void exceed_message(const char * name,int index, int set)
   {
-    int mema=3;
     string mess;
     mess=name;
-    mess+="Limit exceeded on index ";
-    char * n=new char(mema);
-    while (snprintf(n, sizeof n, "%d", index) >= sizeof n)
-      {   delete n; mema++; n=new char(mema);
-      }
-    mess+=n;
-    delete n;
-    
-    mess+=", setting to ";
-    mema=3;
-    n=new char(mema);
-    while (snprintf(n, sizeof n, "%d", set) >= sizeof n)
-      {
-	delete n;mema++; n=new char(mema);
-      }
-    mess+=n;
-    delete n;
-    mess+=".";
+    mess+="Limit exceeded on index "+i2s(index);
+    mess+=", setting to "+i2s(set)+".";
     Message(mess);
 
   }
@@ -87,28 +70,14 @@ namespace lib {
     int mema=3;
     string mess;
     mess=name;
-    mess+="Value of index";
-    char * n=new char(mema);
-    while (snprintf(n, sizeof n, "%d", index) >= sizeof n)
-      {   delete n; mema++; n=new char(mema);
-      }
-    mess+=n;
-    delete n;
+    mess+="Value of index "+i2s(index);
     if(set > 0) 
       mess+=" is negative or zero, setting to ";
     else if(set == 0) 
       mess+=" is negative , setting to ";
     else
       mess+=" INTERNAL ERROR NCDF_VAR_CL.CPP negzero_message";
-    
-    mema=3;
-    n=new char(mema);
-    while (snprintf(n, sizeof n, "%d", set) >= sizeof n)
-      {
-	delete n;mema++; n=new char(mema);
-      }
-    mess+=n;
-    delete n;
+    mess+=i2s(set);
     mess+=".";
     Message(mess);
 
@@ -660,22 +629,9 @@ else if(var_type == NC_LONG)
               int mema=3;
               string mess;
               mess = "NCDF_VARGET: Requested read is larget than data in dimension ";
-              char * n=new char(mema);
-              while (snprintf(n, sizeof n, "%d", i) >= sizeof n)
-              {
-                delete n; mema++; n=new char(mema);
-              }
-              mess+=n;
-              delete n;
+              mess+=i2s(i);
               mess+=". Reducing COUNT to ";
-              mema=3;
-              n=new char[3];
-              while (snprintf(n, sizeof n, "%d",  cou[trans[i]]) >= sizeof n)
-              { 
-                delete n; mema++; n=new char(mema);
-              }
-              mess+=n;
-              delete n;
+              mess+=i2s(cou[trans[i]]);
               mess+=".";
               Message(mess);
             }	
@@ -764,7 +720,7 @@ else if(var_type == NC_LONG)
       {
 	v=e->GetParDefined(2);
 	DIntGDL* dim_in=static_cast<DIntGDL*>(v->Convert2(GDL_INT, BaseGDL::COPY));
-	auto_ptr<DIntGDL> dim_in_guard( dim_in);
+	Guard<DIntGDL> dim_in_guard( dim_in);
 	var_ndims=dim_in->N_Elements();
 	if(var_ndims > NC_MAX_VAR_DIMS)
 	  {
@@ -1042,7 +998,7 @@ else if(var_type == NC_LONG)
       case GDL_ULONG64 :
       {
         BaseGDL* val;
-        auto_ptr<BaseGDL> val_guard(val);
+        Guard<BaseGDL> val_guard(val);
         switch (var_type) 
         {
           case NC_BYTE :   // 8-bit signed integer

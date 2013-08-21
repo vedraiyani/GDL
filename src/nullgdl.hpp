@@ -124,11 +124,13 @@ class NullGDL: public BaseGDL
   /*virtual*/ BaseGDL* GetEmptyInstance() const;
   /*virtual*/ BaseGDL* SetBuffer( const void* b);
   /*virtual*/ void     SetBufferSize( SizeT s);
-  /*virtual*/ int Scalar2index(SizeT& ret) const;
+  /*virtual*/ int Scalar2Index(SizeT& ret) const;
   /*virtual*/ int Scalar2RangeT(RangeT& ret) const;
   /*virtual*/ SizeT GetAsIndex( SizeT i) const;
   /*virtual*/ SizeT GetAsIndexStrict( SizeT i) const;
   /*virtual*/ RangeT LoopIndex() const;
+  /*virtual*/ DDouble HashValue() const;
+  
   /*virtual*/ bool True();
   /*virtual*/ bool False();
   /*virtual*/ bool LogTrue();
@@ -164,8 +166,8 @@ class NullGDL: public BaseGDL
   /*virtual*/ BaseGDL* NewIxFromStride( SizeT s, SizeT e, SizeT stride);
 
   // library functions
-  /*virtual*/ BaseGDL* Convol( BaseGDL* kIn, BaseGDL* scaleIn, 
-			   bool center, int edgeMode);
+  /*virtual*/ BaseGDL* Convol( BaseGDL* kIn, BaseGDL* scaleIn, BaseGDL* bias,
+			   bool center, bool normalize, int edgeMode);
   /*virtual*/ BaseGDL* Rebin( const dimension& newDim, bool sample);
   // for STRUCT_ASSIGN
   /*virtual*/ void Assign( BaseGDL* src, SizeT nEl);
@@ -281,7 +283,7 @@ class NullGDL: public BaseGDL
 
   
   //  /*virtual*/ BaseGDL* PowInvNew( BaseGDL* r);
-  /*virtual*/ BaseGDL* MatrixOp( BaseGDL* r, bool rtranspose = false, bool transposeResult =false, bool strassen = false);
+  /*virtual*/ BaseGDL* MatrixOp( BaseGDL* r, bool atranspose, bool btranspose);
   /*virtual*/ void AssignAt( BaseGDL* srcIn, ArrayIndexListT* ixList, SizeT offset);
   /*virtual*/ void AssignAt( BaseGDL* srcIn, ArrayIndexListT* ixList);
   /*virtual*/ void AssignAt( BaseGDL* srcIn);
@@ -300,6 +302,8 @@ class NullGDL: public BaseGDL
 			int prec, char fill, IOMode oM = FIXED); 
   /*virtual*/ SizeT OFmtI( std::ostream* os, SizeT offs, SizeT num, int width, 
 			int minN, char fill, BaseGDL::IOMode oM = DEC);
+  /*virtual*/ SizeT OFmtCal( std::ostream* os, SizeT offs, SizeT num, int width, 
+			int minN, char fill, BaseGDL::Cal_IOMode oM = BaseGDL::DEFAULT);
   /*virtual*/ SizeT IFmtA( std::istream* is, SizeT offset, SizeT num, int width);
   /*virtual*/ SizeT IFmtF( std::istream* is, SizeT offs, SizeT num, int width);
   /*virtual*/ SizeT IFmtI( std::istream* is, SizeT offs, SizeT num, int width, 

@@ -20,7 +20,7 @@
 
 #if defined(USE_EIGEN)
 #include <Eigen/Dense>
-using namespace Eigen;
+//using namespace Eigen; // never in header files!
 #endif
 
 namespace lib {
@@ -36,7 +36,7 @@ namespace lib {
   BaseGDL* sobel_fun( EnvT* e);
   BaseGDL* roberts_fun( EnvT* e);
   BaseGDL* prewitt_fun( EnvT* e);
-  BaseGDL* matmul_fun( EnvT* e);
+  BaseGDL* matrix_multiply( EnvT* e);
 
 } // namespace
 

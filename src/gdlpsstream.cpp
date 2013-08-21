@@ -18,7 +18,7 @@
 #include "includefirst.hpp"
 
 //#include <iostream>
-
+#include "graphics.hpp"
 #include "gdlpsstream.hpp"
 
 using namespace std;
@@ -47,4 +47,3 @@ void GDLPSStream::eop()
    }
    page++;
 };
-

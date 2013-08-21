@@ -128,9 +128,10 @@ void GDLGStream::NextPlot( bool erase )
   // set subpage numbers in X and Y
 //  plstream::ssub( nx, ny ); // ssub does not change charsize it seems
   ssub( nx, ny ); 
+  DLong pMod = (*pMulti)[0] % (nx*ny);
 
-  if( (*pMulti)[0] <= 0 || (*pMulti)[0] == nx*ny) // clear and restart to first subpage
-    //  if( (*pMulti)[0] <= 0)
+//  if( (*pMulti)[0] <= 0 || (*pMulti)[0] == nx*ny) // clear and restart to first subpage
+  if( pMod == 0 ) // clear and restart to first subpage
   {
     if( erase )
     {
@@ -144,7 +145,6 @@ void GDLGStream::NextPlot( bool erase )
   }
   else
   {
-    DLong pMod = (*pMulti)[0] % (nx*ny);
     if( dir == 0 )
     {
 //      plstream::adv(nx*ny - pMod + 1);
@@ -184,10 +184,22 @@ void GDLGStream::GetGeometry( long& xSize, long& ySize, long& xoff, long& yoff)
   PLINT plxoff; PLINT plyoff;
   plstream::gpage( xp, yp, xleng, yleng, plxoff, plyoff); //for X-Window, wrapper give sizes from X11, not plplot which seems bugged.
   
-  xSize = xleng;
-  ySize = yleng;
-  xoff = plxoff;
-  yoff = plyoff;
+//since the page sizes for PS and EPS images are processed by GDL after plplot finishes 
+//its work, gpage will not output correct sizes 
+  DString name = (*static_cast<DStringGDL*>(
+    SysVar::D()->GetTag(SysVar::D()->Desc()->TagIndex("NAME"), 0)
+  ))[0];
+  if (name == "PS") { 
+    xSize = (*static_cast<DLongGDL*>(SysVar::D()->GetTag(SysVar::D()->Desc()->TagIndex("X_SIZE"), 0)))[0];
+    ySize = (*static_cast<DLongGDL*>(SysVar::D()->GetTag(SysVar::D()->Desc()->TagIndex("Y_SIZE"), 0)))[0];
+    xoff = 0;
+    yoff = 0;
+  } else {
+    xSize = xleng;
+    ySize = yleng;
+    xoff = plxoff;
+    yoff = plyoff;
+  }
   if (xSize<1.0||ySize<1) //plplot gives back crazy values! z-buffer for example!
   {
     PLFLT xmin,xmax,ymin,ymax;
@@ -202,7 +214,7 @@ void GDLGStream::GetGeometry( long& xSize, long& ySize, long& xoff, long& yoff)
 }
 
 // SA: embedded font attributes handling (IDL to plPlot syntax translation)
-const char * GDLGStream::TranslateFormatCodes(const char *in) 
+bool GDLGStream::TranslateFormatCodes(const char *in, std::string & out) 
 {
   bool debug = false;
   static char errmsg[] = "Invalid graphtext command: ...!  ";
@@ -218,7 +230,7 @@ const char * GDLGStream::TranslateFormatCodes(const char *in)
   size_t len = strlen(in);
 
   // skip conversion if the string is empty
-  if (len == 0) return in;
+  if (len == 0) return false;
 
   const std::string fonts[] = {
     "#fn",      // !0  : unused
@@ -259,7 +271,7 @@ const char * GDLGStream::TranslateFormatCodes(const char *in)
   int curr_lev = 0; // (incremented with #u, decremented with #d)
   int curr_pos = 0; // (current position in string)
   int save_pos = 0; // (position in string used in !S/!R save/restore)
-  std::string out = std::string("");
+//  std::string out = std::string("");
 
   for (size_t i = 0; i < len; i++) {
     if (in[i] == '!' && in[i + 1] != '!')
@@ -765,19 +777,21 @@ const char * GDLGStream::TranslateFormatCodes(const char *in)
 
 retrn:
   if (debug) cout << "GDLGStream::TranslateFormatCodes(\"" << in << "\") = \"" << out << "\"" << endl;  
-  return out.c_str();
+  return true; 
 }
 
 void GDLGStream::mtex( const char *side, PLFLT disp, PLFLT pos, PLFLT just,
                        const char *text)
 {
-  plstream::mtex(side,disp,pos,just,TranslateFormatCodes(text));
+  std::string out = std::string("");
+  if (TranslateFormatCodes(text,out)) plstream::mtex(side,disp,pos,just,out.c_str());
 }
 
 void GDLGStream::ptex( PLFLT x, PLFLT y, PLFLT dx, PLFLT dy, PLFLT just,
                        const char *text)
 {
-  plptex(x,y,dx,dy,just,TranslateFormatCodes(text));
+  std::string out = std::string("");
+  if (TranslateFormatCodes(text,out)) plstream::ptex(x,y,dx,dy,just,out.c_str());
 }
 
 void GDLGStream::schr( PLFLT def, PLFLT scale )

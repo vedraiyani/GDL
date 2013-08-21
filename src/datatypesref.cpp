@@ -18,6 +18,7 @@ datatypesref.cpp  -  specializations for DPtrGDL and DObjGDL for reference count
 // to be included from datatypes.cpp
 #ifdef INCLUDE_DATATYPESREF_CPP
 #undef INCLUDE_DATATYPESREF_CPP
+#include "nullgdl.hpp"
 
 // reference counting for INIT
 template<>
@@ -31,7 +32,7 @@ Data_<SpDPtr>* Data_<SpDPtr>::New( const dimension& dim_, BaseGDL::InitType noZe
       /*#pragma omp parallel if (nEl >= CpuTPOOL_MIN_ELTS && (CpuTPOOL_MAX_ELTS == 0 || CpuTPOOL_MAX_ELTS <= nEl))
 	{
 	#pragma omp for*/
-      for( int i=0; i<nEl; ++i) (*res)[ i] = (*this)[ 0]; // set all to scalar
+      for( OMPInt i=0; i<nEl; ++i) (*res)[ i] = (*this)[ 0]; // set all to scalar
       //}
       GDLInterpreter::AddRef((*this)[ 0], nEl);
       
@@ -51,7 +52,7 @@ Data_<SpDObj>* Data_<SpDObj>::New( const dimension& dim_, BaseGDL::InitType noZe
       /*#pragma omp parallel if (nEl >= CpuTPOOL_MIN_ELTS && (CpuTPOOL_MAX_ELTS == 0 || CpuTPOOL_MAX_ELTS <= nEl))
 	{
 	#pragma omp for*/
-      for( int i=0; i<nEl; ++i) (*res)[ i] = (*this)[ 0]; // set all to scalar
+      for( OMPInt i=0; i<nEl; ++i) (*res)[ i] = (*this)[ 0]; // set all to scalar
       //}
       GDLInterpreter::AddRefObj((*this)[ 0], nEl);
       
@@ -1157,14 +1158,26 @@ void Data_<SpDObj>::CatInsert( const Data_* srcArr, const SizeT atDim, SizeT& at
 template<>
 void Data_<SpDPtr>::Assign( BaseGDL* src, SizeT nEl)
 {
-  Data_* srcT = dynamic_cast<Data_*>( src);
+//   Data_* srcT = dynamic_cast<Data_*>( src);
+// 
+//   Guard< Data_> srcTGuard;
+//   if( srcT == NULL)
+//     {
+//       srcT = static_cast<Data_*>( src->Convert2( Data_::t, BaseGDL::COPY));
+//       srcTGuard.Reset( srcT);
+//     }
+  Data_* srcT; // = dynamic_cast<Data_*>( src);
 
-  auto_ptr< Data_> srcTGuard;
-  if( srcT == NULL)
+  Guard< Data_> srcTGuard;
+  if( src->Type() != Data_::t) 
     {
       srcT = static_cast<Data_*>( src->Convert2( Data_::t, BaseGDL::COPY));
-      srcTGuard.reset( srcT);
+      srcTGuard.Init( srcT);
     }
+  else
+  {
+    srcT = static_cast<Data_*>( src);
+  }
 
   //#pragma omp parallel if (nEl >= CpuTPOOL_MIN_ELTS && (CpuTPOOL_MAX_ELTS == 0 || CpuTPOOL_MAX_ELTS <= nEl))
   {
@@ -1182,14 +1195,26 @@ void Data_<SpDPtr>::Assign( BaseGDL* src, SizeT nEl)
 template<>
 void Data_<SpDObj>::Assign( BaseGDL* src, SizeT nEl)
 {
-  Data_* srcT = dynamic_cast<Data_*>( src);
+//   Data_* srcT = dynamic_cast<Data_*>( src);
+// 
+//   Guard< Data_> srcTGuard;
+//   if( srcT == NULL)
+//     {
+//       srcT = static_cast<Data_*>( src->Convert2( Data_::t, BaseGDL::COPY));
+//       srcTGuard.Reset( srcT);
+//     }
+  Data_* srcT; // = dynamic_cast<Data_*>( src);
 
-  auto_ptr< Data_> srcTGuard;
-  if( srcT == NULL)
+  Guard< Data_> srcTGuard;
+  if( src->Type() != Data_::t) 
     {
       srcT = static_cast<Data_*>( src->Convert2( Data_::t, BaseGDL::COPY));
-      srcTGuard.reset( srcT);
+      srcTGuard.Init( srcT);
     }
+  else
+  {
+    srcT = static_cast<Data_*>( src);
+  }
 
   //#pragma omp parallel if (nEl >= CpuTPOOL_MIN_ELTS && (CpuTPOOL_MAX_ELTS == 0 || CpuTPOOL_MAX_ELTS <= nEl))
   {
@@ -1208,7 +1233,7 @@ void Data_<SpDObj>::Assign( BaseGDL* src, SizeT nEl)
 
 // return a new type of itself (only for one dimensional case)
 template<>
-Data_<SpDPtr>* Data_<SpDPtr>::NewIx( SizeT ix)
+BaseGDL* Data_<SpDPtr>::NewIx( SizeT ix)
 {
   Ty b = (*this)[ ix];
   GDLInterpreter::IncRef( b);
@@ -1217,11 +1242,107 @@ Data_<SpDPtr>* Data_<SpDPtr>::NewIx( SizeT ix)
 
 // return a new type of itself (only for one dimensional case)
 template<>
-Data_<SpDObj>* Data_<SpDObj>::NewIx( SizeT ix)
+BaseGDL* Data_<SpDObj>::NewIx( SizeT ix)
 {
-  Ty b = (*this)[ ix];
-  GDLInterpreter::IncRefObj( b);
-  return new Data_( (*this)[ ix]);
+  if( !this->StrictScalar())
+  {
+    Ty b = (*this)[ ix];
+    GDLInterpreter::IncRefObj( b);
+    return new Data_( (*this)[ ix]);
+  }
+
+  DObj s = dd[0]; // is StrictScalar()
+  if( s == 0)  // no overloads for null object
+    return new Data_( 0);
+  
+  DStructGDL* oStructGDL= GDLInterpreter::GetObjHeapNoThrow( s);
+  if( oStructGDL == NULL) // if object not valid -> default behaviour
+    return new Data_( 0);
+  
+  DStructDesc* desc = oStructGDL->Desc();
+
+  if( desc->IsParent("LIST"))
+  {
+      static DString cNodeName("GDL_CONTAINER_NODE");
+      // because of .RESET_SESSION, we cannot use static here
+      DStructDesc* containerDesc=structDesc::GDL_CONTAINER_NODE;
+    
+      // no static here, might vary in derived object
+//       unsigned pHeadTag = desc->TagIndex( "PHEAD");
+      static unsigned pTailTag = desc->TagIndex( "PTAIL");
+
+      static unsigned pNextTag = structDesc::GDL_CONTAINER_NODE->TagIndex( "PNEXT");
+      static unsigned pDataTag = structDesc::GDL_CONTAINER_NODE->TagIndex( "PDATA");
+//       unsigned nListTag = desc->TagIndex( "NLIST");
+//       SizeT listSize = (*static_cast<DLongGDL*>(oStructGDL->GetTag( nListTag, 0)))[0];
+
+      DPtr actP = (*static_cast<DPtrGDL*>(oStructGDL->GetTag( pTailTag, 0)))[0];
+      for( SizeT elIx = 0; elIx < ix; ++elIx)
+      {
+	BaseGDL* actPHeap = BaseGDL::interpreter->GetHeap( actP);
+	if( actPHeap->Type() != GDL_STRUCT)
+	  throw GDLException( "LIST node must be a STRUCT.");	
+	DStructGDL* actPStruct = static_cast<DStructGDL*>( actPHeap);
+	if( actPStruct->Desc() != containerDesc)
+	  throw GDLException( "LIST node must be a GDL_CONTAINER_NODE STRUCT.");	
+
+	actP = (*static_cast<DPtrGDL*>( actPStruct->GetTag( pNextTag, 0)))[0];
+      }
+
+    BaseGDL* actPHeap = BaseGDL::interpreter->GetHeap( actP);
+    if( actPHeap->Type() != GDL_STRUCT)
+	  throw GDLException( "LIST node must be a STRUCT.");	
+    DStructGDL* actPStruct = static_cast<DStructGDL*>( actPHeap);
+    if( actPStruct->Desc() != containerDesc)
+	  throw GDLException( "LIST node must be a GDL_CONTAINER_NODE STRUCT.");	
+
+    actP = (*static_cast<DPtrGDL*>(actPStruct->GetTag( pDataTag, 0)))[0];
+    
+    BaseGDL* result = BaseGDL::interpreter->GetHeap( actP);
+    if( result == NULL)
+      return NullGDL::GetSingleInstance();
+    return result->Dup();
+  }
+  if( desc->IsParent("HASH"))
+  {
+    static DString hashName("HASH");
+    static DString entryName("GDL_HASHTABLEENTRY");
+    static unsigned pDataTag = structDesc::HASH->TagIndex( "TABLE_DATA");
+    static unsigned nSizeTag = structDesc::HASH->TagIndex( "TABLE_SIZE");
+    static unsigned nCountTag = structDesc::HASH->TagIndex( "TABLE_COUNT");
+    static unsigned nForEachTag = structDesc::HASH->TagIndex( "TABLE_FOREACH");
+    static unsigned pKeyTag = structDesc::GDL_HASHTABLEENTRY->TagIndex( "PKEY");
+    static unsigned pValueTag = structDesc::GDL_HASHTABLEENTRY->TagIndex( "PVALUE");
+      
+    DPtr pHashTable = (*static_cast<DPtrGDL*>( oStructGDL->GetTag( pDataTag, 0)))[0];
+    DStructGDL* hashTable = static_cast<DStructGDL*>(BaseGDL::interpreter->GetHeap( pHashTable));
+
+    DLong validIx = 0;
+    DLong i = 0;
+    for(; i<hashTable->N_Elements(); ++i)
+    {
+      DPtr pKey = (*static_cast<DPtrGDL*>(hashTable->GetTag( pKeyTag, i)))[0];
+      if( pKey != 0)
+      {
+	if( validIx == ix)
+	  break;
+	++validIx;
+      }
+    }
+    assert( i<hashTable->N_Elements());
+    
+    DPtr pValue = (*static_cast<DPtrGDL*>(hashTable->GetTag( pValueTag, i)))[0];
+    DPtr pKey = (*static_cast<DPtrGDL*>(hashTable->GetTag( pKeyTag, i)))[0];
+
+    (*static_cast<DULongGDL*>( oStructGDL->GetTag( nForEachTag, 0)))[0] = pKey;   
+    
+    BaseGDL* result = BaseGDL::interpreter->GetHeap( pValue);
+    if( result == NULL)
+      return NullGDL::GetSingleInstance();
+    return result->Dup();
+  }
+  
+  return new Data_( s);
 }
 
 
@@ -1459,7 +1580,7 @@ Data_<SpDPtr>* Data_<SpDPtr>::NewIx( BaseGDL* ix, bool strict)
   SizeT nElem = ix->N_Elements();
 
   Data_* res = New( ix->Dim(), BaseGDL::NOZERO);
-  auto_ptr<Data_> guard( res);
+  Guard<Data_> guard( res);
 
   SizeT upper = dd.size() - 1;
   Ty    upperVal = (*this)[ upper];
@@ -1497,7 +1618,7 @@ Data_<SpDObj>* Data_<SpDObj>::NewIx( BaseGDL* ix, bool strict)
   SizeT nElem = ix->N_Elements();
 
   Data_* res = New( ix->Dim(), BaseGDL::NOZERO);
-  auto_ptr<Data_> guard( res);
+  Guard<Data_> guard( res);
 
   SizeT upper = dd.size() - 1;
   Ty    upperVal = (*this)[ upper];

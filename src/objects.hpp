@@ -73,12 +73,15 @@ enum DebugCode {
   DEBUG_STEPOVER= 4
 };
 
-template< class Container> void Purge( Container& s) 
+template< class Container> void PurgeContainer( Container& s) 
 {
   typename Container::iterator i;
   for(i = s.begin(); i != s.end(); ++i) 
-    { delete *i; *i = NULL;}
+    { delete *i;}// *i = NULL;}
+  s.clear();  
 }
+
+void InitGDL(); // defined in gdl.cpp
 
 void InitObjects();
 void ResetObjects();
@@ -94,6 +97,8 @@ int LibFunIx(const std::string& n);
 bool IsFun(antlr::RefToken); // used by Lexer and Parser
 
 bool BigEndian();
+
+int get_suggested_omp_num_threads();
 
 template <typename T> class RefHeap {
   private:
@@ -111,7 +116,7 @@ template <typename T> class RefHeap {
 
     void Inc() {++count;}
     void Add( SizeT add) {count += add;}
-    bool Dec() {return (--count==0);}
+    bool Dec() {assert(count > 0); return (--count==0);}
 
     RefHeap(T* p = 0)
     : ptr(p), count(1)
@@ -140,5 +145,16 @@ template <typename T> class RefHeap {
     }
 };
 
+namespace structDesc {
+ 
+  // these are used mainly in list.cpp and hash.cpp
+  // as for .RESET_SESSION the pointers change
+  // one can still use these as they get updated on every new creation in InitStructs()
+  extern DStructDesc* LIST;
+  extern DStructDesc* HASH;
+  extern DStructDesc* GDL_CONTAINER_NODE;
+  extern DStructDesc* GDL_HASHTABLEENTRY;
+  
+}
 
 #endif

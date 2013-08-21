@@ -1,3 +1,4 @@
+
 /***************************************************************************
                           str.cpp  -  basic string manipulation functions
                              -------------------
@@ -295,8 +296,23 @@ void WordExp( string& s)
 //  int ok0 = wordexp( sEsc.c_str(), &p, 0);
  if( ok0 == 0)
    {
+     //        cout<< p.we_wordc<<"word count\n";
      if( p.we_wordc > 0)
-       s = p.we_wordv[0];
+       {
+	 //	 s="";
+	 string ss= p.we_wordv[0];
+	 for(int i=1,ind=s.find(" "); i<p.we_wordc; i++)
+	    {
+	      while(s[ind++]==' ') ss+=" ";
+	      //s+=" ";
+	      ss+= p.we_wordv[i];
+	      ind=s.find(" ",ind);
+	      //	      cout<<"in for\n";
+	    }
+	  // s=p.we_wordv[0];
+	 s=ss;
+       }
+     //     cout<<s<<"--result\n";
 #  if defined(__APPLE__)
      p.we_offs = 0;
 #  endif

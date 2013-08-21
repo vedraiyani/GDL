@@ -68,6 +68,8 @@ DLong                   GDLInterpreter::stepCount;
 ProgNode GDLInterpreter::NULLProgNode;
 ProgNodeP GDLInterpreter::NULLProgNodeP = &GDLInterpreter::NULLProgNode;
 
+void LibInit(); // defined in libinit.cpp
+
 DInterpreter::DInterpreter(): GDLInterpreter()
 {
 //  DataStackT::Init();
@@ -170,7 +172,7 @@ void GDLInterpreter::SetRootL( ProgNodeP tt, DotAccessDescT* aD, BaseGDL* r, Arr
       DStructGDL* oStruct = ObjectStruct( static_cast<DObjGDL*>(r), tt);
       DStructDesc* desc = oStruct->Desc();
 
-      bool isObj = callStack.back()->IsObject();
+      bool isObj = callStack.back()->IsObject(); // called from member subroutine?
 
       if( desc->IsParent( GDL_OBJECT_NAME))
 	  {
@@ -194,7 +196,7 @@ void GDLInterpreter::SetRootL( ProgNodeP tt, DotAccessDescT* aD, BaseGDL* r, Arr
 	    if( !isObj || (sss != ooo))
 	    {
 	      // call SetProperty
-		  throw GDLException( tt, "Calling SetProperty not yet implemented: "+Name(r));
+	      throw GDLException( tt, "Calling SetProperty not yet implemented: "+Name(r));
 	      //return;
 	    }
 	  }
@@ -239,14 +241,14 @@ if( r->Type() == GDL_STRUCT)
   }
 else
   {
+      ArrayIndexListGuard guard( aL);
+
       if( r->Type() != GDL_OBJ)
 	  {
 	      throw GDLException( tt, "Expression must be a"
 				  " STRUCT in this context: "+Name(r),
 				  true,false);
 	  }
-
-      ArrayIndexListGuard guard( aL);
 
       DStructGDL* oStruct = ObjectStruct( static_cast<DObjGDL*>(r), tt);
       DStructDesc* desc = oStruct->Desc();
@@ -645,6 +647,15 @@ void AppendExtension( string& argstr)
     }
 }
 
+DInterpreter::CommandCode DInterpreter::CmdReset()
+{
+  RetAll( RetAllException::RESET);
+}
+DInterpreter::CommandCode DInterpreter::CmdFullReset()
+{
+  RetAll( RetAllException::FULL_RESET);
+}
+
 DInterpreter::CommandCode DInterpreter::CmdCompile( const string& command)
 {
   string cmdstr = command;
@@ -801,8 +812,7 @@ DInterpreter::CommandCode DInterpreter::ExecuteCommand(const string& command)
     }
   if( cmd( "FULL_RESET_SESSION"))
     {
-      cout << "FULL_RESET_SESSION not implemented yet." << endl;
-      return CC_OK;
+      return CmdFullReset();
     }
   if( cmd( "GO"))
     {
@@ -825,8 +835,7 @@ DInterpreter::CommandCode DInterpreter::ExecuteCommand(const string& command)
     }
   if( cmd( "RESET_SESSION"))
     {
-      cout << "RESET_SESSION not implemented yet." << endl;
-      return CC_OK;
+      return CmdReset();
     }
   if( cmd( "RNEW"))
     {
@@ -949,6 +958,20 @@ DInterpreter::CommandCode DInterpreter::ExecuteLine( istream* in, SizeT lineOffs
       return ExecuteCommand( line.substr(1));
     }
 
+  // command
+  if( firstChar == "?") 
+    {
+      // later, we will have to check whether we have X11/Display or not
+      // on some computing nodes on supercomputers, this is de-activated.
+      if (line.substr(1).length() > 0) {
+	line=line.substr(1);
+	StrTrim(line);
+	line="online_help, '"+line+"'"; //'
+      } else {
+	line="online_help";
+      }
+    }
+  
   // shell command
   if( firstChar == "$") 
     {
@@ -983,7 +1006,7 @@ DInterpreter::CommandCode DInterpreter::ExecuteLine( istream* in, SizeT lineOffs
 
   RefDNode theAST;
   try { 
-    auto_ptr<GDLLexer> lexer;
+    Guard<GDLLexer> lexer;
 
     // LineContinuation LC
     // conactenate the strings and insert \n
@@ -993,17 +1016,17 @@ DInterpreter::CommandCode DInterpreter::ExecuteLine( istream* in, SizeT lineOffs
     int lCNum = 0;
     for(;;) 
       {
-	lexer.reset( new GDLLexer(executeLine, "", callStack.back()->CompileOpt()));
+	lexer.Reset( new GDLLexer(executeLine, "", callStack.back()->CompileOpt()));
 	try {
 	  // works, but ugly -> depends from parser detecting an error
 	  // (which it always will due to missing END_U token in case of LC)
  	  //lexer->Parser().SetCompileOpt(callStack.back()->CompileOpt());
- 	  lexer->Parser().interactive();
+ 	  lexer.Get()->Parser().interactive();
 	  break; // no error -> everything ok
 	}
 	catch( GDLException& e)
 	  {
-	    int lCNew = lexer->LineContinuation();
+	    int lCNew = lexer.Get()->LineContinuation();
 	    if( lCNew == lCNum)
 // 	      throw; // no LC -> real error
 	{
@@ -1046,7 +1069,7 @@ DInterpreter::CommandCode DInterpreter::ExecuteLine( istream* in, SizeT lineOffs
       } 
     
     //    lexer->Parser().interactive();
-    theAST = lexer->Parser().getAST();
+    theAST = lexer.Get()->Parser().getAST();
 
   }
   catch( GDLException& e)
@@ -1124,7 +1147,7 @@ DInterpreter::CommandCode DInterpreter::ExecuteLine( istream* in, SizeT lineOffs
       cerr << "Compiler exception: " <<  e.getMessage() << endl;
       return CC_OK;
     }
-  auto_ptr< ProgNode> progAST_guard( progAST);
+  Guard< ProgNode> progAST_guard( progAST);
 
   try
     {
@@ -1550,7 +1573,7 @@ RetCode DInterpreter::InterpreterLoop( const string& startup,
   rl_event_hook = GDLEventHandler;
   {
     int edit_input = SysVar::Edit_Input();
-    stifle_history(edit_input == 1 || edit_input < 0 ? 20 : edit_input);
+    stifle_history(edit_input == 1 || edit_input < 0 ? 200 : edit_input);
   }
   
   // Eventually read back the ".gdl" path in user $HOME
@@ -1632,6 +1655,36 @@ historyIntialized = true;
     catch( RetAllException& retAllEx)
       {
 	runCmd = (retAllEx.Code() == RetAllException::RUN);
+	bool resetCmd = (retAllEx.Code() == RetAllException::RESET);
+	bool fullResetCmd = (retAllEx.Code() == RetAllException::FULL_RESET);
+	if( resetCmd || fullResetCmd)
+	{
+	  // remove $MAIN$
+	  delete callStack.back();
+	  callStack.pop_back();
+	  assert( callStack.empty());
+	  
+	  ResetObjects();
+	  ResetHeap();
+	  if( fullResetCmd)
+	  {
+	    PurgeContainer(libFunList);
+	    PurgeContainer(libProList);
+	  }
+	  // initially done in InitGDL()
+	  // initializations
+	  InitObjects();
+	  // init library functions
+	  if( fullResetCmd)
+	  {
+	      LibInit(); 
+	  }
+	  
+	  // initially done in constructor: setup main level environment
+	  DPro* mainPro=new DPro();        // $MAIN$  NOT inserted into proList
+	  EnvUDT* mainEnv=new EnvUDT(NULL, mainPro);
+	  callStack.push_back(mainEnv);   // push main environment (necessary)
+	}
       }
     catch( exception& e)
       {

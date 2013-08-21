@@ -204,7 +204,7 @@ void NullGDL::SetBufferSize( SizeT s)
   throw GDLException("NullGDL::SetBufferSize called.");
 }
 
-int NullGDL::Scalar2index(SizeT& ret) const 
+int NullGDL::Scalar2Index(SizeT& ret) const 
 { 
   throw GDLException("Operation not defined for !NULL 1.");
 }
@@ -499,7 +499,7 @@ BaseGDL* NullGDL::PowInt( BaseGDL* r)
   throw GDLException("Operation not defined for !NULL 170.");
 }
 
-BaseGDL* NullGDL::MatrixOp( BaseGDL* r, bool rtranspose, bool transposeResult, bool strassen)
+BaseGDL* NullGDL::MatrixOp( BaseGDL* r, bool atranspose, bool btranspose)
 {
   throw GDLException("Operation not defined for !NULL 18.");
 }
@@ -551,6 +551,10 @@ SizeT NullGDL::OFmtI( std::ostream* os, SizeT offs, SizeT num, int width,
 		      int minN, char fill, NullGDL::IOMode oM)
 {throw GDLException("NullGDL::OFmtI(...) called.");}
 
+SizeT NullGDL::OFmtCal( std::ostream* os, SizeT offs, SizeT num, int width,
+          int minN, char fill, NullGDL::Cal_IOMode cM)
+{throw GDLException("NullGDL::OFmtCal(...) called.");}
+          
 SizeT NullGDL::IFmtA( std::istream* is, SizeT offset, SizeT num, int width)
 {throw GDLException("NullGDL::IFmtA(...) called.");}
 
@@ -561,8 +565,8 @@ SizeT NullGDL::IFmtI( std::istream* is, SizeT offs, SizeT num, int width,
 		      NullGDL::IOMode oM)
 {throw GDLException("NullGDL::IFmtI(...) called.");}
 
-BaseGDL* NullGDL::Convol( BaseGDL* kIn, BaseGDL* scaleIn, 
-		 bool center, int edgeMode)
+BaseGDL* NullGDL::Convol( BaseGDL* kIn, BaseGDL* scaleIn, BaseGDL* bias,
+		 bool center, bool normalize, int edgeMode)
 {
   throw GDLException("NullGDL::Convol(...) called.");
 }
@@ -713,6 +717,10 @@ void NullGDL::AssignAtIx( RangeT ix, BaseGDL* srcIn)
 RangeT NullGDL::LoopIndex() const
 { 
   throw GDLException("Operation not defined for !NULL 29.");
+}
+DDouble NullGDL::HashValue() const
+{ 
+  throw GDLException("Operation not defined for !NULL 29a.");
 }
 
 BaseGDL* NullGDL::Rotate( DLong dir)

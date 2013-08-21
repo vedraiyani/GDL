@@ -55,30 +55,7 @@ namespace lib {
   unsigned int gValid[40];
   unsigned int gCount=0;
 
-  string GDLutos(unsigned int i)
-  {
-    int mema=3;
-    char *n=new char(mema);
-    while (snprintf(n, sizeof n, "%u", i) >= sizeof n)
-      {			delete n;mema++; n=new char(mema);   }
-    string s=n;
-    delete n;
-    return s;
-  }
-
   
-  string GDLitos(int i)
-  {
-    int mema=3;
-    char *n=new char(mema);
-    while (snprintf(n, sizeof n, "%d", i) >= sizeof n)
-      {			delete n;mema++; n=new char(mema);   }
-    string s=n;
-    delete n;
-    return s;
-  }
-
-
   void magick_setup()
   {
     int i;
@@ -564,7 +541,7 @@ namespace lib {
 	    else 
 	      {
 		string s="MAGICK_READ: RGB order type not supported (";
-		s+=GDLutos(rgb);
+		s+=i2s(rgb);
 		s+="), using BGR ordering.";
 		Message(s);		
 		map="BGR";
@@ -659,7 +636,7 @@ namespace lib {
 		else
 		{
 		  string s="MAGICK_WRITE: RGB order type not supported (";
-		  s+=GDLutos(rgb);
+		  s+=i2s(rgb);
 		  s+="), using BGR ordering.";
 		  Message(s);		
 		  map="BGR";
@@ -669,8 +646,10 @@ namespace lib {
 	    /*	    if(image.depth() == 8)
 		    {*/
 
-		DByteGDL * bImage=
-		  static_cast<DByteGDL*>(GDLimage->Convert2(GDL_BYTE,BaseGDL::COPY));
+		DByteGDL * bImage =
+		  static_cast<DByteGDL*>( GDLimage->Convert2(GDL_BYTE,BaseGDL::COPY));
+		Guard<DByteGDL> bImageGuard(bImage);
+		
 		image.read(columns,rows,map, CharPixel,&(*bImage)[0]);
 		/*	      }
 	    else if(image.depth() == 16)
@@ -1069,15 +1048,15 @@ SizeT nEl = columns*rows;
     BaseGDL* GDLCol=e->GetParDefined(1);
     DByteGDL * Red=static_cast<DByteGDL*>(GDLCol->Convert2(GDL_BYTE,BaseGDL::COPY));
     //e->Guard( Red);
-    auto_ptr<BaseGDL> r_guard( Red);
+    Guard<BaseGDL> r_guard( Red);
     GDLCol=e->GetParDefined(2);
     DByteGDL * Green=static_cast<DByteGDL*>(GDLCol->Convert2(GDL_BYTE,BaseGDL::COPY));
     //e->Guard( Green);
-    auto_ptr<BaseGDL> g_guard( Green);
+    Guard<BaseGDL> g_guard( Green);
     GDLCol=e->GetParDefined(3);
     DByteGDL *Blue= static_cast<DByteGDL*>(GDLCol->Convert2(GDL_BYTE,BaseGDL::COPY));
     //e->Guard( Blue);
-    auto_ptr<BaseGDL> b_guard( Blue);
+    Guard<BaseGDL> b_guard( Blue);
 
     if(Red->N_Elements() == Green->N_Elements() && 
        Red->N_Elements() == Blue->N_Elements())

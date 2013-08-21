@@ -18,7 +18,7 @@
 #ifndef DPRO_HPP_
 #define DPRO_HPP_
 
-#include <deque>
+// #include <deque>
 #include <string>
 #include <algorithm>
 #include <vector>
@@ -114,15 +114,15 @@ protected:
   // par_1,..,par_nPar, var1,..,varK
   // N=size(key)
   // K=size(var)-nPar-N
-  IDList              key;    // keyword names (IDList: typedefs.hpp)
-                              // (KEYWORD_NAME=keyword_value)
+  KeyVarListT 	      key;    // keyword names (IDList: typedefs.hpp)
+			      // (KEYWORD_NAME=keyword_value)
   int                 nPar;   // number of parameters (-1 = infinite)
   int                 nParMin;  // minimum number of parameters (-1 = infinite)
 
   ExtraType           extra;
   int                 extraIx; // index of extra keyword
 
-  IDList  warnKey;    // keyword names to accept but warn
+  IDList              warnKey;    // keyword names to accept but warn
   // (IDList: typedefs.hpp)
 
 public:
@@ -160,7 +160,7 @@ public:
   {
     String_abbref_eq searchKey(s);
     int ix=0;
-    for(IDList::iterator i=key.begin();
+    for(KeyVarListT::iterator i=key.begin();
 	i != key.end(); i++, ix++) if( searchKey(*i)) {
 	  return ix;
 	}
@@ -180,11 +180,12 @@ public:
 };
 
 // Lib pro/fun ********************************************************
-class EnvT;
-
-typedef void     (*LibPro)(EnvT*);
-typedef BaseGDL* (*LibFun)(EnvT*);
-typedef BaseGDL* (*LibFunDirect)(BaseGDL* param,bool canGrab);
+// moved to prognode.hpp
+// class EnvT;
+// 
+// typedef void     (*LibPro)(EnvT*);
+// typedef BaseGDL* (*LibFun)(EnvT*);
+// typedef BaseGDL* (*LibFunDirect)(BaseGDL* param,bool canGrab);
 
 // library procedure/function (in cases both are handled the same way)
 class DLib: public DSub
@@ -292,7 +293,7 @@ class DSubUD: public DSub
 {
   std::string         file;        // filename were procedure is defined in
 
-  IDList              var;         // keyword values, parameters, local variables
+  KeyVarListT         var;         // keyword values, parameters, local variables
 
   CommonBaseListT     common;      // common blocks or references 
   ProgNodeP           tree;        // the 'code'
@@ -334,7 +335,7 @@ public:
   // add variables
   DSubUD*  AddPar(const std::string&); // add paramter
   unsigned AddVar(const std::string&); // add local variable
-  void     AddKey(const std::string&, const std::string&); // add keyword=value
+  DSubUD*  AddKey(const std::string&, const std::string&); // add keyword=value
 
   void     DelVar(const int ix) {var.erase(var.begin() + ix);}
 
@@ -345,7 +346,7 @@ public:
   // search for variable returns true if its found in var or common blocks
   bool Find(const std::string& n)
   {
-    IDList::iterator f=std::find(var.begin(),var.end(),n);
+    KeyVarListT::iterator f=std::find(var.begin(),var.end(),n);
     if( f != var.end()) return true;
 
     CommonBaseListT::iterator c=
@@ -415,7 +416,7 @@ public:
   // returns the variable index (-1 if not found)
   int FindVar(const std::string& s)
   {
-    return FindInIDList(var,s);
+    return FindInKeyVarListT(var,s);
   }
 
   // returns ptr to common variable (NULL if not found)
@@ -479,10 +480,10 @@ public:
 };
 
 
-typedef std::deque<DFun*> FunListT;
-typedef std::deque<DPro*> ProListT;
+typedef std::vector<DFun*> FunListT;
+typedef std::vector<DPro*> ProListT;
 
-typedef std::deque<DLibFun*> LibFunListT;
-typedef std::deque<DLibPro*> LibProListT;
+typedef std::vector<DLibFun*> LibFunListT;
+typedef std::vector<DLibPro*> LibProListT;
 
 #endif

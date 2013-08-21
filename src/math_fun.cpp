@@ -60,9 +60,9 @@ namespace lib {
   template< typename srcT, typename destT>
   void FromToGSL(  srcT* src, destT* dest, SizeT nEl)
   {
-// #pragma omp parallel if (nEl >= CpuTPOOL_MIN_ELTS && (CpuTPOOL_MAX_ELTS == 0 || CpuTPOOL_MAX_ELTS <= nEl))
+    // #pragma omp parallel if (nEl >= CpuTPOOL_MIN_ELTS && (CpuTPOOL_MAX_ELTS == 0 || CpuTPOOL_MAX_ELTS <= nEl))
     {
-// #pragma omp for
+      // #pragma omp for
       for( SizeT d = 0; d<nEl; ++d)
 	{
 	  dest[ d] = src[ d];
@@ -78,7 +78,7 @@ namespace lib {
     bool doubleKW = e->KeywordSet( doubleKWIx);
 
     BaseGDL* A = e->GetParDefined( 0);
-    doubleKW = doubleKW || (dynamic_cast< DDoubleGDL*>( A) != NULL) || (dynamic_cast< DComplexDblGDL*>( A) != NULL);
+    doubleKW = doubleKW || (A->Type() == GDL_DOUBLE) || (A->Type() == GDL_COMPLEXDBL);
 
     if( doubleKW)
       {
@@ -125,7 +125,7 @@ namespace lib {
 	gsl_matrix *aGSL = gsl_matrix_alloc( m, n);
 	GDLGuard<gsl_matrix> g1( aGSL, gsl_matrix_free);
 	if( !columnKW)
-	  memcpy(aGSL->data, &(*AA)[0], nEl*sizeof( double));
+	  memcpy(aGSL->data, &(*AA)[0], nEl*sizeof( DDouble));
 	else
 	  TransposeFromToGSL< DDouble, double>( &(*AA)[0], aGSL->data, AA->Dim( 0), nEl);
 
@@ -137,7 +137,7 @@ namespace lib {
 	gsl_vector *work = gsl_vector_alloc( n);
 	GDLGuard<gsl_vector> g4( work, gsl_vector_free);
 	gsl_linalg_SV_decomp( aGSL, vGSL, wGSL, work);
-// 	gsl_vector_free( work);
+	// 	gsl_vector_free( work);
 
 	// aGSL -> uGSL
 	gsl_matrix *uGSL = aGSL; // why?
@@ -145,25 +145,25 @@ namespace lib {
 	// U
 	DDoubleGDL* U = new DDoubleGDL( AA->Dim(), BaseGDL::NOZERO);
 	if( !columnKW)
-	  memcpy( &(*U)[0], uGSL->data, nEl*sizeof( double));
+	  memcpy( &(*U)[0], uGSL->data, nEl*sizeof( DDouble));
 	else
 	  TransposeFromToGSL< double, DDouble>( uGSL->data, &(*U)[0], U->Dim( 1), nEl);
-// 	gsl_matrix_free( uGSL);
+	// 	gsl_matrix_free( uGSL);
 	e->SetPar( 2, U);
 
 	// V
 	DDoubleGDL* V = new DDoubleGDL( dimension( n, n), BaseGDL::NOZERO);
 	if( !columnKW)
-	  memcpy( &(*V)[0], vGSL->data, n*n*sizeof( double));
+	  memcpy( &(*V)[0], vGSL->data, n*n*sizeof( DDouble));
 	else
 	  TransposeFromToGSL< double, DDouble>( vGSL->data, &(*V)[0], n, n*n);
-// 	gsl_matrix_free( vGSL);
+	// 	gsl_matrix_free( vGSL);
 	e->SetPar( 3, V);
 
 	// W
 	DDoubleGDL* W = new DDoubleGDL( dimension( n), BaseGDL::NOZERO);
-	memcpy( &(*W)[0], wGSL->data, n*sizeof( double));
-// 	gsl_vector_free( wGSL);
+	memcpy( &(*W)[0], wGSL->data, n*sizeof( DDouble));
+	// 	gsl_vector_free( wGSL);
 	e->SetPar( 1, W);
       }
     else // float
@@ -185,7 +185,7 @@ namespace lib {
 	gsl_vector *work = gsl_vector_alloc( n);
 	GDLGuard<gsl_vector> g4( work, gsl_vector_free);
 	gsl_linalg_SV_decomp( aGSL, vGSL, wGSL, work);
-// 	gsl_vector_free( work);
+	// 	gsl_vector_free( work);
 
 	// aGSL -> uGSL
 	gsl_matrix *uGSL = aGSL; // why?
@@ -196,7 +196,7 @@ namespace lib {
 	  FromToGSL< double, DFloat>( uGSL->data, &(*U)[0], nEl);
 	else
 	  TransposeFromToGSL< double, DFloat>( uGSL->data, &(*U)[0], U->Dim( 1), nEl);
-// 	gsl_matrix_free( uGSL);
+	// 	gsl_matrix_free( uGSL);
 	e->SetPar( 2, U);
 
 	// V
@@ -205,13 +205,13 @@ namespace lib {
 	  FromToGSL< double, DFloat>( vGSL->data, &(*V)[0], n*n);
 	else
 	  TransposeFromToGSL< double, DFloat>( vGSL->data, &(*V)[0], n, n*n);
-// 	gsl_matrix_free( vGSL);
+	// 	gsl_matrix_free( vGSL);
 	e->SetPar( 3, V);
 
 	// W
 	DFloatGDL* W = new DFloatGDL( dimension( n), BaseGDL::NOZERO);
 	FromToGSL< double, DFloat>( wGSL->data, &(*W)[0], n);
-// 	gsl_vector_free( wGSL);
+	// 	gsl_vector_free( wGSL);
 	e->SetPar( 1, W);
       }
   }
@@ -223,16 +223,30 @@ namespace lib {
     T* p0C = static_cast<T*>( p0);
     T* res = new T( p0C->Dim(), BaseGDL::NOZERO);
     SizeT nEl = p0->N_Elements();
-TRACEOMP( __FILE__, __LINE__)
+    // eigen is not faster here
+    // #ifdef USE_EIGEN
+    // 
+    //   Eigen::Map<Eigen::Array<typename T::Ty,Eigen::Dynamic,1> ,Eigen::Aligned> m1(&(*p0C)[0], nEl);
+    //   Eigen::Map<Eigen::Array<typename T::Ty,Eigen::Dynamic,1> ,Eigen::Aligned> m2(&(*res)[0], nEl);
+    //   m2 = m1.sin();
+    //   return res;
+    // #else
+    if( nEl == 1)
+      {
+	(*res)[0] = sin( (*p0C)[0]);
+	return res;
+      }
+    TRACEOMP( __FILE__, __LINE__)
 #pragma omp parallel if (nEl >= CpuTPOOL_MIN_ELTS && (CpuTPOOL_MAX_ELTS == 0 || CpuTPOOL_MAX_ELTS <= nEl))
-    {
+      {
 #pragma omp for
-      for( int i=0; i<nEl; ++i)
-	{
-	  (*res)[ i] = sin((*p0C)[ i]); 
-	}
-    }
+	for( OMPInt i=0; i<nEl; ++i)
+	  {
+	    (*res)[ i] = sin((*p0C)[ i]); 
+	  }
+      }
     return res;
+    // #endif    
   }
 
   BaseGDL* sin_fun( BaseGDL* p0, bool isReference)
@@ -240,36 +254,37 @@ TRACEOMP( __FILE__, __LINE__)
     assert( p0 != NULL);
     assert( p0->N_Elements() > 0);
 
-//     e->NParam( 1);//, "SIN");
-// 
-//     BaseGDL* p0 = e->GetParDefined( 0);//, "SIN");
-// 
+    //     e->NParam( 1);//, "SIN");
+    // 
+    //     BaseGDL* p0 = e->GetParDefined( 0);//, "SIN");
+    // 
     SizeT nEl = p0->N_Elements();
-//     if( nEl == 0)
-//       e->Throw( 
-// 	       "Variable is undefined: "+e->GetParString(0));
+    //     if( nEl == 0)
+    //       e->Throw( 
+    // 	       "Variable is undefined: "+e->GetParString(0));
     
-    if( p0->Type() == GDL_COMPLEX)
+    DType p0Type = p0->Type();
+    if( p0Type == GDL_COMPLEX)
       return sin_fun_template< DComplexGDL>( p0);
-    else if( p0->Type() == GDL_COMPLEXDBL)
+    else if( p0Type == GDL_COMPLEXDBL)
       return sin_fun_template< DComplexDblGDL>( p0);
-    else if( p0->Type() == GDL_DOUBLE)
+    else if( p0Type == GDL_DOUBLE)
       return sin_fun_template< DDoubleGDL>( p0);
-    else if( p0->Type() == GDL_FLOAT)
+    else if( p0Type == GDL_FLOAT)
       return sin_fun_template< DFloatGDL>( p0);
     else 
       {
 	DFloatGDL* res = static_cast<DFloatGDL*>
 	  (p0->Convert2( GDL_FLOAT, BaseGDL::COPY));
-TRACEOMP( __FILE__, __LINE__)
+	TRACEOMP( __FILE__, __LINE__)
 #pragma omp parallel if (nEl >= CpuTPOOL_MIN_ELTS && (CpuTPOOL_MAX_ELTS == 0 || CpuTPOOL_MAX_ELTS <= nEl))
-	{
+	  {
 #pragma omp for
-	  for( int i=0; i<nEl; ++i)
-	    {
-	      (*res)[ i] = sin((*res)[ i]); 
-	    }
-	}
+	    for( OMPInt i=0; i<nEl; ++i)
+	      {
+		(*res)[ i] = sin((*res)[ i]); 
+	      }
+	  }
 	return res;
       }
   }
@@ -280,15 +295,20 @@ TRACEOMP( __FILE__, __LINE__)
     T* p0C = static_cast<T*>( p0);
     T* res = new T( p0C->Dim(), BaseGDL::NOZERO);
     SizeT nEl = p0->N_Elements();
-TRACEOMP( __FILE__, __LINE__)
+    if( nEl == 1)
+      {
+	(*res)[0] = cos( (*p0C)[0]);
+	return res;
+      }
+    TRACEOMP( __FILE__, __LINE__)
 #pragma omp parallel if (nEl >= CpuTPOOL_MIN_ELTS && (CpuTPOOL_MAX_ELTS == 0 || CpuTPOOL_MAX_ELTS <= nEl))
-    {
+      {
 #pragma omp for
-      for( int i=0; i<nEl; ++i)
-	{
-	  (*res)[ i] = cos((*p0C)[ i]); 
-	}
-    }
+	for( OMPInt i=0; i<nEl; ++i)
+	  {
+	    (*res)[ i] = cos((*p0C)[ i]); 
+	  }
+      }
     return res;
   }
 
@@ -297,18 +317,18 @@ TRACEOMP( __FILE__, __LINE__)
     assert( p0 != NULL);
     assert( p0->N_Elements() > 0);
 
-//     SizeT nParam=e->NParam();
-// 
-//     if( nParam == 0)
-//       e->Throw( 
-// 	       "Incorrect number of arguments.");
-// 
-//     BaseGDL* p0 = e->GetParDefined( 0);//, "COS");
-// 
+    //     SizeT nParam=e->NParam();
+    // 
+    //     if( nParam == 0)
+    //       e->Throw( 
+    // 	       "Incorrect number of arguments.");
+    // 
+    //     BaseGDL* p0 = e->GetParDefined( 0);//, "COS");
+    // 
     SizeT nEl = p0->N_Elements();
-//     if( nEl == 0)
-//       e->Throw( 
-// 	       "Variable is undefined: "+e->GetParString(0));
+    //     if( nEl == 0)
+    //       e->Throw( 
+    // 	       "Variable is undefined: "+e->GetParString(0));
     
     if( p0->Type() == GDL_COMPLEX)
       return cos_fun_template< DComplexGDL>( p0);
@@ -322,53 +342,63 @@ TRACEOMP( __FILE__, __LINE__)
       {
 	DFloatGDL* res = static_cast<DFloatGDL*>
 	  (p0->Convert2( GDL_FLOAT, BaseGDL::COPY));
-TRACEOMP( __FILE__, __LINE__)
+	TRACEOMP( __FILE__, __LINE__)
 #pragma omp parallel if (nEl >= CpuTPOOL_MIN_ELTS && (CpuTPOOL_MAX_ELTS == 0 || CpuTPOOL_MAX_ELTS <= nEl))
-	{
+	  {
 #pragma omp for
-	  for( int i=0; i<nEl; ++i)
-	    {
-	      (*res)[ i] = cos((*res)[ i]); 
-	    }
-	}
+	    for( OMPInt i=0; i<nEl; ++i)
+	      {
+		(*res)[ i] = cos((*res)[ i]); 
+	      }
+	  }
 	return res;
       }
   }
 
-template< typename T>
+  template< typename T>
   BaseGDL* tan_fun_template( BaseGDL* p0)
   {
     T* p0C = static_cast<T*>( p0);
     T* res = new T( p0C->Dim(), BaseGDL::NOZERO);
     SizeT nEl = p0->N_Elements();
-TRACEOMP( __FILE__, __LINE__)
+    if( nEl == 1)
+      {
+	(*res)[0] = tan( (*p0C)[0]);
+	return res;
+      }
+    TRACEOMP( __FILE__, __LINE__)
 #pragma omp parallel if (nEl >= CpuTPOOL_MIN_ELTS && (CpuTPOOL_MAX_ELTS == 0 || CpuTPOOL_MAX_ELTS <= nEl))
-    {
+      {
 #pragma omp for
-      for( int i=0; i<nEl; ++i)
-	{
-	  (*res)[ i] = tan((*p0C)[ i]); 
-	}
-    }
+	for( OMPInt i=0; i<nEl; ++i)
+	  {
+	    (*res)[ i] = tan((*p0C)[ i]); 
+	  }
+      }
     return res;
   }
 
-template<>
+  template<>
   BaseGDL* tan_fun_template< DComplexGDL>( BaseGDL* p0)
   {
-  typedef DComplexGDL T;
+    typedef DComplexGDL T;
     T* p0C = static_cast<T*>( p0);
     T* res = new T( p0C->Dim(), BaseGDL::NOZERO);
     SizeT nEl = p0->N_Elements();
-TRACEOMP( __FILE__, __LINE__)
+    if( nEl == 1)
+      {
+	(*res)[0] = tan( static_cast<DComplexDbl>((*p0C)[0]));
+	return res;
+      }
+    TRACEOMP( __FILE__, __LINE__)
 #pragma omp parallel if (nEl >= CpuTPOOL_MIN_ELTS && (CpuTPOOL_MAX_ELTS == 0 || CpuTPOOL_MAX_ELTS <= nEl))
-    {
+      {
 #pragma omp for
-      for( int i=0; i<nEl; ++i)
-	{
-	  (*res)[ i] = tan(static_cast<DComplexDbl>((*p0C)[ i]));
-	}
-    }
+	for( OMPInt i=0; i<nEl; ++i)
+	  {
+	    (*res)[ i] = tan(static_cast<DComplexDbl>((*p0C)[ i]));
+	  }
+      }
     return res;
   }
 
@@ -377,18 +407,18 @@ TRACEOMP( __FILE__, __LINE__)
     assert( p0 != NULL);
     assert( p0->N_Elements() > 0);
 
-//     SizeT nParam=e->NParam();
-// 
-//     if( nParam == 0)
-//       e->Throw( 
-// 	       "Incorrect number of arguments.");
-// 
-//     BaseGDL* p0 = e->GetParDefined( 0);//, "TAN");
-// 
+    //     SizeT nParam=e->NParam();
+    // 
+    //     if( nParam == 0)
+    //       e->Throw( 
+    // 	       "Incorrect number of arguments.");
+    // 
+    //     BaseGDL* p0 = e->GetParDefined( 0);//, "TAN");
+    // 
     SizeT nEl = p0->N_Elements();
-//     if( nEl == 0)
-//       e->Throw( 
-// 	       "Variable is undefined: "+e->GetParString(0));
+    //     if( nEl == 0)
+    //       e->Throw( 
+    // 	       "Variable is undefined: "+e->GetParString(0));
     
     if( p0->Type() == GDL_COMPLEX)
       return tan_fun_template< DComplexGDL>( p0);
@@ -402,15 +432,15 @@ TRACEOMP( __FILE__, __LINE__)
       {
 	DFloatGDL* res = static_cast<DFloatGDL*>
 	  (p0->Convert2( GDL_FLOAT, BaseGDL::COPY));
-TRACEOMP( __FILE__, __LINE__)
+	TRACEOMP( __FILE__, __LINE__)
 #pragma omp parallel if (nEl >= CpuTPOOL_MIN_ELTS && (CpuTPOOL_MAX_ELTS == 0 || CpuTPOOL_MAX_ELTS <= nEl))
-	{
+	  {
 #pragma omp for
-	  for( int i=0; i<nEl; ++i)
-	    {
-	      (*res)[ i] = tan((*res)[ i]); 
-	    }
-	}
+	    for( OMPInt i=0; i<nEl; ++i)
+	      {
+		(*res)[ i] = tan((*res)[ i]); 
+	      }
+	  }
 	return res;
       }
   }
@@ -421,15 +451,20 @@ TRACEOMP( __FILE__, __LINE__)
     T* p0C = static_cast<T*>( p0);
     T* res = new T( p0C->Dim(), BaseGDL::NOZERO);
     SizeT nEl = p0->N_Elements();
-TRACEOMP( __FILE__, __LINE__)
+    if( nEl == 1)
+      {
+	(*res)[0] = sinh( (*p0C)[0]);
+	return res;
+      }
+    TRACEOMP( __FILE__, __LINE__)
 #pragma omp parallel if (nEl >= CpuTPOOL_MIN_ELTS && (CpuTPOOL_MAX_ELTS == 0 || CpuTPOOL_MAX_ELTS <= nEl))
-    {
+      {
 #pragma omp for
-      for( int i=0; i<nEl; ++i)
-	{
-	  (*res)[ i] = sinh((*p0C)[ i]); 
-	}
-    }
+	for( OMPInt i=0; i<nEl; ++i)
+	  {
+	    (*res)[ i] = sinh((*p0C)[ i]); 
+	  }
+      }
     return res;
   }
 
@@ -438,18 +473,18 @@ TRACEOMP( __FILE__, __LINE__)
     assert( p0 != NULL);
     assert( p0->N_Elements() > 0);
 
-//     SizeT nParam=e->NParam();
-// 
-//     if( nParam == 0)
-//       e->Throw( 
-// 	       "Incorrect number of arguments.");
-// 
-//     BaseGDL* p0 = e->GetParDefined( 0);//, "SINH");
-// 
+    //     SizeT nParam=e->NParam();
+    // 
+    //     if( nParam == 0)
+    //       e->Throw( 
+    // 	       "Incorrect number of arguments.");
+    // 
+    //     BaseGDL* p0 = e->GetParDefined( 0);//, "SINH");
+    // 
     SizeT nEl = p0->N_Elements();
-//     if( nEl == 0)
-//       e->Throw( 
-// 	       "Variable is undefined: "+e->GetParString(0));
+    //     if( nEl == 0)
+    //       e->Throw( 
+    // 	       "Variable is undefined: "+e->GetParString(0));
     
     if( p0->Type() == GDL_COMPLEX)
       return sinh_fun_template< DComplexGDL>( p0);
@@ -463,15 +498,15 @@ TRACEOMP( __FILE__, __LINE__)
       {
 	DFloatGDL* res = static_cast<DFloatGDL*>
 	  (p0->Convert2( GDL_FLOAT, BaseGDL::COPY));
-TRACEOMP( __FILE__, __LINE__)
+	TRACEOMP( __FILE__, __LINE__)
 #pragma omp parallel if (nEl >= CpuTPOOL_MIN_ELTS && (CpuTPOOL_MAX_ELTS == 0 || CpuTPOOL_MAX_ELTS <= nEl))
-	{
+	  {
 #pragma omp for
-	  for( int i=0; i<nEl; ++i)
-	    {
-	      (*res)[ i] = sinh((*res)[ i]); 
-	    }
-	}
+	    for( OMPInt i=0; i<nEl; ++i)
+	      {
+		(*res)[ i] = sinh((*res)[ i]); 
+	      }
+	  }
 	return res;
       }
   }
@@ -482,15 +517,20 @@ TRACEOMP( __FILE__, __LINE__)
     T* p0C = static_cast<T*>( p0);
     T* res = new T( p0C->Dim(), BaseGDL::NOZERO);
     SizeT nEl = p0->N_Elements();
-TRACEOMP( __FILE__, __LINE__)
+    if( nEl == 1)
+      {
+	(*res)[0] = cosh( (*p0C)[0]);
+	return res;
+      }
+    TRACEOMP( __FILE__, __LINE__)
 #pragma omp parallel if (nEl >= CpuTPOOL_MIN_ELTS && (CpuTPOOL_MAX_ELTS == 0 || CpuTPOOL_MAX_ELTS <= nEl))
-    {
+      {
 #pragma omp for
-      for( int i=0; i<nEl; ++i)
-	{
-	  (*res)[ i] = cosh((*p0C)[ i]); 
-	}
-    }
+	for( OMPInt i=0; i<nEl; ++i)
+	  {
+	    (*res)[ i] = cosh((*p0C)[ i]); 
+	  }
+      }
     return res;
   }
 
@@ -499,18 +539,18 @@ TRACEOMP( __FILE__, __LINE__)
     assert( p0 != NULL);
     assert( p0->N_Elements() > 0);
     
-//     SizeT nParam=e->NParam();
-// 
-//     if( nParam == 0)
-//       e->Throw( 
-// 	       "Incorrect number of arguments.");
-// 
-//     BaseGDL* p0 = e->GetParDefined( 0);//, "COSH");
-// 
+    //     SizeT nParam=e->NParam();
+    // 
+    //     if( nParam == 0)
+    //       e->Throw( 
+    // 	       "Incorrect number of arguments.");
+    // 
+    //     BaseGDL* p0 = e->GetParDefined( 0);//, "COSH");
+    // 
     SizeT nEl = p0->N_Elements();
-//     if( nEl == 0)
-//       e->Throw( 
-// 	       "Variable is undefined: "+e->GetParString(0));
+    //     if( nEl == 0)
+    //       e->Throw( 
+    // 	       "Variable is undefined: "+e->GetParString(0));
     
     if( p0->Type() == GDL_COMPLEX)
       return cosh_fun_template< DComplexGDL>( p0);
@@ -524,15 +564,15 @@ TRACEOMP( __FILE__, __LINE__)
       {
 	DFloatGDL* res = static_cast<DFloatGDL*>
 	  (p0->Convert2( GDL_FLOAT, BaseGDL::COPY));
-TRACEOMP( __FILE__, __LINE__)
+	TRACEOMP( __FILE__, __LINE__)
 #pragma omp parallel if (nEl >= CpuTPOOL_MIN_ELTS && (CpuTPOOL_MAX_ELTS == 0 || CpuTPOOL_MAX_ELTS <= nEl))
-	{
+	  {
 #pragma omp for
-	  for( int i=0; i<nEl; ++i)
-	    {
-	      (*res)[ i] = cosh((*res)[ i]); 
-	    }
-	}
+	    for( OMPInt i=0; i<nEl; ++i)
+	      {
+		(*res)[ i] = cosh((*res)[ i]); 
+	      }
+	  }
 	return res;
       }
   }
@@ -543,15 +583,20 @@ TRACEOMP( __FILE__, __LINE__)
     T* p0C = static_cast<T*>( p0);
     T* res = new T( p0C->Dim(), BaseGDL::NOZERO);
     SizeT nEl = p0->N_Elements();
-TRACEOMP( __FILE__, __LINE__)
+    if( nEl == 1)
+      {
+	(*res)[0] = tanh( (*p0C)[0]);
+	return res;
+      }
+    TRACEOMP( __FILE__, __LINE__)
 #pragma omp parallel if (nEl >= CpuTPOOL_MIN_ELTS && (CpuTPOOL_MAX_ELTS == 0 || CpuTPOOL_MAX_ELTS <= nEl))
-    {
+      {
 #pragma omp for
-      for( int i=0; i<nEl; ++i)
-	{
-	  (*res)[ i] = tanh((*p0C)[ i]); 
-	}
-    }
+	for( OMPInt i=0; i<nEl; ++i)
+	  {
+	    (*res)[ i] = tanh((*p0C)[ i]); 
+	  }
+      }
     return res;
   }
 
@@ -560,17 +605,17 @@ TRACEOMP( __FILE__, __LINE__)
     assert( p0 != NULL);
     assert( p0->N_Elements() > 0);
 
-//     SizeT nParam=e->NParam();
-// 
-//     if( nParam == 0)
-//       e->Throw( 
-// 	       "Incorrect number of arguments.");
-// 
-//     BaseGDL* p0 = e->GetParDefined( 0);//, "TANH");
-// 
-//     if( nEl == 0)
-//       e->Throw( 
-// 	       "Variable is undefined: "+e->GetParString(0));
+    //     SizeT nParam=e->NParam();
+    // 
+    //     if( nParam == 0)
+    //       e->Throw( 
+    // 	       "Incorrect number of arguments.");
+    // 
+    //     BaseGDL* p0 = e->GetParDefined( 0);//, "TANH");
+    // 
+    //     if( nEl == 0)
+    //       e->Throw( 
+    // 	       "Variable is undefined: "+e->GetParString(0));
     
     if( p0->Type() == GDL_COMPLEX)
       return tanh_fun_template< DComplexGDL>( p0);
@@ -585,15 +630,15 @@ TRACEOMP( __FILE__, __LINE__)
 	DFloatGDL* res = static_cast<DFloatGDL*>
 	  (p0->Convert2( GDL_FLOAT, BaseGDL::COPY));
 	SizeT nEl = p0->N_Elements();
-TRACEOMP( __FILE__, __LINE__)
+	TRACEOMP( __FILE__, __LINE__)
 #pragma omp parallel if (nEl >= CpuTPOOL_MIN_ELTS && (CpuTPOOL_MAX_ELTS == 0 || CpuTPOOL_MAX_ELTS <= nEl))
-	{
+	  {
 #pragma omp for
-	  for( int i=0; i<nEl; ++i)
-	    {
-	      (*res)[ i] = tanh((*res)[ i]); 
-	    }
-	}
+	    for( OMPInt i=0; i<nEl; ++i)
+	      {
+		(*res)[ i] = tanh((*res)[ i]); 
+	      }
+	  }
 	return res;
       }
   }
@@ -602,14 +647,14 @@ TRACEOMP( __FILE__, __LINE__)
   {
     assert( p0 != NULL);
     assert( p0->N_Elements() > 0);
-//     e->NParam( 1);//, "ASIN");
-// 
-//     BaseGDL* p0 = e->GetParDefined( 0);//, "ASIN");
-// 
+    //     e->NParam( 1);//, "ASIN");
+    // 
+    //     BaseGDL* p0 = e->GetParDefined( 0);//, "ASIN");
+    // 
     SizeT nEl = p0->N_Elements();
-//     if( nEl == 0)
-//       e->Throw( 
-// 	       "Variable is undefined: "+e->GetParString(0));
+    //     if( nEl == 0)
+    //       e->Throw( 
+    // 	       "Variable is undefined: "+e->GetParString(0));
  
     if( p0->Type() == GDL_COMPLEX || p0->Type() == GDL_COMPLEXDBL)
       {
@@ -619,45 +664,60 @@ TRACEOMP( __FILE__, __LINE__)
       {
 	DDoubleGDL* p0D = static_cast<DDoubleGDL*>( p0);
 	DDoubleGDL* res = new DDoubleGDL( p0->Dim(), BaseGDL::NOZERO);
-TRACEOMP( __FILE__, __LINE__)
+	if( nEl == 1)
+	  {
+	    (*res)[0] = asin( (*p0D)[0]);
+	    return res;
+	  }
+	TRACEOMP( __FILE__, __LINE__)
 #pragma omp parallel if (nEl >= CpuTPOOL_MIN_ELTS && (CpuTPOOL_MAX_ELTS == 0 || CpuTPOOL_MAX_ELTS <= nEl))
-	{
+	  {
 #pragma omp for
-	  for( int i=0; i<nEl; ++i)
-	    {
-	      (*res)[ i] = asin((*p0D)[ i]); 
-	    }
-	}
+	    for( OMPInt i=0; i<nEl; ++i)
+	      {
+		(*res)[ i] = asin((*p0D)[ i]); 
+	      }
+	  }
 	return res;
       }
     else if( p0->Type() == GDL_FLOAT)
       {
 	DFloatGDL* p0F = static_cast<DFloatGDL*>( p0);
 	DFloatGDL* res = new DFloatGDL( p0->Dim(), BaseGDL::NOZERO);
-TRACEOMP( __FILE__, __LINE__)
+	if( nEl == 1)
+	  {
+	    (*res)[0] = asin( (*p0F)[0]);
+	    return res;
+	  }
+	TRACEOMP( __FILE__, __LINE__)
 #pragma omp parallel if (nEl >= CpuTPOOL_MIN_ELTS && (CpuTPOOL_MAX_ELTS == 0 || CpuTPOOL_MAX_ELTS <= nEl))
-	{
+	  {
 #pragma omp for
-	  for( int i=0; i<nEl; ++i)
-	    {
-	      (*res)[ i] = asin((*p0F)[ i]); 
-	    }
-	}
+	    for( OMPInt i=0; i<nEl; ++i)
+	      {
+		(*res)[ i] = asin((*p0F)[ i]); 
+	      }
+	  }
 	return res;
       }
     else 
       {
 	DFloatGDL* res = static_cast<DFloatGDL*>
 	  (p0->Convert2( GDL_FLOAT, BaseGDL::COPY));
-TRACEOMP( __FILE__, __LINE__)
+	if( nEl == 1)
+	  {
+	    (*res)[0] = asin( (*res)[0]);
+	    return res;
+	  }
+	TRACEOMP( __FILE__, __LINE__)
 #pragma omp parallel if (nEl >= CpuTPOOL_MIN_ELTS && (CpuTPOOL_MAX_ELTS == 0 || CpuTPOOL_MAX_ELTS <= nEl))
-	{
+	  {
 #pragma omp for
-	  for( int i=0; i<nEl; ++i)
-	    {
-	      (*res)[ i] = asin((*res)[ i]); 
-	    }
-	}
+	    for( OMPInt i=0; i<nEl; ++i)
+	      {
+		(*res)[ i] = asin((*res)[ i]); 
+	      }
+	  }
 	return res;
       }
   }
@@ -666,14 +726,14 @@ TRACEOMP( __FILE__, __LINE__)
   {
     assert( p0 != NULL);
     assert( p0->N_Elements() > 0);
-//     e->NParam( 1);//, "ACOS");
-// 
-//     BaseGDL* p0 = e->GetParDefined( 0);//, "ACOS");
-// 
+    //     e->NParam( 1);//, "ACOS");
+    // 
+    //     BaseGDL* p0 = e->GetParDefined( 0);//, "ACOS");
+    // 
     SizeT nEl = p0->N_Elements();
-//     if( nEl == 0)
-//       e->Throw( 
-// 	       "Variable is undefined: "+e->GetParString(0));
+    //     if( nEl == 0)
+    //       e->Throw( 
+    // 	       "Variable is undefined: "+e->GetParString(0));
     
     if( p0->Type() == GDL_COMPLEX || p0->Type() == GDL_COMPLEXDBL)
       {
@@ -683,44 +743,59 @@ TRACEOMP( __FILE__, __LINE__)
       {
 	DDoubleGDL* p0D = static_cast<DDoubleGDL*>( p0);
 	DDoubleGDL* res = new DDoubleGDL( p0->Dim(), BaseGDL::NOZERO);
-TRACEOMP( __FILE__, __LINE__)
+	if( nEl == 1)
+	  {
+	    (*res)[0] = acos( (*p0D)[0]);
+	    return res;
+	  }
+	TRACEOMP( __FILE__, __LINE__)
 #pragma omp parallel if (nEl >= CpuTPOOL_MIN_ELTS && (CpuTPOOL_MAX_ELTS == 0 || CpuTPOOL_MAX_ELTS <= nEl))
-	{
+	  {
 #pragma omp for
-	  for( int i=0; i<nEl; ++i)
-	    {
-	      (*res)[ i] = acos((*p0D)[ i]); 
-	    }
-	}
+	    for( OMPInt i=0; i<nEl; ++i)
+	      {
+		(*res)[ i] = acos((*p0D)[ i]); 
+	      }
+	  }
 	return res;
       }
     else if( p0->Type() == GDL_FLOAT)
       {
 	DFloatGDL* p0F = static_cast<DFloatGDL*>( p0);
 	DFloatGDL* res = new DFloatGDL( p0->Dim(), BaseGDL::NOZERO);
-TRACEOMP( __FILE__, __LINE__)
+	if( nEl == 1)
+	  {
+	    (*res)[0] = acos( (*p0F)[0]);
+	    return res;
+	  }
+	TRACEOMP( __FILE__, __LINE__)
 #pragma omp parallel if (nEl >= CpuTPOOL_MIN_ELTS && (CpuTPOOL_MAX_ELTS == 0 || CpuTPOOL_MAX_ELTS <= nEl))
-	{
+	  {
 #pragma omp for
-	  for( int i=0; i<nEl; ++i)
-	    {
-	      (*res)[ i] = acos((*p0F)[ i]); 
-	    }
-	}	return res;
+	    for( OMPInt i=0; i<nEl; ++i)
+	      {
+		(*res)[ i] = acos((*p0F)[ i]); 
+	      }
+	  }	return res;
       }
     else 
       {
 	DFloatGDL* res = static_cast<DFloatGDL*>
 	  (p0->Convert2( GDL_FLOAT, BaseGDL::COPY));
-TRACEOMP( __FILE__, __LINE__)
+	if( nEl == 1)
+	  {
+	    (*res)[0] = acos( (*res)[0]);
+	    return res;
+	  }
+	TRACEOMP( __FILE__, __LINE__)
 #pragma omp parallel if (nEl >= CpuTPOOL_MIN_ELTS && (CpuTPOOL_MAX_ELTS == 0 || CpuTPOOL_MAX_ELTS <= nEl))
-	{
+	  {
 #pragma omp for
-	  for( int i=0; i<nEl; ++i)
-	    {
-	      (*res)[ i] = acos((*res)[ i]); 
-	    }
-	}
+	    for( OMPInt i=0; i<nEl; ++i)
+	      {
+		(*res)[ i] = acos((*res)[ i]); 
+	      }
+	  }
 	return res;
       }
   }
@@ -729,10 +804,10 @@ TRACEOMP( __FILE__, __LINE__)
   template< typename C>
   inline C atanC(const C& c)
   {
-//     double x = c.real();
-//     double x2 = x * x;
-//     double y = c.imag();
-//     return C(0.5 * atan2(2.0*x, 1.0 - x2 - y*y), 0.25 * log( (x2 + (y+1)*(y+1)) / (x2 + (y-1)*(y-1)) ));
+    //     double x = c.real();
+    //     double x2 = x * x;
+    //     double y = c.imag();
+    //     return C(0.5 * atan2(2.0*x, 1.0 - x2 - y*y), 0.25 * log( (x2 + (y+1)*(y+1)) / (x2 + (y-1)*(y-1)) ));
     const C i(0.0,1.0);
     const C one(1.0,0.0);
     return log( (one + i * c) / (one - i * c)) / (C(2.0,0.0)*i);
@@ -741,8 +816,9 @@ TRACEOMP( __FILE__, __LINE__)
   inline C atanC(const C& c1, const C& c2)
   {
     const C i(0.0,1.0);
-    const C one(1.0,0.0);
-    return -i * log((c2 + i * c1) / sqrt(pow(c2, 2) + pow(c1, 2)));
+    //const C one(1.0,0.0);
+    //     return -i * log((c2 + i * c1) / (sqrt(pow(c2, 2) + pow(c1, 2))));
+    return -i * log((c2 + i * c1) / sqrt((c2 * c2) + (c1 * c1)));
   }
 
   BaseGDL* atan_fun( EnvT* e)
@@ -784,13 +860,13 @@ TRACEOMP( __FILE__, __LINE__)
 
 	if( t == GDL_COMPLEX)
 	  {
-	    auto_ptr< DComplexGDL> guard0;
-	    auto_ptr< DComplexGDL> guard1;
+	    Guard< DComplexGDL> guard0;
+	    Guard< DComplexGDL> guard1;
 
 	    DComplexGDL* p0F = static_cast<DComplexGDL*>(p0->Convert2( GDL_COMPLEX, BaseGDL::COPY));
-	    guard0.reset( p0F);
+	    guard0.Init( p0F);
 	    DComplexGDL* p1F = static_cast<DComplexGDL*>(p1->Convert2( GDL_COMPLEX, BaseGDL::COPY));
-	    guard1.reset( p1F);
+	    guard1.Init( p1F);
 	      
 	    DComplexGDL* res = new DComplexGDL( dim, BaseGDL::NOZERO);
 	    for (i = 0; i < nElMin; ++i) (*res)[i] = atanC((*p0F)[*i0], (*p1F)[*i1]); 
@@ -798,13 +874,13 @@ TRACEOMP( __FILE__, __LINE__)
 	  }
 	else if( t == GDL_COMPLEXDBL)
 	  {
-	    auto_ptr< DComplexDblGDL> guard0;
-	    auto_ptr< DComplexDblGDL> guard1;
+	    Guard< DComplexDblGDL> guard0;
+	    Guard< DComplexDblGDL> guard1;
 
 	    DComplexDblGDL* p0F = static_cast<DComplexDblGDL*>(p0->Convert2( GDL_COMPLEXDBL, BaseGDL::COPY));
-	    guard0.reset( p0F);
+	    guard0.Init( p0F);
 	    DComplexDblGDL* p1F = static_cast<DComplexDblGDL*>(p1->Convert2( GDL_COMPLEXDBL, BaseGDL::COPY));
-	    guard1.reset( p1F);
+	    guard1.Init( p1F);
 	      
 	    DComplexDblGDL* res = new DComplexDblGDL( dim, BaseGDL::NOZERO);
 	    for (i = 0; i < nElMin; ++i) (*res)[i] = atanC((*p0F)[*i0], (*p1F)[*i1]); 
@@ -812,13 +888,13 @@ TRACEOMP( __FILE__, __LINE__)
 	  }
 	else if( t == GDL_DOUBLE)
 	  {
-	    auto_ptr< DDoubleGDL> guard;
+	    Guard< DDoubleGDL> guard;
 	    
 	    DDoubleGDL* p0D;
 	    if( p0->Type() != GDL_DOUBLE)
 	      {
 		p0D =  static_cast<DDoubleGDL*>( p0->Convert2( GDL_DOUBLE, BaseGDL::COPY));
-		guard.reset( p0D);
+		guard.Reset( p0D);
 	      }
 	    else
 	      {
@@ -829,7 +905,7 @@ TRACEOMP( __FILE__, __LINE__)
 	    if( p1->Type() != GDL_DOUBLE)
 	      {
 		p1D =  static_cast<DDoubleGDL*>( p1->Convert2( GDL_DOUBLE, BaseGDL::COPY));
-		guard.reset( p1D);
+		guard.Reset( p1D);
 	      }
 	    else
 	      {
@@ -842,13 +918,13 @@ TRACEOMP( __FILE__, __LINE__)
 	  }
 	else if( t == GDL_FLOAT)
 	  {
-	    auto_ptr< DFloatGDL> guard;
+	    Guard< DFloatGDL> guard;
 	    
 	    DFloatGDL* p0F;
 	    if( p0->Type() != GDL_FLOAT)
 	      {
 		p0F =  static_cast<DFloatGDL*>( p0->Convert2( GDL_FLOAT, BaseGDL::COPY));
-		guard.reset( p0F);
+		guard.Reset( p0F);
 	      }
 	    else
 	      {
@@ -859,7 +935,7 @@ TRACEOMP( __FILE__, __LINE__)
 	    if( p1->Type() != GDL_FLOAT)
 	      {
 		p1F =  static_cast<DFloatGDL*>( p1->Convert2( GDL_FLOAT, BaseGDL::COPY));
-		guard.reset( p1F);
+		guard.Reset( p1F);
 	      }
 	    else
 	      {
@@ -873,13 +949,13 @@ TRACEOMP( __FILE__, __LINE__)
 	  }
 	else 
 	  {
-	    auto_ptr< DFloatGDL> guard0;
-	    auto_ptr< DFloatGDL> guard1;
+	    Guard< DFloatGDL> guard0;
+	    Guard< DFloatGDL> guard1;
 
 	    DFloatGDL* p0F = static_cast<DFloatGDL*>(p0->Convert2( GDL_FLOAT, BaseGDL::COPY));
-	    guard0.reset( p0F);
+	    guard0.Init( p0F);
 	    DFloatGDL* p1F = static_cast<DFloatGDL*>(p1->Convert2( GDL_FLOAT, BaseGDL::COPY));
-	    guard1.reset( p1F);
+	    guard1.Init( p1F);
 	      
 	    DFloatGDL* res = new DFloatGDL( dim, BaseGDL::NOZERO);
 	    for (i = 0; i < nElMin; ++i) 
@@ -897,103 +973,140 @@ TRACEOMP( __FILE__, __LINE__)
 	  {
 	    DComplexGDL* p0C = static_cast<DComplexGDL*>( p0);
 	    DFloatGDL* res = new DFloatGDL( p0C->Dim(), BaseGDL::NOZERO);
-TRACEOMP( __FILE__, __LINE__)
+	    if( nEl == 1)
+	      {
+		DComplex& C = (*p0C)[ 0];
+		(*res)[ 0] = (float)atan2((double)C.imag(), (double)C.real());
+		return res;	      
+	      }
+	    TRACEOMP( __FILE__, __LINE__)
 #pragma omp parallel if (nEl >= CpuTPOOL_MIN_ELTS && (CpuTPOOL_MAX_ELTS == 0 || CpuTPOOL_MAX_ELTS <= nEl))
-	    {
+	      {
 #pragma omp for
-	      for( int i=0; i<nEl; ++i)
-		{
-		  DComplex& C = (*p0C)[ i];
-		  (*res)[ i] = (float)atan2((double)C.imag(), (double)C.real());
-		}
-	    }
+		for( OMPInt i=0; i<nEl; ++i)
+		  {
+		    DComplex& C = (*p0C)[ i];
+		    (*res)[ i] = (float)atan2((double)C.imag(), (double)C.real());
+		  }
+	      }
 	    return res;
 	  }
 	else if( p0->Type() == GDL_COMPLEX)
 	  {
 	    DComplexGDL* p0C = static_cast<DComplexGDL*>( p0);
 	    DComplexGDL* res = new DComplexGDL( p0->Dim(), BaseGDL::NOZERO);
-TRACEOMP( __FILE__, __LINE__)
+	    if( nEl == 1)
+	      {
+		(*res)[ 0] = atanC((*p0C)[ 0]);
+		return res;	      
+	      }
+	    TRACEOMP( __FILE__, __LINE__)
 #pragma omp parallel if (nEl >= CpuTPOOL_MIN_ELTS && (CpuTPOOL_MAX_ELTS == 0 || CpuTPOOL_MAX_ELTS <= nEl))
-	    {
+	      {
 #pragma omp for
-	      for( int i=0; i<nEl; ++i) (
-			*res)[ i] = atanC((*p0C)[ i]);
-	    }
+		for( OMPInt i=0; i<nEl; ++i) (
+					      *res)[ i] = atanC((*p0C)[ i]);
+	      }
 	    return res;
 	  }  
 	else if( p0->Type() == GDL_COMPLEXDBL && e->KeywordSet(phaseIx))
 	  {
 	    DComplexDblGDL* p0C = static_cast<DComplexDblGDL*>( p0);
 	    DDoubleGDL* res = new DDoubleGDL( p0C->Dim(), BaseGDL::NOZERO);
-TRACEOMP( __FILE__, __LINE__)
+	    if( nEl == 1)
+	      {
+		DComplexDbl& C = (*p0C)[ 0];
+		(*res)[ 0] = atan2( C.imag(), C.real());
+		return res;	      
+	      }
+	    TRACEOMP( __FILE__, __LINE__)
 #pragma omp parallel if (nEl >= CpuTPOOL_MIN_ELTS && (CpuTPOOL_MAX_ELTS == 0 || CpuTPOOL_MAX_ELTS <= nEl))
-	    {
+	      {
 #pragma omp for
-	       for( int i=0; i<nEl; ++i)
-	      	      {
-	      		DComplexDbl& C = (*p0C)[ i];
-	      		(*res)[ i] = atan2( C.imag(), C.real());
-	      	      }
-	    }
+		for( OMPInt i=0; i<nEl; ++i)
+		  {
+		    DComplexDbl& C = (*p0C)[ i];
+		    (*res)[ i] = atan2( C.imag(), C.real());
+		  }
+	      }
 	    return res;
 	  }
 	else if( p0->Type() == GDL_COMPLEXDBL)
 	  {
 	    DComplexDblGDL* p0C = static_cast<DComplexDblGDL*>( p0);
 	    DComplexDblGDL* res = new DComplexDblGDL( p0->Dim(), BaseGDL::NOZERO);
-TRACEOMP( __FILE__, __LINE__)
+	    if( nEl == 1)
+	      {
+		(*res)[ 0] = atanC((*p0C)[ 0]);
+		return res;	      
+	      }
+	    TRACEOMP( __FILE__, __LINE__)
 #pragma omp parallel if (nEl >= CpuTPOOL_MIN_ELTS && (CpuTPOOL_MAX_ELTS == 0 || CpuTPOOL_MAX_ELTS <= nEl))
-	    {
+	      {
 #pragma omp for
-	      for( int i=0; i<nEl; ++i)
-			(*res)[ i] = atanC((*p0C)[ i]);
-	    }
+		for( OMPInt i=0; i<nEl; ++i)
+		  (*res)[ i] = atanC((*p0C)[ i]);
+	      }
 	    return res;
 	  }  
 	else if( p0->Type() == GDL_DOUBLE)
 	  {
 	    DDoubleGDL* p0D = static_cast<DDoubleGDL*>( p0);
 	    DDoubleGDL* res = new DDoubleGDL( p0->Dim(), BaseGDL::NOZERO);
-TRACEOMP( __FILE__, __LINE__)
+	    if( nEl == 1)
+	      {
+		(*res)[ 0] = atan((*p0D)[ 0]);
+		return res;	      
+	      }
+	    TRACEOMP( __FILE__, __LINE__)
 #pragma omp parallel if (nEl >= CpuTPOOL_MIN_ELTS && (CpuTPOOL_MAX_ELTS == 0 || CpuTPOOL_MAX_ELTS <= nEl))
-	    {
+	      {
 #pragma omp for
-	      for( int i=0; i<nEl; ++i)
-		{
-		  (*res)[ i] = atan((*p0D)[ i]); 
-		}
-	    }
+		for( OMPInt i=0; i<nEl; ++i)
+		  {
+		    (*res)[ i] = atan((*p0D)[ i]); 
+		  }
+	      }
 	    return res;
 	  }
 	else if( p0->Type() == GDL_FLOAT)
 	  {
 	    DFloatGDL* p0F = static_cast<DFloatGDL*>( p0);
 	    DFloatGDL* res = new DFloatGDL( p0->Dim(), BaseGDL::NOZERO);
-TRACEOMP( __FILE__, __LINE__)
+	    if( nEl == 1)
+	      {
+		(*res)[ 0] = atan((*p0F)[ 0]);
+		return res;	      
+	      }
+	    TRACEOMP( __FILE__, __LINE__)
 #pragma omp parallel if (nEl >= CpuTPOOL_MIN_ELTS && (CpuTPOOL_MAX_ELTS == 0 || CpuTPOOL_MAX_ELTS <= nEl))
-	    {
+	      {
 #pragma omp for
-	      for( int i=0; i<nEl; ++i)
-		{
-		  (*res)[ i] = atan((*p0F)[ i]); 
-		}
-	    }
+		for( OMPInt i=0; i<nEl; ++i)
+		  {
+		    (*res)[ i] = atan((*p0F)[ i]); 
+		  }
+	      }
 	    return res;
 	  }
 	else 
 	  {
 	    DFloatGDL* res = static_cast<DFloatGDL*>
 	      (p0->Convert2( GDL_FLOAT, BaseGDL::COPY));
-TRACEOMP( __FILE__, __LINE__)
+	    if( nEl == 1)
+	      {
+		(*res)[ 0] = atan((*res)[ 0]);
+		return res;	      
+	      }
+	    TRACEOMP( __FILE__, __LINE__)
 #pragma omp parallel if (nEl >= CpuTPOOL_MIN_ELTS && (CpuTPOOL_MAX_ELTS == 0 || CpuTPOOL_MAX_ELTS <= nEl))
-	    {
+	      {
 #pragma omp for
-	      for( int i=0; i<nEl; ++i)
-		{
-		  (*res)[ i] = atan((*res)[ i]); 
-		}
-	    }
+		for( OMPInt i=0; i<nEl; ++i)
+		  {
+		    (*res)[ i] = atan((*res)[ i]); 
+		  }
+	      }
 	    return res;
 	  }
       }
@@ -1012,7 +1125,7 @@ TRACEOMP( __FILE__, __LINE__)
   //     return res;
   //   }
 
-//   BaseGDL* alog_fun( EnvT* e)
+  //   BaseGDL* alog_fun( EnvT* e)
   BaseGDL* alog_fun( BaseGDL* p0, bool isReference)
   {
     assert( p0 != NULL);
@@ -1024,26 +1137,26 @@ TRACEOMP( __FILE__, __LINE__)
       }
     return p0->Log();
 
-//       if( FloatType( p0->Type()) || ComplexType( p0->Type()))
-//       if( !isReference) //e->StealLocalPar( 0))
-// 	{
-// 	  p0->LogThis();
-// 	  return p0;
-// 	}
-//       else
-// 	return p0->Log();
-//     else 
-//       {
-// 	DFloatGDL* res = static_cast<DFloatGDL*>
-// 	  (p0->Convert2( GDL_FLOAT, BaseGDL::COPY));
-// 	res->LogThis();
-// 	return res;
-//       }
+    //       if( FloatType( p0->Type()) || ComplexType( p0->Type()))
+    //       if( !isReference) //e->StealLocalPar( 0))
+    // 	{
+    // 	  p0->LogThis();
+    // 	  return p0;
+    // 	}
+    //       else
+    // 	return p0->Log();
+    //     else 
+    //       {
+    // 	DFloatGDL* res = static_cast<DFloatGDL*>
+    // 	  (p0->Convert2( GDL_FLOAT, BaseGDL::COPY));
+    // 	res->LogThis();
+    // 	return res;
+    //       }
   }
 
 
-//   BaseGDL* alog10_fun( EnvT* e)
-BaseGDL* alog10_fun( BaseGDL* p0, bool isReference)
+  //   BaseGDL* alog10_fun( EnvT* e)
+  BaseGDL* alog10_fun( BaseGDL* p0, bool isReference)
   {
     assert( p0 != NULL);
     assert( p0->N_Elements() > 0);
@@ -1054,21 +1167,21 @@ BaseGDL* alog10_fun( BaseGDL* p0, bool isReference)
       }
     return p0->Log10();
 
-//     if( FloatType( p0->Type()) || ComplexType( p0->Type()))
-//       if( !isReference) //e->StealLocalPar( 0))
-// 	{
-// 	  p0->Log10This();
-// 	  return p0;
-// 	}
-//       else
-// 	return p0->Log10();
-//     else 
-//       {
-// 	DFloatGDL* res = static_cast<DFloatGDL*>
-// 	  (p0->Convert2( GDL_FLOAT, BaseGDL::COPY));
-// 	res->Log10This();
-// 	return res;
-//       }
+    //     if( FloatType( p0->Type()) || ComplexType( p0->Type()))
+    //       if( !isReference) //e->StealLocalPar( 0))
+    // 	{
+    // 	  p0->Log10This();
+    // 	  return p0;
+    // 	}
+    //       else
+    // 	return p0->Log10();
+    //     else 
+    //       {
+    // 	DFloatGDL* res = static_cast<DFloatGDL*>
+    // 	  (p0->Convert2( GDL_FLOAT, BaseGDL::COPY));
+    // 	res->Log10This();
+    // 	return res;
+    //       }
   }
 
   // original by joel gales
@@ -1078,16 +1191,32 @@ BaseGDL* alog10_fun( BaseGDL* p0, bool isReference)
     T* p0C = static_cast<T*>( p0);
     T* res = new T( p0C->Dim(), BaseGDL::NOZERO);
     SizeT nEl = p0->N_Elements();
-TRACEOMP( __FILE__, __LINE__)
-#pragma omp parallel if (nEl >= CpuTPOOL_MIN_ELTS && (CpuTPOOL_MAX_ELTS == 0 || CpuTPOOL_MAX_ELTS <= nEl))
-    {
-#pragma intel omp forthis
-      for( int i=0; i<nEl; ++i)
-	{
-	  (*res)[ i] = sqrt((*p0C)[ i]); 
-	}
-    }
+    if( nEl == 1)
+      {
+	(*res)[ 0] = sqrt((*p0C)[ 0]); 
+	return res;	      
+      }
+
+#ifdef USE_EIGEN
+
+    Eigen::Map<Eigen::Array<typename T::Ty,Eigen::Dynamic,1> ,Eigen::Aligned> mP0C(&(*p0C)[0], nEl);
+    Eigen::Map<Eigen::Array<typename T::Ty,Eigen::Dynamic,1> ,Eigen::Aligned> mRes(&(*res)[0], nEl);
+    mRes = mP0C.sqrt();
     return res;
+#else
+
+    TRACEOMP( __FILE__, __LINE__)
+#pragma omp parallel if (nEl >= CpuTPOOL_MIN_ELTS && (CpuTPOOL_MAX_ELTS == 0 || CpuTPOOL_MAX_ELTS <= nEl))
+      {
+#pragma intel omp forthis
+	for( OMPInt i=0; i<nEl; ++i)
+	  {
+	    (*res)[ i] = sqrt((*p0C)[ i]); 
+	  }
+      }
+    return res;
+#endif
+    
   }
 
   template< typename T>
@@ -1095,16 +1224,28 @@ TRACEOMP( __FILE__, __LINE__)
   {
     T* p0C = static_cast<T*>( p0);
     SizeT nEl = p0->N_Elements();
-TRACEOMP( __FILE__, __LINE__)
-#pragma omp parallel if (nEl >= CpuTPOOL_MIN_ELTS && (CpuTPOOL_MAX_ELTS == 0 || CpuTPOOL_MAX_ELTS <= nEl))
-    {
-#pragma omp for
-      for( int i=0; i<nEl; ++i)
-	{
-	  (*p0C)[ i] = sqrt((*p0C)[ i]); 
-	}
-    }
+    if( nEl == 1)
+      {
+	(*p0C)[ 0] = sqrt((*p0C)[ 0]); 
+	return p0C;	      
+      }
+#ifdef USE_EIGEN
+
+    Eigen::Map<Eigen::Array<typename T::Ty,Eigen::Dynamic,1> ,Eigen::Aligned> mP0C(&(*p0C)[0], nEl);
+    mP0C = mP0C.sqrt();
     return p0C;
+#else
+    TRACEOMP( __FILE__, __LINE__)
+#pragma omp parallel if (nEl >= CpuTPOOL_MIN_ELTS && (CpuTPOOL_MAX_ELTS == 0 || CpuTPOOL_MAX_ELTS <= nEl))
+      {
+#pragma omp for
+	for( OMPInt i=0; i<nEl; ++i)
+	  {
+	    (*p0C)[ i] = sqrt((*p0C)[ i]); 
+	  }
+      }
+    return p0C;
+#endif
   }
 
   BaseGDL* sqrt_fun( BaseGDL* p0, bool isReference)//( EnvT* e)
@@ -1112,45 +1253,57 @@ TRACEOMP( __FILE__, __LINE__)
     assert( p0 != NULL);
     assert( p0->N_Elements() > 0);
     
+    DType p0Type = p0->Type();  
     if( isReference)
-    {
-    if( p0->Type() == GDL_COMPLEX)
-      return sqrt_fun_template< DComplexGDL>( p0);
-    else if( p0->Type() == GDL_COMPLEXDBL)
-      return sqrt_fun_template< DComplexDblGDL>( p0);
-    else if( p0->Type() == GDL_DOUBLE)
-      return sqrt_fun_template< DDoubleGDL>( p0);
-    else if( p0->Type() == GDL_FLOAT)
-      return sqrt_fun_template< DFloatGDL>( p0);
-    }
-    else
-    {
-    if( p0->Type() == GDL_COMPLEX)
-      return sqrt_fun_template_grab< DComplexGDL>( p0);
-    else if( p0->Type() == GDL_COMPLEXDBL)
-      return sqrt_fun_template_grab< DComplexDblGDL>( p0);
-    else if( p0->Type() == GDL_DOUBLE)
-      return sqrt_fun_template_grab< DDoubleGDL>( p0);
-    else if( p0->Type() == GDL_FLOAT)
-      return sqrt_fun_template_grab< DFloatGDL>( p0);
-    } 
       {
-	DFloatGDL* res = static_cast<DFloatGDL*>
-	  (p0->Convert2( GDL_FLOAT, BaseGDL::COPY));
-	SizeT nEl = p0->N_Elements();
-TRACEOMP( __FILE__, __LINE__)
+	if( p0Type == GDL_COMPLEX)
+	  return sqrt_fun_template< DComplexGDL>( p0);
+	else if( p0Type == GDL_COMPLEXDBL)
+	  return sqrt_fun_template< DComplexDblGDL>( p0);
+	else if( p0Type == GDL_DOUBLE)
+	  return sqrt_fun_template< DDoubleGDL>( p0);
+	else if( p0Type == GDL_FLOAT)
+	  return sqrt_fun_template< DFloatGDL>( p0);
+      }
+    else
+      {
+	if( p0Type == GDL_COMPLEX)
+	  return sqrt_fun_template_grab< DComplexGDL>( p0);
+	else if( p0Type == GDL_COMPLEXDBL)
+	  return sqrt_fun_template_grab< DComplexDblGDL>( p0);
+	else if( p0Type == GDL_DOUBLE)
+	  return sqrt_fun_template_grab< DDoubleGDL>( p0);
+	else if( p0Type == GDL_FLOAT)
+	  return sqrt_fun_template_grab< DFloatGDL>( p0);
+      } 
+    {
+      DFloatGDL* res = static_cast<DFloatGDL*>
+	(p0->Convert2( GDL_FLOAT, BaseGDL::COPY));
+      SizeT nEl = p0->N_Elements();
+      if( nEl == 1)
+	{
+	  (*res)[ 0] = sqrt( (*res)[ 0]); 
+	  return res;	      
+	}
+#ifdef USE_EIGEN
+
+      Eigen::Map<Eigen::Array<DFloat,Eigen::Dynamic,1> ,Eigen::Aligned> mRes(&(*res)[0], nEl);
+      mRes = mRes.sqrt();
+      return res;
+#else
+      TRACEOMP( __FILE__, __LINE__)
 #pragma omp parallel if (nEl >= CpuTPOOL_MIN_ELTS && (CpuTPOOL_MAX_ELTS == 0 || CpuTPOOL_MAX_ELTS <= nEl))
 	{
 #pragma omp for
-	  for( int i=0; i<nEl; ++i)
+	  for( OMPInt i=0; i<nEl; ++i)
 	    {
 	      (*res)[ i] = sqrt( (*res)[ i]); 
 	    }
 	}
-	return res;
-      }
+      return res;
+#endif  
+    }
   }
-
 
   template< typename T>
   BaseGDL* abs_fun_template( BaseGDL* p0)
@@ -1158,15 +1311,21 @@ TRACEOMP( __FILE__, __LINE__)
     T* p0C = static_cast<T*>( p0);
     T* res = new T( p0C->Dim(), BaseGDL::NOZERO);
     SizeT nEl = p0->N_Elements();
-TRACEOMP( __FILE__, __LINE__)
+    if( nEl == 1)
+      {
+	(*res)[ 0] = abs((*p0C)[ 0]); 
+	return res;	      
+      }
+    
+    TRACEOMP( __FILE__, __LINE__)
 #pragma omp parallel if (nEl >= CpuTPOOL_MIN_ELTS && (CpuTPOOL_MAX_ELTS == 0 || CpuTPOOL_MAX_ELTS <= nEl))
-    {
+      {
 #pragma omp for
-      for( int i=0; i<nEl; ++i)
-	{
-	  (*res)[ i] = abs((*p0C)[ i]); 
-	}
-    }
+	for( OMPInt i=0; i<nEl; ++i)
+	  {
+	    (*res)[ i] = abs((*p0C)[ i]); 
+	  }
+      }
     return res;
   }
 
@@ -1174,31 +1333,36 @@ TRACEOMP( __FILE__, __LINE__)
   {
     assert( p0 != NULL);
     assert( p0->N_Elements() > 0);
-//     e->NParam( 1);
-// 
-//     BaseGDL* p0 = e->GetParDefined( 0);
-// 
-//     SizeT nEl = p0->N_Elements();
-//     if( nEl == 0)
-//       e->Throw( "Variable is undefined: "+e->GetParString(0));
+    //     e->NParam( 1);
+    // 
+    //     BaseGDL* p0 = e->GetParDefined( 0);
+    // 
+    //     SizeT nEl = p0->N_Elements();
+    //     if( nEl == 0)
+    //       e->Throw( "Variable is undefined: "+e->GetParString(0));
     
     if( p0->Type() == GDL_COMPLEX) 
       {
 	DComplexGDL* p0C = static_cast<DComplexGDL*>( p0);
 	DFloatGDL* res = new DFloatGDL(p0C->Dim(), BaseGDL::NOZERO);
 	SizeT nEl = p0->N_Elements();
-TRACEOMP( __FILE__, __LINE__)
+	if( nEl == 1)
+	  {
+	    (*res)[ 0] = abs((*p0C)[ 0]); 
+	    return res;	      
+	  }
+	TRACEOMP( __FILE__, __LINE__)
 #pragma omp parallel if (nEl >= CpuTPOOL_MIN_ELTS && (CpuTPOOL_MAX_ELTS == 0 || CpuTPOOL_MAX_ELTS <= nEl))
-	{
+	  {
 #pragma omp for
-	  for( int i=0; i<nEl; ++i)
-	    {
-	      // 	    DComplex& C = (*p0C)[ i];
-	      // 	    float Creal = C.real(), Cimag = C.imag();
-	      // 	    (*res)[ i] = sqrt(Creal*Creal + Cimag*Cimag);
-	      (*res)[ i] = abs( (*p0C)[ i]); //sqrt(Creal*Creal + Cimag*Cimag);
-	    }
-	}
+	    for( OMPInt i=0; i<nEl; ++i)
+	      {
+		// 	    DComplex& C = (*p0C)[ i];
+		// 	    float Creal = C.real(), Cimag = C.imag();
+		// 	    (*res)[ i] = sqrt(Creal*Creal + Cimag*Cimag);
+		(*res)[ i] = abs( (*p0C)[ i]); //sqrt(Creal*Creal + Cimag*Cimag);
+	      }
+	  }
 	return res;
       }
     else if( p0->Type() == GDL_COMPLEXDBL)
@@ -1206,18 +1370,23 @@ TRACEOMP( __FILE__, __LINE__)
 	DComplexDblGDL* p0C = static_cast<DComplexDblGDL*>( p0);
 	DDoubleGDL* res = new DDoubleGDL(p0C->Dim(), BaseGDL::NOZERO);
 	SizeT nEl = p0->N_Elements();
-TRACEOMP( __FILE__, __LINE__)
+	if( nEl == 1)
+	  {
+	    (*res)[ 0] = abs((*p0C)[ 0]); 
+	    return res;	      
+	  }
+	TRACEOMP( __FILE__, __LINE__)
 #pragma omp parallel if (nEl >= CpuTPOOL_MIN_ELTS && (CpuTPOOL_MAX_ELTS == 0 || CpuTPOOL_MAX_ELTS <= nEl))
-	{
+	  {
 #pragma omp for
-	  for( int i=0; i<nEl; ++i)
-	    {
-	      // 	    DComplexDbl& C = (*p0C)[ i];
-	      // 	    double Creal = C.real(), Cimag = C.imag();
-	      // 	    (*res)[ i] = sqrt(Creal*Creal + Cimag*Cimag);
-	      (*res)[ i] = abs( (*p0C)[ i]); //sqrt(Creal*Creal + Cimag*Cimag);
-	    }
-	}
+	    for( OMPInt i=0; i<nEl; ++i)
+	      {
+		// 	    DComplexDbl& C = (*p0C)[ i];
+		// 	    double Creal = C.real(), Cimag = C.imag();
+		// 	    (*res)[ i] = sqrt(Creal*Creal + Cimag*Cimag);
+		(*res)[ i] = abs( (*p0C)[ i]); //sqrt(Creal*Creal + Cimag*Cimag);
+	      }
+	  }
 	return res;
       }
     else if( p0->Type() == GDL_DOUBLE)
@@ -1231,39 +1400,44 @@ TRACEOMP( __FILE__, __LINE__)
     else if( p0->Type() == GDL_INT)
       return abs_fun_template< DIntGDL>( p0);
     else if( isReference)
-    {
-    if( p0->Type() == GDL_ULONG64)
-      return p0->Dup();
-    else if( p0->Type() == GDL_ULONG)
-      return p0->Dup();
-    else if( p0->Type() == GDL_UINT)
-      return p0->Dup();
-    else if( p0->Type() == GDL_BYTE)
-      return p0->Dup();
-    }
+      {
+	if( p0->Type() == GDL_ULONG64)
+	  return p0->Dup();
+	else if( p0->Type() == GDL_ULONG)
+	  return p0->Dup();
+	else if( p0->Type() == GDL_UINT)
+	  return p0->Dup();
+	else if( p0->Type() == GDL_BYTE)
+	  return p0->Dup();
+      }
     else
-    {
-    if( p0->Type() == GDL_ULONG64)
-      return p0;
-    else if( p0->Type() == GDL_ULONG)
-      return p0;
-    else if( p0->Type() == GDL_UINT)
-      return p0;
-    else if( p0->Type() == GDL_BYTE)
-      return p0;     
-    }
+      {
+	if( p0->Type() == GDL_ULONG64)
+	  return p0;
+	else if( p0->Type() == GDL_ULONG)
+	  return p0;
+	else if( p0->Type() == GDL_UINT)
+	  return p0;
+	else if( p0->Type() == GDL_BYTE)
+	  return p0;     
+      }
     DFloatGDL* res = static_cast<DFloatGDL*>
       (p0->Convert2( GDL_FLOAT, BaseGDL::COPY));
     SizeT nEl = p0->N_Elements();
-TRACEOMP( __FILE__, __LINE__)
+    if( nEl == 1)
+      {
+	(*res)[ 0] = abs((*res)[ 0]); 
+	return res;	      
+      }
+    TRACEOMP( __FILE__, __LINE__)
 #pragma omp parallel if (nEl >= CpuTPOOL_MIN_ELTS && (CpuTPOOL_MAX_ELTS == 0 || CpuTPOOL_MAX_ELTS <= nEl))
-    {
+      {
 #pragma omp for
-      for( int i=0; i<nEl; ++i)
-	{
-	  (*res)[ i] = abs( (*res)[ i]); 
-	}
-    }
+	for( OMPInt i=0; i<nEl; ++i)
+	  {
+	    (*res)[ i] = abs( (*res)[ i]); 
+	  }
+      }
     return res;
   }
 
@@ -1277,27 +1451,37 @@ TRACEOMP( __FILE__, __LINE__)
     // L64 keyword support
     if (isKWSetL64) {
       DLong64GDL* res = new DLong64GDL(p0C->Dim(), BaseGDL::NOZERO);
-TRACEOMP( __FILE__, __LINE__)
+      if( nEl == 1)
+	{
+	  (*res)[ 0] = static_cast<DLong64>( round((*p0C)[ 0])); 
+	  return res;	      
+	}
+      TRACEOMP( __FILE__, __LINE__)
 #pragma omp parallel if (nEl >= CpuTPOOL_MIN_ELTS && (CpuTPOOL_MAX_ELTS == 0 || CpuTPOOL_MAX_ELTS <= nEl))
-      {
+	{
 #pragma omp for
-	for( int i=0; i<nEl; ++i)
-	  {
-	    (*res)[ i] = static_cast<DLong64>( round((*p0C)[ i])); 
-	  }
-      }
+	  for( OMPInt i=0; i<nEl; ++i)
+	    {
+	      (*res)[ i] = static_cast<DLong64>( round((*p0C)[ i])); 
+	    }
+	}
       return res;
     } else {
       DLongGDL* res = new DLongGDL(p0C->Dim(), BaseGDL::NOZERO);
-TRACEOMP( __FILE__, __LINE__)
+      if( nEl == 1)
+	{
+	  (*res)[ 0] = static_cast<DLong>( round((*p0C)[ 0])); 
+	  return res;	      
+	}
+      TRACEOMP( __FILE__, __LINE__)
 #pragma omp parallel if (nEl >= CpuTPOOL_MIN_ELTS && (CpuTPOOL_MAX_ELTS == 0 || CpuTPOOL_MAX_ELTS <= nEl))
-      {
+	{
 #pragma omp for
-	for( int i=0; i<nEl; ++i)
-	  {
-	    (*res)[ i] = static_cast<DLong>( round((*p0C)[ i])); 
-	  }
-      }
+	  for( OMPInt i=0; i<nEl; ++i)
+	    {
+	      (*res)[ i] = static_cast<DLong>( round((*p0C)[ i])); 
+	    }
+	}
       return res;
     }
   }
@@ -1324,29 +1508,41 @@ TRACEOMP( __FILE__, __LINE__)
 	// L64 keyword support
 	if (isKWSetL64) {
 	  DLong64GDL* res = new DLong64GDL(p0C->Dim(), BaseGDL::NOZERO);
-TRACEOMP( __FILE__, __LINE__)
+	  if( nEl == 1)
+	    {
+	      DComplex& C = (*p0C)[ 0];
+	      (*res)[ 0] = (DLong64) round(C.real());
+	      return res;	      
+	    }
+	  TRACEOMP( __FILE__, __LINE__)
 #pragma omp parallel if (nEl >= CpuTPOOL_MIN_ELTS && (CpuTPOOL_MAX_ELTS == 0 || CpuTPOOL_MAX_ELTS <= nEl))
-	  {
+	    {
 #pragma omp for
-	    for( int i=0; i<nEl; ++i)
-	      {
-		DComplex& C = (*p0C)[ i];
-		(*res)[ i] = (DLong64) round(C.real());
-	      }
-	  }
+	      for( OMPInt i=0; i<nEl; ++i)
+		{
+		  DComplex& C = (*p0C)[ i];
+		  (*res)[ i] = (DLong64) round(C.real());
+		}
+	    }
 	  return res;
 	} else {
 	  DLongGDL* res = new DLongGDL(p0C->Dim(), BaseGDL::NOZERO);
-TRACEOMP( __FILE__, __LINE__)
+	  if( nEl == 1)
+	    {
+	      DComplex& C = (*p0C)[ 0];
+	      (*res)[ 0] = (int) round(C.real());
+	      return res;	      
+	    }
+	  TRACEOMP( __FILE__, __LINE__)
 #pragma omp parallel if (nEl >= CpuTPOOL_MIN_ELTS && (CpuTPOOL_MAX_ELTS == 0 || CpuTPOOL_MAX_ELTS <= nEl))
-	  {
+	    {
 #pragma omp for
-	    for( int i=0; i<nEl; ++i)
-	      {
-		DComplex& C = (*p0C)[ i];
-		(*res)[ i] = (int) round(C.real());
-	      }
-	  }
+	      for( OMPInt i=0; i<nEl; ++i)
+		{
+		  DComplex& C = (*p0C)[ i];
+		  (*res)[ i] = (int) round(C.real());
+		}
+	    }
 	  return res;
 	}
       }
@@ -1358,29 +1554,41 @@ TRACEOMP( __FILE__, __LINE__)
 	// L64 keyword support
 	if (isKWSetL64) {
 	  DLong64GDL* res = new DLong64GDL(p0C->Dim(), BaseGDL::NOZERO);
-TRACEOMP( __FILE__, __LINE__)
+	  if( nEl == 1)
+	    {
+	      DComplexDbl& C = (*p0C)[ 0];
+	      (*res)[ 0] = (DLong64) round(C.real());
+	      return res;	      
+	    }
+	  TRACEOMP( __FILE__, __LINE__)
 #pragma omp parallel if (nEl >= CpuTPOOL_MIN_ELTS && (CpuTPOOL_MAX_ELTS == 0 || CpuTPOOL_MAX_ELTS <= nEl))
-	  {
+	    {
 #pragma omp for
-	    for( int i=0; i<nEl; ++i)
-	      {
-		DComplexDbl& C = (*p0C)[ i];
-		(*res)[ i] = (DLong64) round(C.real());
-	      }
-	  }
+	      for( OMPInt i=0; i<nEl; ++i)
+		{
+		  DComplexDbl& C = (*p0C)[ i];
+		  (*res)[ i] = (DLong64) round(C.real());
+		}
+	    }
 	  return res;
 	} else {
 	  DLongGDL* res = new DLongGDL(p0C->Dim(), BaseGDL::NOZERO);
-TRACEOMP( __FILE__, __LINE__)
+	  if( nEl == 1)
+	    {
+	      DComplexDbl& C = (*p0C)[ 0];
+	      (*res)[ 0] = (int) round(C.real());
+	      return res;	      
+	    }
+	  TRACEOMP( __FILE__, __LINE__)
 #pragma omp parallel if (nEl >= CpuTPOOL_MIN_ELTS && (CpuTPOOL_MAX_ELTS == 0 || CpuTPOOL_MAX_ELTS <= nEl))
-	  {
+	    {
 #pragma omp for
-	    for( int i=0; i<nEl; ++i)
-	      {
-		DComplexDbl& C = (*p0C)[ i];
-		(*res)[ i] = (int) round(C.real());
-	      }
-	  }
+	      for( OMPInt i=0; i<nEl; ++i)
+		{
+		  DComplexDbl& C = (*p0C)[ i];
+		  (*res)[ i] = (int) round(C.real());
+		}
+	    }
 	  return res;
 	}
       }
@@ -1407,19 +1615,26 @@ TRACEOMP( __FILE__, __LINE__)
 	DFloatGDL* p0F = e->GetParAs<DFloatGDL>( 0);
 	DLongGDL* res = new DLongGDL(p0->Dim(), BaseGDL::NOZERO);
 	SizeT nEl = p0->N_Elements();
-TRACEOMP( __FILE__, __LINE__)
+	if( nEl == 1)
+	  {
+	    (*res)[ 0] = (int) round((double) (*p0F)[ 0]); 
+	    return res;	      
+	  }
+	TRACEOMP( __FILE__, __LINE__)
 #pragma omp parallel if (nEl >= CpuTPOOL_MIN_ELTS && (CpuTPOOL_MAX_ELTS == 0 || CpuTPOOL_MAX_ELTS <= nEl))
-	{
+	  {
 #pragma omp for
-	  for( int i=0; i<nEl; ++i)
-	    {
-	      (*res)[ i] = (int) round((double) (*p0F)[ i]); 
-	    }
-	}
+	    for( OMPInt i=0; i<nEl; ++i)
+	      {
+		(*res)[ i] = (int) round((double) (*p0F)[ i]); 
+	      }
+	  }
 	return res;
       }
   }
 
+  
+  
   template< typename T>
   BaseGDL* ceil_fun_template( BaseGDL* p0, bool isKWSetL64)
   {
@@ -1429,27 +1644,37 @@ TRACEOMP( __FILE__, __LINE__)
     // L64 keyword support
     if (isKWSetL64) {
       DLong64GDL* res = new DLong64GDL(p0C->Dim(), BaseGDL::NOZERO);
-TRACEOMP( __FILE__, __LINE__)
+      if( nEl == 1)
+	{
+	  (*res)[ 0] = (DLong64) ceil((*p0C)[ 0]); 
+	  return res;	      
+	}
+      TRACEOMP( __FILE__, __LINE__)
 #pragma omp parallel if (nEl >= CpuTPOOL_MIN_ELTS && (CpuTPOOL_MAX_ELTS == 0 || CpuTPOOL_MAX_ELTS <= nEl))
-      {
+	{
 #pragma omp for
-	for( int i=0; i<nEl; ++i)
-	  {
-	    (*res)[ i] = (DLong64) ceil((*p0C)[ i]); 
-	  }
-      }
+	  for( OMPInt i=0; i<nEl; ++i)
+	    {
+	      (*res)[ i] = (DLong64) ceil((*p0C)[ i]); 
+	    }
+	}
       return res;
     } else {
       DLongGDL* res = new DLongGDL(p0C->Dim(), BaseGDL::NOZERO);
-TRACEOMP( __FILE__, __LINE__)
+      if( nEl == 1)
+	{
+	  (*res)[ 0] = (int) ceil((*p0C)[ 0]); 
+	  return res;	      
+	}
+      TRACEOMP( __FILE__, __LINE__)
 #pragma omp parallel if (nEl >= CpuTPOOL_MIN_ELTS && (CpuTPOOL_MAX_ELTS == 0 || CpuTPOOL_MAX_ELTS <= nEl))
-      {
+	{
 #pragma omp for
-	for( int i=0; i<nEl; ++i)
-	  {
-	    (*res)[ i] = (int) ceil((*p0C)[ i]); 
-	  }
-      }
+	  for( OMPInt i=0; i<nEl; ++i)
+	    {
+	      (*res)[ i] = (int) ceil((*p0C)[ i]); 
+	    }
+	}
       return res;
     }
   }
@@ -1475,29 +1700,41 @@ TRACEOMP( __FILE__, __LINE__)
 	// L64 keyword support
 	if (isKWSetL64) {
 	  DLong64GDL* res = new DLong64GDL(p0C->Dim(), BaseGDL::NOZERO);
-TRACEOMP( __FILE__, __LINE__)
+	  if( nEl == 1)
+	    {
+	      DComplex& C = (*p0C)[ 0];
+	      (*res)[ 0] = (DLong64) ceil(C.real());
+	      return res;	      
+	    }
+	  TRACEOMP( __FILE__, __LINE__)
 #pragma omp parallel if (nEl >= CpuTPOOL_MIN_ELTS && (CpuTPOOL_MAX_ELTS == 0 || CpuTPOOL_MAX_ELTS <= nEl))
-	  {
+	    {
 #pragma omp for
-	    for( int i=0; i<nEl; ++i)
-	      {
-		DComplex& C = (*p0C)[ i];
-		(*res)[ i] = (DLong64) ceil(C.real());
-	      }
-	  }
+	      for( OMPInt i=0; i<nEl; ++i)
+		{
+		  DComplex& C = (*p0C)[ i];
+		  (*res)[ i] = (DLong64) ceil(C.real());
+		}
+	    }
 	  return res;
 	} else {
 	  DLongGDL* res = new DLongGDL(p0C->Dim(), BaseGDL::NOZERO);
-TRACEOMP( __FILE__, __LINE__)
+	  if( nEl == 1)
+	    {
+	      DComplex& C = (*p0C)[ 0];
+	      (*res)[ 0] = (int) ceil(C.real());
+	      return res;	      
+	    }
+	  TRACEOMP( __FILE__, __LINE__)
 #pragma omp parallel if (nEl >= CpuTPOOL_MIN_ELTS && (CpuTPOOL_MAX_ELTS == 0 || CpuTPOOL_MAX_ELTS <= nEl))
-	  {
+	    {
 #pragma omp for
-	    for( int i=0; i<nEl; ++i)
-	      {
-		DComplex& C = (*p0C)[ i];
-		(*res)[ i] = (int) ceil(C.real());
-	      }
-	  }
+	      for( OMPInt i=0; i<nEl; ++i)
+		{
+		  DComplex& C = (*p0C)[ i];
+		  (*res)[ i] = (int) ceil(C.real());
+		}
+	    }
 	  return res;
 	}
       }
@@ -1509,29 +1746,41 @@ TRACEOMP( __FILE__, __LINE__)
 	// L64 keyword support
 	if (isKWSetL64) {
 	  DLong64GDL* res = new DLong64GDL(p0C->Dim(), BaseGDL::NOZERO);
-TRACEOMP( __FILE__, __LINE__)
+	  if( nEl == 1)
+	    {
+	      DComplexDbl& C = (*p0C)[ 0];
+	      (*res)[ 0] = (DLong64) ceil(C.real());
+	      return res;	      
+	    }
+	  TRACEOMP( __FILE__, __LINE__)
 #pragma omp parallel if (nEl >= CpuTPOOL_MIN_ELTS && (CpuTPOOL_MAX_ELTS == 0 || CpuTPOOL_MAX_ELTS <= nEl))
-	  {
+	    {
 #pragma omp for
-	    for( int i=0; i<nEl; ++i)
-	      {
-		DComplexDbl& C = (*p0C)[ i];
-		(*res)[ i] = (DLong64) ceil(C.real());
-	      }
-	  }
+	      for( OMPInt i=0; i<nEl; ++i)
+		{
+		  DComplexDbl& C = (*p0C)[ i];
+		  (*res)[ i] = (DLong64) ceil(C.real());
+		}
+	    }
 	  return res;
 	} else {
 	  DLongGDL* res = new DLongGDL(p0C->Dim(), BaseGDL::NOZERO);
-TRACEOMP( __FILE__, __LINE__)
+	  if( nEl == 1)
+	    {
+	      DComplexDbl& C = (*p0C)[ 0];
+	      (*res)[ 0] = (int) ceil(C.real());
+	      return res;	      
+	    }
+	  TRACEOMP( __FILE__, __LINE__)
 #pragma omp parallel if (nEl >= CpuTPOOL_MIN_ELTS && (CpuTPOOL_MAX_ELTS == 0 || CpuTPOOL_MAX_ELTS <= nEl))
-	  {
+	    {
 #pragma omp for
-	    for( int i=0; i<nEl; ++i)
-	      {
-		DComplexDbl& C = (*p0C)[ i];
-		(*res)[ i] = (int) ceil(C.real());
-	      }
-	  }
+	      for( OMPInt i=0; i<nEl; ++i)
+		{
+		  DComplexDbl& C = (*p0C)[ i];
+		  (*res)[ i] = (int) ceil(C.real());
+		}
+	    }
 	  return res;
 	}
       }
@@ -1558,19 +1807,26 @@ TRACEOMP( __FILE__, __LINE__)
 	DFloatGDL* p0F = e->GetParAs<DFloatGDL>( 0);
 	DLongGDL* res = new DLongGDL(p0->Dim(), BaseGDL::NOZERO);
 	SizeT nEl = p0->N_Elements();
-TRACEOMP( __FILE__, __LINE__)
+	if( nEl == 1)
+	  {
+	    (*res)[ 0] = (int) ceil((double) (*p0F)[ 0]); 
+	    return res;	      
+	  }
+	TRACEOMP( __FILE__, __LINE__)
 #pragma omp parallel if (nEl >= CpuTPOOL_MIN_ELTS && (CpuTPOOL_MAX_ELTS == 0 || CpuTPOOL_MAX_ELTS <= nEl))
-	{
+	  {
 #pragma omp for
-	  for( int i=0; i<nEl; ++i)
-	    {
-	      (*res)[ i] = (int) ceil((double) (*p0F)[ i]); 
-	    }
-	}
+	    for( OMPInt i=0; i<nEl; ++i)
+	      {
+		(*res)[ i] = (int) ceil((double) (*p0F)[ i]); 
+	      }
+	  }
 	return res;
       }
   }
 
+  
+  
   template< typename T>
   BaseGDL* floor_fun_template( BaseGDL* p0, bool isKWSetL64)
   {
@@ -1580,27 +1836,37 @@ TRACEOMP( __FILE__, __LINE__)
     // L64 keyword support
     if (isKWSetL64) {
       DLong64GDL* res = new DLong64GDL(p0C->Dim(), BaseGDL::NOZERO);
-TRACEOMP( __FILE__, __LINE__)
+      if( nEl == 1)
+	{
+	  (*res)[ 0] = (DLong64) floor((*p0C)[ 0]); 
+	  return res;	      
+	}
+      TRACEOMP( __FILE__, __LINE__)
 #pragma omp parallel if (nEl >= CpuTPOOL_MIN_ELTS && (CpuTPOOL_MAX_ELTS == 0 || CpuTPOOL_MAX_ELTS <= nEl))
-      {
+	{
 #pragma omp for
-	for( int i=0; i<nEl; ++i)
-	  {
-	    (*res)[ i] = (DLong64) floor((*p0C)[ i]); 
-	  }
-      }
+	  for( OMPInt i=0; i<nEl; ++i)
+	    {
+	      (*res)[ i] = (DLong64) floor((*p0C)[ i]); 
+	    }
+	}
       return res;
     } else {
       DLongGDL* res = new DLongGDL(p0C->Dim(), BaseGDL::NOZERO);
-TRACEOMP( __FILE__, __LINE__)
+      if( nEl == 1)
+	{
+	  (*res)[ 0] = (int) floor((*p0C)[ 0]); 
+	  return res;	      
+	}
+      TRACEOMP( __FILE__, __LINE__)
 #pragma omp parallel if (nEl >= CpuTPOOL_MIN_ELTS && (CpuTPOOL_MAX_ELTS == 0 || CpuTPOOL_MAX_ELTS <= nEl))
-      {
+	{
 #pragma omp for
-	for( int i=0; i<nEl; ++i)
-	  {
-	    (*res)[ i] = (int) floor((*p0C)[ i]); 
-	  }
-      }
+	  for( OMPInt i=0; i<nEl; ++i)
+	    {
+	      (*res)[ i] = (int) floor((*p0C)[ i]); 
+	    }
+	}
       return res;
     }
   }
@@ -1626,29 +1892,41 @@ TRACEOMP( __FILE__, __LINE__)
 	// L64 keyword support
 	if (isKWSetL64) {
 	  DLong64GDL* res = new DLong64GDL(p0C->Dim(), BaseGDL::NOZERO);
-TRACEOMP( __FILE__, __LINE__)
+	  if( nEl == 1)
+	    {
+	      DComplex& C = (*p0C)[ 0];
+	      (*res)[ 0] = (DLong64) floor(C.real());
+	      return res;	      
+	    }
+	  TRACEOMP( __FILE__, __LINE__)
 #pragma omp parallel if (nEl >= CpuTPOOL_MIN_ELTS && (CpuTPOOL_MAX_ELTS == 0 || CpuTPOOL_MAX_ELTS <= nEl))
-	  {
+	    {
 #pragma omp for
-	    for( int i=0; i<nEl; ++i)
-	      {
-		DComplex& C = (*p0C)[ i];
-		(*res)[ i] = (DLong64) floor(C.real());
-	      }
-	  }
+	      for( OMPInt i=0; i<nEl; ++i)
+		{
+		  DComplex& C = (*p0C)[ i];
+		  (*res)[ i] = (DLong64) floor(C.real());
+		}
+	    }
 	  return res;
 	} else {
 	  DLongGDL* res = new DLongGDL(p0C->Dim(), BaseGDL::NOZERO);
-TRACEOMP( __FILE__, __LINE__)
+	  if( nEl == 1)
+	    {
+	      DComplex& C = (*p0C)[ 0];
+	      (*res)[ 0] = (int) floor(C.real());
+	      return res;	      
+	    }
+	  TRACEOMP( __FILE__, __LINE__)
 #pragma omp parallel if (nEl >= CpuTPOOL_MIN_ELTS && (CpuTPOOL_MAX_ELTS == 0 || CpuTPOOL_MAX_ELTS <= nEl))
-	  {
+	    {
 #pragma omp for
-	    for( int i=0; i<nEl; ++i)
-	      {
-		DComplex& C = (*p0C)[ i];
-		(*res)[ i] = (int) floor(C.real());
-	      }
-	  }
+	      for( OMPInt i=0; i<nEl; ++i)
+		{
+		  DComplex& C = (*p0C)[ i];
+		  (*res)[ i] = (int) floor(C.real());
+		}
+	    }
 	  return res;
 	}
       }
@@ -1660,29 +1938,41 @@ TRACEOMP( __FILE__, __LINE__)
 	// L64 keyword support
 	if (isKWSetL64) {
 	  DLong64GDL* res = new DLong64GDL(p0C->Dim(), BaseGDL::NOZERO);
-TRACEOMP( __FILE__, __LINE__)
+	  if( nEl == 1)
+	    {
+	      DComplexDbl& C = (*p0C)[ 0];
+	      (*res)[ 0] = (DLong64) floor(C.real());
+	      return res;	      
+	    }
+	  TRACEOMP( __FILE__, __LINE__)
 #pragma omp parallel if (nEl >= CpuTPOOL_MIN_ELTS && (CpuTPOOL_MAX_ELTS == 0 || CpuTPOOL_MAX_ELTS <= nEl))
-	  {
+	    {
 #pragma omp for
-	    for( int i=0; i<nEl; ++i)
-	      {
-		DComplexDbl& C = (*p0C)[ i];
-		(*res)[ i] = (DLong64) floor(C.real());
-	      }
-	  }
+	      for( OMPInt i=0; i<nEl; ++i)
+		{
+		  DComplexDbl& C = (*p0C)[ i];
+		  (*res)[ i] = (DLong64) floor(C.real());
+		}
+	    }
 	  return res;
 	} else {
 	  DLongGDL* res = new DLongGDL(p0C->Dim(), BaseGDL::NOZERO);
-TRACEOMP( __FILE__, __LINE__)
+	  if( nEl == 1)
+	    {
+	      DComplexDbl& C = (*p0C)[ 0];
+	      (*res)[ 0] = (int) floor(C.real());
+	      return res;	      
+	    }
+	  TRACEOMP( __FILE__, __LINE__)
 #pragma omp parallel if (nEl >= CpuTPOOL_MIN_ELTS && (CpuTPOOL_MAX_ELTS == 0 || CpuTPOOL_MAX_ELTS <= nEl))
-	  {
+	    {
 #pragma omp for
-	    for( int i=0; i<nEl; ++i)
-	      {
-		DComplexDbl& C = (*p0C)[ i];
-		(*res)[ i] = (int) floor(C.real());
-	      }
-	  }
+	      for( OMPInt i=0; i<nEl; ++i)
+		{
+		  DComplexDbl& C = (*p0C)[ i];
+		  (*res)[ i] = (int) floor(C.real());
+		}
+	    }
 	  return res;
 	}
       }
@@ -1709,26 +1999,33 @@ TRACEOMP( __FILE__, __LINE__)
 	DFloatGDL* p0F = e->GetParAs<DFloatGDL>( 0);
 	DLongGDL* res = new DLongGDL(p0->Dim(), BaseGDL::NOZERO);
 	SizeT nEl = p0->N_Elements();
-TRACEOMP( __FILE__, __LINE__)
+	if( nEl == 1)
+	  {
+	    (*res)[ 0] = (int) floor((double) (*p0F)[ 0]); 
+	    return res;	      
+	  }
+	TRACEOMP( __FILE__, __LINE__)
 #pragma omp parallel if (nEl >= CpuTPOOL_MIN_ELTS && (CpuTPOOL_MAX_ELTS == 0 || CpuTPOOL_MAX_ELTS <= nEl))
-	{
+	  {
 #pragma omp for
-	  for( int i=0; i<nEl; ++i)
-	    {
-	      (*res)[ i] = (int) floor((double) (*p0F)[ i]); 
-	    }
-	}
+	    for( OMPInt i=0; i<nEl; ++i)
+	      {
+		(*res)[ i] = (int) floor((double) (*p0F)[ i]); 
+	      }
+	  }
 	return res;
       }
   }
 
+  
+  
   BaseGDL* conj_fun( BaseGDL* p0, bool isReference)//( EnvT* e)
   {
     assert( p0 != NULL);
     assert( p0->N_Elements() > 0);
 
-//     e->NParam( 1);
-//     BaseGDL* p0 = e->GetParDefined( 0);
+    //     e->NParam( 1);
+    //     BaseGDL* p0 = e->GetParDefined( 0);
     SizeT nEl = p0->N_Elements();
     //    if( nEl == 0)
     //      e->Throw( "Variable is undefined: "+e->GetParString(0));
@@ -1737,30 +2034,30 @@ TRACEOMP( __FILE__, __LINE__)
       {
 	DComplexGDL* res = static_cast<DComplexGDL*>(p0)->NewResult();// static_cast<DComplexGDL*>(p0->Dup());
 	DComplexGDL* p0C = static_cast<DComplexGDL*>(p0);
-TRACEOMP( __FILE__, __LINE__)
+	TRACEOMP( __FILE__, __LINE__)
 #pragma omp parallel if (nEl >= CpuTPOOL_MIN_ELTS && (CpuTPOOL_MAX_ELTS == 0 || CpuTPOOL_MAX_ELTS <= nEl))
-	{
+	  {
 #pragma omp for
-	  for( int i=0; i<nEl; ++i)
-	    {
-	      (*res)[i] = DComplex( (*p0C)[i].real(), -(*p0C)[i].imag());
-	    }
-	}
+	    for( OMPInt i=0; i<nEl; ++i)
+	      {
+		(*res)[i] = DComplex( (*p0C)[i].real(), -(*p0C)[i].imag());
+	      }
+	  }
 	return res;
       }
     if( p0->Type() == GDL_COMPLEXDBL)
       {
 	DComplexDblGDL* res = static_cast<DComplexDblGDL*>(p0)->NewResult();//static_cast<DComplexDblGDL*>(p0->Dup());
 	DComplexDblGDL* p0C = static_cast<DComplexDblGDL*>(p0);
-TRACEOMP( __FILE__, __LINE__)
+	TRACEOMP( __FILE__, __LINE__)
 #pragma omp parallel if (nEl >= CpuTPOOL_MIN_ELTS && (CpuTPOOL_MAX_ELTS == 0 || CpuTPOOL_MAX_ELTS <= nEl))
-	{
+	  {
 #pragma omp for
-	  for( int i=0; i<nEl; ++i)
-	    {
-	      (*res)[i] = DComplexDbl( (*p0C)[i].real(), -(*p0C)[i].imag());
-	    }
-	}
+	    for( OMPInt i=0; i<nEl; ++i)
+	      {
+		(*res)[i] = DComplexDbl( (*p0C)[i].real(), -(*p0C)[i].imag());
+	      }
+	  }
 	return res;
       }
     if( p0->Type() == GDL_DOUBLE || 
@@ -1783,8 +2080,8 @@ TRACEOMP( __FILE__, __LINE__)
     assert( p0 != NULL);
     assert( p0->N_Elements() > 0);
 
-//     e->NParam( 1);
-//     BaseGDL* p0 = e->GetParDefined( 0);
+    //     e->NParam( 1);
+    //     BaseGDL* p0 = e->GetParDefined( 0);
     SizeT nEl = p0->N_Elements();
 
     //    if( nEl == 0) 
@@ -1795,9 +2092,9 @@ TRACEOMP( __FILE__, __LINE__)
       {
 	DComplexGDL* c0 = static_cast<DComplexGDL*>(p0);
 	DFloatGDL* res = new DFloatGDL( c0->Dim(), BaseGDL::NOZERO);
-// #pragma omp parallel if (nEl >= CpuTPOOL_MIN_ELTS && (CpuTPOOL_MAX_ELTS == 0 || CpuTPOOL_MAX_ELTS <= nEl))
+	// #pragma omp parallel if (nEl >= CpuTPOOL_MIN_ELTS && (CpuTPOOL_MAX_ELTS == 0 || CpuTPOOL_MAX_ELTS <= nEl))
 	{
-// #pragma omp for
+	  // #pragma omp for
 	  for( SizeT i=0; i<nEl; ++i)
 	    {
 	      (*res)[i] = (*c0)[i].imag();
@@ -1809,9 +2106,9 @@ TRACEOMP( __FILE__, __LINE__)
       {
 	DComplexDblGDL* c0 = static_cast<DComplexDblGDL*>(p0);
 	DDoubleGDL* res = new DDoubleGDL( c0->Dim(), BaseGDL::NOZERO);
-// #pragma omp parallel if (nEl >= CpuTPOOL_MIN_ELTS && (CpuTPOOL_MAX_ELTS == 0 || CpuTPOOL_MAX_ELTS <= nEl))
+	// #pragma omp parallel if (nEl >= CpuTPOOL_MIN_ELTS && (CpuTPOOL_MAX_ELTS == 0 || CpuTPOOL_MAX_ELTS <= nEl))
 	{
-// #pragma omp for
+	  // #pragma omp for
 	  for( SizeT i=0; i<nEl; ++i)
 	    {
 	      (*res)[i] = (*c0)[i].imag();
@@ -1841,62 +2138,82 @@ TRACEOMP( __FILE__, __LINE__)
     assert( p0 != NULL);
     assert( p0->N_Elements() > 0);
 	
-//     e->NParam( 1);
-//     BaseGDL* p0 = e->GetParDefined( 0);
+    //     e->NParam( 1);
+    //     BaseGDL* p0 = e->GetParDefined( 0);
 
-	SizeT nEl = p0->N_Elements();
+    SizeT nEl = p0->N_Elements();
 
     DType t = p0->Type();
-	if( t == GDL_COMPLEXDBL)
+    if( t == GDL_COMPLEXDBL)
       {
 	DComplexDblGDL *c0 = static_cast< DComplexDblGDL*>( p0);
 	DComplexDblGDL *res = c0->New( c0->Dim(), BaseGDL::NOZERO);
-TRACEOMP( __FILE__, __LINE__)
+	if( nEl == 1)
+	  {
+	    (*res)[ 0] = exp( (*c0)[ 0]);
+	    return res;
+	  }
+	TRACEOMP( __FILE__, __LINE__)
 #pragma omp parallel if (nEl >= CpuTPOOL_MIN_ELTS && (CpuTPOOL_MAX_ELTS == 0 || CpuTPOOL_MAX_ELTS <= nEl))
-	{
+	  {
 #pragma omp for
-	  for( int i=0; i<nEl; ++i)
-	    (*res)[ i] = exp( (*c0)[ i]);
-	}
+	    for( OMPInt i=0; i<nEl; ++i)
+	      (*res)[ i] = exp( (*c0)[ i]);
+	  }
 	return res;
       }
     else if( t == GDL_COMPLEX)
       {
 	DComplexGDL *c0 = static_cast< DComplexGDL*>( p0);
 	DComplexGDL *res = c0->New( c0->Dim(), BaseGDL::NOZERO);
-TRACEOMP( __FILE__, __LINE__)
+	if( nEl == 1)
+	  {
+	    (*res)[ 0] = exp( (*c0)[ 0]);
+	    return res;
+	  }
+	TRACEOMP( __FILE__, __LINE__)
 #pragma omp parallel if (nEl >= CpuTPOOL_MIN_ELTS && (CpuTPOOL_MAX_ELTS == 0 || CpuTPOOL_MAX_ELTS <= nEl))
-	{
+	  {
 #pragma omp for
-	  for( int i=0; i<nEl; ++i)
-	    (*res)[ i] = exp( (*c0)[ i]);
-	}
+	    for( OMPInt i=0; i<nEl; ++i)
+	      (*res)[ i] = exp( (*c0)[ i]);
+	  }
 	return res;
       }
     else if( t == GDL_DOUBLE)
       {
 	DDoubleGDL *c0 = static_cast< DDoubleGDL*>( p0);
 	DDoubleGDL *res = c0->New( c0->Dim(), BaseGDL::NOZERO);
-TRACEOMP( __FILE__, __LINE__)
+	if( nEl == 1)
+	  {
+	    (*res)[ 0] = exp( (*c0)[ 0]);
+	    return res;
+	  }
+	TRACEOMP( __FILE__, __LINE__)
 #pragma omp parallel if (nEl >= CpuTPOOL_MIN_ELTS && (CpuTPOOL_MAX_ELTS == 0 || CpuTPOOL_MAX_ELTS <= nEl))
-	{
+	  {
 #pragma omp for
-	  for( int i=0; i<nEl; ++i)
-	    (*res)[ i] = exp( (*c0)[ i]);
-	}
+	    for( OMPInt i=0; i<nEl; ++i)
+	      (*res)[ i] = exp( (*c0)[ i]);
+	  }
 	return res;
       }
     else if( t == GDL_FLOAT)
       {
 	DFloatGDL *c0 = static_cast< DFloatGDL*>( p0);
 	DFloatGDL *res = c0->New( c0->Dim(), BaseGDL::NOZERO);
-TRACEOMP( __FILE__, __LINE__)
+	if( nEl == 1)
+	  {
+	    (*res)[ 0] = exp( (*c0)[ 0]);
+	    return res;
+	  }
+	TRACEOMP( __FILE__, __LINE__)
 #pragma omp parallel if (nEl >= CpuTPOOL_MIN_ELTS && (CpuTPOOL_MAX_ELTS == 0 || CpuTPOOL_MAX_ELTS <= nEl))
-	{
+	  {
 #pragma omp for
-	  for( int i=0; i<nEl; ++i)
-	    (*res)[ i] = exp( (*c0)[ i]);
-	}
+	    for( OMPInt i=0; i<nEl; ++i)
+	      (*res)[ i] = exp( (*c0)[ i]);
+	  }
 	return res;
       }
     else if( t == GDL_PTR)
@@ -1910,13 +2227,18 @@ TRACEOMP( __FILE__, __LINE__)
 	DFloatGDL *res = 
 	  static_cast< DFloatGDL*>( p0->Convert2( GDL_FLOAT, BaseGDL::COPY));
 	
-TRACEOMP( __FILE__, __LINE__)
+	if( nEl == 1)
+	  {
+	    (*res)[ 0] = exp( (*res)[ 0]);
+	    return res;
+	  }
+	TRACEOMP( __FILE__, __LINE__)
 #pragma omp parallel if (nEl >= CpuTPOOL_MIN_ELTS && (CpuTPOOL_MAX_ELTS == 0 || CpuTPOOL_MAX_ELTS <= nEl))
-	{
+	  {
 #pragma omp for
-	  for( int i=0; i<nEl; ++i)
-	    (*res)[ i] = exp( (*res)[ i]);
-	}	
+	    for( OMPInt i=0; i<nEl; ++i)
+	      (*res)[ i] = exp( (*res)[ i]);
+	  }	
 	return res;
       }
   }
@@ -2017,7 +2339,7 @@ TRACEOMP( __FILE__, __LINE__)
       e->Throw("Argument N must be greater than or equal to zero.");
     
     DDoubleGDL* kval;
-    auto_ptr<DDoubleGDL> kval_guard;
+    Guard<DDoubleGDL> kval_guard;
     if (nParam>2) {
       kval = e->GetParAs<DDoubleGDL>(2);
       if(kval->N_Elements() != 1)
@@ -2026,22 +2348,22 @@ TRACEOMP( __FILE__, __LINE__)
         e->Throw("Argument K must be greater than or equal to zero.");
     } else {
       kval = new DDoubleGDL(0);
-      kval_guard.reset(kval);
+      kval_guard.Reset(kval);
     }
 
     DDoubleGDL* res = new DDoubleGDL(xvals->Dim(),BaseGDL::NOZERO);
     DDouble k = (*kval)[0];
     DInt n = (*nval)[0];
     SizeT nEx = xvals->N_Elements();
-    int count;
+    OMPInt count;
     
-TRACEOMP( __FILE__, __LINE__)
+    TRACEOMP( __FILE__, __LINE__)
 #pragma omp parallel if (nEx >= CpuTPOOL_MIN_ELTS && (CpuTPOOL_MAX_ELTS == 0 || CpuTPOOL_MAX_ELTS <= nEx))
-	{
+      {
 #pragma omp for
-    for (count = 0;count<nEx;++count)
-      (*res)[count] = gsl_sf_laguerre_n(n,k,(*xvals)[count]);
-	}
+	for (count = 0;count<nEx;++count)
+	  (*res)[count] = gsl_sf_laguerre_n(n,k,(*xvals)[count]);
+      }
 	
     static DInt doubleKWIx = e->KeywordIx("DOUBLE");
     static DInt coefKWIx = e->KeywordIx("COEFFICIENTS");   
@@ -2050,17 +2372,17 @@ TRACEOMP( __FILE__, __LINE__)
       double gamma_kn1 = gsl_sf_gamma(k+n+1.);
       DDoubleGDL* coefKW = new DDoubleGDL(dimension(n+1) , BaseGDL::NOZERO);
 
-TRACEOMP( __FILE__, __LINE__)
+      TRACEOMP( __FILE__, __LINE__)
 #pragma omp parallel if (n >= CpuTPOOL_MIN_ELTS && (CpuTPOOL_MAX_ELTS == 0 || CpuTPOOL_MAX_ELTS <= n))
 	{
 #pragma omp for
-      for(count = 0;count<=n;++count) {
-        double dcount = static_cast<double>(count);
-        (*coefKW)[count] = ((count & 0x0001)?-1.0:1.0)*gamma_kn1/
-          (gsl_sf_gamma(n-dcount+1.)*gsl_sf_gamma(k+dcount+1.)*
-           gsl_sf_gamma(dcount+1.));
-      }
-      }
+	  for(count = 0;count<=n;++count) {
+	    double dcount = static_cast<double>(count);
+	    (*coefKW)[count] = ((count & 0x0001)?-1.0:1.0)*gamma_kn1/
+	      (gsl_sf_gamma(n-dcount+1.)*gsl_sf_gamma(k+dcount+1.)*
+	       gsl_sf_gamma(dcount+1.));
+	  }
+	}
       if(e->GetParDefined(0)->Type() != GDL_DOUBLE && !e->KeywordSet(doubleKWIx))
         coefKW = static_cast<DDoubleGDL*>(coefKW->
 					  Convert2(GDL_FLOAT,BaseGDL::CONVERT));
@@ -2204,25 +2526,25 @@ TRACEOMP( __FILE__, __LINE__)
   template <typename T> 
   T inverf (T p)               /* Inverse Error Function */
   {
-  /*
-   * Source: This routine was derived (using f2c) from the Fortran
-   * subroutine MERFI found in ACM Algorithm 602, obtained from netlib.
-   *
-   * MDNRIS code is copyright 1978 by IMSL, Inc.  Since MERFI has been
-   * submitted to netlib, it may be used with the restrictions that it may
-   * only be used for noncommercial purposes, and that IMSL be acknowledged
-   * as the copyright-holder of the code.
-   */
+    /*
+     * Source: This routine was derived (using f2c) from the Fortran
+     * subroutine MERFI found in ACM Algorithm 602, obtained from netlib.
+     *
+     * MDNRIS code is copyright 1978 by IMSL, Inc.  Since MERFI has been
+     * submitted to netlib, it may be used with the restrictions that it may
+     * only be used for noncommercial purposes, and that IMSL be acknowledged
+     * as the copyright-holder of the code.
+     */
 
-  /* Initialized data */
-  static T a1 = -.5751703,   a2 = -1.896513,   a3 = -.05496261,
-           b0 = -.113773,    b1 = -3.293474,   b2 = -2.374996,  b3 = -1.187515,
-           c0 = -.1146666,   c1 = -.1314774,   c2 = -.2368201,  c3 = .05073975,
-           d0 = -44.27977,   d1 = 21.98546,    d2 = -7.586103, 
-           e0 = -.05668422,  e1 = .3937021,    e2 = -.3166501,  e3 = .06208963,
-           f0 = -6.266786,   f1 = 4.666263,    f2 = -2.962883,
-           g0 = 1.851159e-4, g1 = -.002028152, g2 = -.1498384,  g3 = .01078639,
-           h0 = .09952975,   h1 = .5211733,    h2 = -.06888301;
+    /* Initialized data */
+    static T a1 = -.5751703,   a2 = -1.896513,   a3 = -.05496261,
+      b0 = -.113773,    b1 = -3.293474,   b2 = -2.374996,  b3 = -1.187515,
+      c0 = -.1146666,   c1 = -.1314774,   c2 = -.2368201,  c3 = .05073975,
+      d0 = -44.27977,   d1 = 21.98546,    d2 = -7.586103, 
+      e0 = -.05668422,  e1 = .3937021,    e2 = -.3166501,  e3 = .06208963,
+      f0 = -6.266786,   f1 = 4.666263,    f2 = -2.962883,
+      g0 = 1.851159e-4, g1 = -.002028152, g2 = -.1498384,  g3 = .01078639,
+      h0 = .09952975,   h1 = .5211733,    h2 = -.06888301;
 
     /* Local variables */
     static T a, b, f, w, x, y, z, sigma, z2, sd, wi, sn;
@@ -2240,44 +2562,44 @@ TRACEOMP( __FILE__, __LINE__)
        rational function in z  */
 
     if (z <= 0.85)
-    {
-      z2 = z * z;
-      f = z + z * (b0 + a1 * z2 / (b1 + z2 + a2 / (b2 + z2 + a3 / (b3 + z2))));
-    }
+      {
+	z2 = z * z;
+	f = z + z * (b0 + a1 * z2 / (b1 + z2 + a2 / (b2 + z2 + a3 / (b3 + z2))));
+      }
     else  /* z greater than 0.85 */
-    {
-      a = 1.0 - z;
-      b = z;
-
-      /* reduced argument is in (0.85,1.0), obtain the transformed variable */
-
-      w = sqrt(-(T)log(a + a * b));
-
-      if (w >= 4.0)
-      /* w greater than 4.0, approx. f by a rational function in 1.0 / w */
       {
-        wi = 1.0 / w;
-        sn = ((g3 * wi + g2) * wi + g1) * wi;
-        sd = ((wi + h2) * wi + h1) * wi + h0;
-        f = w + w * (g0 + sn / sd);
-      }
-      else if (w < 4.0 && w > 2.5)
-      /* w between 2.5 and 4.0, approx.  f by a rational function in w */
-      {
-        sn = ((e3 * w + e2) * w + e1) * w;
-        sd = ((w + f2) * w + f1) * w + f0;
-        f = w + w * (e0 + sn / sd);
+	a = 1.0 - z;
+	b = z;
 
-        /* w between 1.13222 and 2.5, approx. f by
-           a rational function in w */
+	/* reduced argument is in (0.85,1.0), obtain the transformed variable */
+
+	w = sqrt(-(T)log(a + a * b));
+
+	if (w >= 4.0)
+	  /* w greater than 4.0, approx. f by a rational function in 1.0 / w */
+	  {
+	    wi = 1.0 / w;
+	    sn = ((g3 * wi + g2) * wi + g1) * wi;
+	    sd = ((wi + h2) * wi + h1) * wi + h0;
+	    f = w + w * (g0 + sn / sd);
+	  }
+	else if (w < 4.0 && w > 2.5)
+	  /* w between 2.5 and 4.0, approx.  f by a rational function in w */
+	  {
+	    sn = ((e3 * w + e2) * w + e1) * w;
+	    sd = ((w + f2) * w + f1) * w + f0;
+	    f = w + w * (e0 + sn / sd);
+
+	    /* w between 1.13222 and 2.5, approx. f by
+	       a rational function in w */
+	  }
+	else if (w <= 2.5 && w > 1.13222)
+	  {
+	    sn = ((c3 * w + c2) * w + c1) * w;
+	    sd = ((w + d2) * w + d1) * w + d0;
+	    f = w + w * (c0 + sn / sd);
+	  }
       }
-      else if (w <= 2.5 && w > 1.13222)
-      {
-        sn = ((c3 * w + c2) * w + c1) * w;
-        sd = ((w + d2) * w + d1) * w + d0;
-        f = w + w * (c0 + sn / sd);
-      }
-    }
     y = sigma * f;
 
     return y;
@@ -2290,17 +2612,17 @@ TRACEOMP( __FILE__, __LINE__)
     SizeT n = p0->N_Elements();
     static int doubleIx = e->KeywordIx("DOUBLE");
     if (e->KeywordSet(doubleIx) || p0->Type() == GDL_DOUBLE)
-    {
-      DDoubleGDL *ret = new DDoubleGDL(dimension(n)), *p0d = e->GetParAs<DDoubleGDL>(0);
-      while (n != 0) --n, (*ret)[n] = inverf((*p0d)[n]);
-      return ret;
-    }
+      {
+	DDoubleGDL *ret = new DDoubleGDL(dimension(n)), *p0d = e->GetParAs<DDoubleGDL>(0);
+	while (n != 0) --n, (*ret)[n] = inverf((*p0d)[n]);
+	return ret;
+      }
     else
-    {
-      DFloatGDL *ret = new DFloatGDL(dimension(n)), *p0f = e->GetParAs<DFloatGDL>(0);
-      while (n != 0) --n, (*ret)[n] = inverf((*p0f)[n]); 
-      return ret;
-    }
+      {
+	DFloatGDL *ret = new DFloatGDL(dimension(n)), *p0f = e->GetParAs<DFloatGDL>(0);
+	while (n != 0) --n, (*ret)[n] = inverf((*p0f)[n]); 
+	return ret;
+      }
   }
 
 } // namespace

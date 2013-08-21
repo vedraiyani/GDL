@@ -25,31 +25,45 @@
 namespace lib {
 
   using namespace std;
+//  using std::isinf;
+  using std::isnan;
 
   class plot_call : public plotting_routine_call 
   {
-    DDoubleGDL *yVal, *xVal, *xTemp, *yTemp;
-    SizeT xEl, yEl;
-    DDouble minVal, maxVal, xStart, xEnd, yStart, yEnd;
+    DDoubleGDL *yVal, *xVal, *zVal, *xTemp, *yTemp;
+    SizeT xEl, yEl, zEl;
+    DDouble minVal, maxVal, xStart, xEnd, yStart, yEnd,
+            zValue;
     bool doMinMax;
     bool xLog, yLog, wasBadxLog, wasBadyLog;
-    auto_ptr<BaseGDL> xval_guard,yval_guard,xtemp_guard;
+    Guard<BaseGDL> xval_guard, yval_guard, zval_guard, xtemp_guard;
     DLong iso;
+    bool doT3d;
 
 private:
 
   bool handle_args(EnvT* e) 
   {
-    bool polar = FALSE;
-    DLong nsum = 1;
+
+    //T3D ?
+    static int t3dIx = e->KeywordIx( "T3D");
+    doT3d=(e->KeywordSet(t3dIx)|| T3Denabled(e));
+
+    //note: Z (VALUE) will be used uniquely if Z is not effectively defined.
+    static int zvIx = e->KeywordIx( "ZVALUE");
+    zValue=0.0;
+    e->AssureDoubleScalarKWIfPresent ( zvIx, zValue );
+    zValue=min(zValue,0.999999); //to avoid problems with plplot
+    zValue=max(zValue,0.0);
+
+    // system variable !P.NSUM first
+    DLong nsum=(*static_cast<DLongGDL*>(SysVar::P()-> GetTag(SysVar::P()->Desc()->TagIndex("NSUM"), 0)))[0];
     e->AssureLongScalarKWIfPresent("NSUM", nsum);
-    if (e->KeywordSet("POLAR"))
-    {
-      polar = TRUE;
-    }
+
+    bool polar = (e->KeywordSet("POLAR"));
 
     DDoubleGDL *yValBis, *xValBis;
-    auto_ptr<BaseGDL> xvalBis_guard, yvalBis_guard;
+    Guard<BaseGDL> xvalBis_guard, yvalBis_guard;
     //test and transform eventually if POLAR and/or NSUM!
     if (nParam() == 1)
     {
@@ -59,7 +73,7 @@ private:
       yEl=yTemp->N_Elements();
       xEl=yEl;
       xTemp = new DDoubleGDL(dimension(xEl), BaseGDL::INDGEN);
-      xtemp_guard.reset(xTemp); // delete upon exit
+      xtemp_guard.Reset(xTemp); // delete upon exit
     }
     else
     {
@@ -89,15 +103,15 @@ private:
       if (polar)
       {
         xVal = new DDoubleGDL(dimension(xEl), BaseGDL::NOZERO);
-        xval_guard.reset(xVal); // delete upon exit
+        xval_guard.Reset(xVal); // delete upon exit
         yVal = new DDoubleGDL(dimension(yEl), BaseGDL::NOZERO);
-        yval_guard.reset(yVal); // delete upon exit
+        yval_guard.Reset(yVal); // delete upon exit
         for (int i = 0; i < xEl; i++) (*xVal)[i] = (*xTemp)[i] * cos((*yTemp)[i]);
         for (int i = 0; i < yEl; i++) (*yVal)[i] = (*xTemp)[i] * sin((*yTemp)[i]);
       }
       else
       { //careful about previously set autopointers!
-        if (nParam() == 1) xval_guard = xtemp_guard;
+        if (nParam() == 1) xval_guard.Init( xtemp_guard.release());
         xVal = xTemp;
         yVal = yTemp;
       }
@@ -107,9 +121,9 @@ private:
       int i, j, k;
       DLong size = (DLong)xEl / nsum;
       xVal = new DDoubleGDL(size, BaseGDL::ZERO); //SHOULD BE ZERO, IS NOT!
-      xval_guard.reset(xVal); // delete upon exit
+      xval_guard.Reset(xVal); // delete upon exit
       yVal = new DDoubleGDL(size, BaseGDL::ZERO); //IDEM
-      yval_guard.reset(yVal); // delete upon exit
+      yval_guard.Reset(yVal); // delete upon exit
       for (i = 0, k = 0; i < size; i++)
       {
         (*xVal)[i] = 0.0;
@@ -149,7 +163,7 @@ private:
       xVal->MinMax(&minEl, &maxEl, NULL, NULL, true);
       if ((*xVal)[minEl] <= 0.0) wasBadxLog = TRUE;
       xValBis = new DDoubleGDL(dimension(xEl), BaseGDL::NOZERO);
-      xvalBis_guard.reset(xValBis); // delete upon exit
+      xvalBis_guard.Reset(xValBis); // delete upon exit
       for (int i = 0; i < xEl; i++) (*xValBis)[i] = log10((*xVal)[i]);
     }
     else xValBis = xVal;
@@ -159,7 +173,7 @@ private:
       yVal->MinMax(&minEl, &maxEl, NULL, NULL, true);
       if ((*yVal)[minEl] <= 0.0) wasBadyLog = TRUE;
       yValBis = new DDoubleGDL(dimension(yEl), BaseGDL::NOZERO);
-      yvalBis_guard.reset(yValBis); // delete upon exit
+      yvalBis_guard.Reset(yValBis); // delete upon exit
       for (int i = 0; i < yEl; i++) (*yValBis)[i] = log10((*yVal)[i]);
     }
     else yValBis = yVal;
@@ -206,10 +220,11 @@ private:
     {
       yStart=yAxisStart;
       yEnd=yAxisEnd;
-      //must compute min-max for other axis!
-      {
-        gdlDoRangeExtrema(yVal,xVal,xStart,xEnd,yStart,yEnd);
-      }
+// wrong behaviour: x axis limits do not depend from Y values       
+//      //must compute min-max for other axis!
+//      {
+//        gdlDoRangeExtrema(yVal,xVal,xStart,xEnd,yStart,yEnd);
+//      }
     }
     else if (setx)
     {
@@ -227,6 +242,16 @@ private:
      //ISOTROPIC
     iso=0;
     e->AssureLongScalarKWIfPresent( "ISOTROPIC", iso);
+
+    if (doT3d)
+    {
+      //make zVal
+      zEl=xVal->N_Elements();
+      zVal=new DDoubleGDL(dimension(zEl), BaseGDL::NOZERO);
+      zval_guard.Reset(zVal); // delete upon exit
+      for (SizeT i=0; i< zEl ; ++i) (*zVal)[i]=zValue;
+    }
+
     return false;
   }
 
@@ -237,11 +262,6 @@ private:
    //start a plot
     gdlNextPlotHandlingNoEraseOption(e, actStream);     //NOERASE
 
-    // *** start drawing. Graphic Keywords accepted: BACKGROUND, CHARSIZE, CHARTHICK, CLIP, COLOR, DATA, 
-    //DEVICE, FONT, LINESTYLE, NOCLIP, NODATA, NOERASE, NORMAL, POSITION, PSYM, SUBTITLE, SYMSIZE, T3D,
-    //THICK, TICKLEN, TITLE, [XYZ]CHARSIZE, [XYZ]GRIDSTYLE, [XYZ]MARGIN(OK), [XYZ]MINOR, [XYZ]RANGE,
-    //[XYZ]STYLE, [XYZ]THICK, [XYZ]TICKFORMAT, [XYZ]TICKINTERVAL, [XYZ]TICKLAYOUT, [XYZ]TICKLEN,
-    //[XYZ]TICKNAME, [XYZ]TICKS, [XYZ]TICKUNITS, [XYZ]TICKV, [XYZ]TICK_GET, [XYZ]TITLE, ZVALUE
 
     // [XY]STYLE
     DLong xStyle=0, yStyle=0;
@@ -268,16 +288,179 @@ private:
     if (boxPosition == NULL) boxPosition = (DFloatGDL*) 0xF;
     // set the PLOT charsize before setting viewport (margin depend on charsize)
     gdlSetPlotCharsize(e, actStream);
-    //fix viewport and coordinates for box
-    if (gdlSetViewPortAndWorldCoordinates( e, actStream, boxPosition,
-			    xLog, yLog,
-			    xMarginL, xMarginR, yMarginB, yMarginT,
-			    xStart, xEnd, yStart, yEnd, iso)==FALSE) return; //no good: should catch an exception to get out of this mess.
-    //current pen color...
-    gdlSetGraphicsForegroundColorFromKw(e, actStream);
-    gdlSetPlotCharthick(e,actStream); 
 
-    gdlBox(e, actStream, xStart, xEnd, yStart, yEnd, xLog, yLog);
+    static DDouble x0,y0,xs,ys; //conversion to normalized coords
+    x0=(xLog)?-log10(xStart):-xStart;
+    y0=(yLog)?-log10(yStart):-yStart;
+    xs=(xLog)?(log10(xEnd)-log10(xStart)):xEnd-xStart;xs=1.0/xs;
+    ys=(yLog)?(log10(yEnd)-log10(yStart)):yEnd-yStart;ys=1.0/ys;
+
+    if (doT3d)
+    {
+      DDoubleGDL* plplot3d;
+      DDouble az, alt, ay, scale;
+      ORIENTATION3D axisExchangeCode;
+
+      plplot3d = gdlConvertT3DMatrixToPlplotRotationMatrix( zValue, az, alt, ay, scale, axisExchangeCode);
+      if (plplot3d == NULL)
+      {
+        e->Throw("Illegal 3D transformation. (FIXME)");
+      }
+
+      if (gdlSet3DViewPortAndWorldCoordinates(e, actStream, plplot3d, xLog, yLog,
+        xStart, xEnd, yStart, yEnd) == FALSE) return;
+      gdlSetGraphicsForegroundColorFromKw(e, actStream);
+      gdlSetPlotCharthick(e, actStream);
+
+      DDouble  t3xStart, t3xEnd, t3yStart, t3yEnd, t3zStart, t3zEnd;
+      switch (axisExchangeCode) {
+        case NORMAL: //X->X Y->Y plane XY
+          t3xStart=(xLog)?log10(xStart):xStart,
+          t3xEnd=(xLog)?log10(xEnd):xEnd,
+          t3yStart=(yLog)?log10(yStart):yStart,
+          t3yEnd=(yLog)?log10(yEnd):yEnd,
+          t3zStart=0;
+          t3zEnd=1.0;
+          actStream->w3d(scale, scale, scale*(1.0 - zValue),
+          t3xStart,t3xEnd,t3yStart,t3yEnd,t3zStart,t3zEnd,
+          alt, az);
+          gdlAxis3(e, actStream, "X", xStart, xEnd, xLog);
+          gdlAxis3(e, actStream, "Y", yStart, yEnd, yLog);
+          break;
+        case XY: // X->Y Y->X plane XY
+          t3yStart=(xLog)?log10(xStart):xStart,
+          t3yEnd=(xLog)?log10(xEnd):xEnd,
+          t3xStart=(yLog)?log10(yStart):yStart,
+          t3xEnd=(yLog)?log10(yEnd):yEnd,
+          t3zStart=0;
+          t3zEnd=1.0;
+          actStream->w3d(scale, scale, scale*(1.0 - zValue),
+          t3xStart,t3xEnd,t3yStart,t3yEnd,t3zStart,t3zEnd,
+          alt, az);
+          gdlAxis3(e, actStream, "Y", xStart, xEnd, xLog);
+          gdlAxis3(e, actStream, "X", yStart, yEnd, yLog);
+          break;
+        case XZ: // Y->Y X->Z plane YZ
+          t3zStart=(xLog)?log10(xStart):xStart,
+          t3zEnd=(xLog)?log10(xEnd):xEnd,
+          t3yStart=(yLog)?log10(yStart):yStart,
+          t3yEnd=(yLog)?log10(yEnd):yEnd,
+          t3xStart=0;
+          t3xEnd=1.0;
+          actStream->w3d(scale, scale, scale,
+          t3xStart,t3xEnd,t3yStart,t3yEnd,t3zStart,t3zEnd,
+          alt, az);
+          gdlAxis3(e, actStream, "Z", xStart, xEnd, xLog, 0);
+          gdlAxis3(e, actStream, "Y", yStart, yEnd, yLog);
+          break;
+        case YZ: // X->X Y->Z plane XZ
+          t3xStart=(xLog)?log10(xStart):xStart,
+          t3xEnd=(xLog)?log10(xEnd):xEnd,
+          t3zStart=(yLog)?log10(yStart):yStart,
+          t3zEnd=(yLog)?log10(yEnd):yEnd,
+          t3yStart=0;
+          t3yEnd=1.0;
+          actStream->w3d(scale, scale, scale,
+          t3xStart,t3xEnd,t3yStart,t3yEnd,t3zStart,t3zEnd,
+          alt, az);
+          gdlAxis3(e, actStream, "X", xStart, xEnd, xLog);
+          gdlAxis3(e, actStream, "Z", yStart, yEnd, yLog,1);
+          break;
+        case XZXY: //X->Y Y->Z plane YZ
+          t3yStart=(xLog)?log10(xStart):xStart,
+          t3yEnd=(xLog)?log10(xEnd):xEnd,
+          t3zStart=(yLog)?log10(yStart):yStart,
+          t3zEnd=(yLog)?log10(yEnd):yEnd,
+          t3xStart=0;
+          t3xEnd=1.0;
+          actStream->w3d(scale, scale, scale,
+          t3xStart,t3xEnd,t3yStart,t3yEnd,t3zStart,t3zEnd,
+          alt, az);
+          gdlAxis3(e, actStream, "Y", xStart, xEnd, xLog);
+          gdlAxis3(e, actStream, "Z", yStart, yEnd, yLog);
+          break;
+        case XZYZ: //X->Z Y->X plane XZ
+          t3zStart=(xLog)?log10(xStart):xStart,
+          t3zEnd=(xLog)?log10(xEnd):xEnd,
+          t3xStart=(yLog)?log10(yStart):yStart,
+          t3xEnd=(yLog)?log10(yEnd):yEnd,
+          t3yStart=0;
+          t3yEnd=1.0;
+          actStream->w3d(scale, scale, scale,
+          t3xStart,t3xEnd,t3yStart,t3yEnd,t3zStart,t3zEnd,
+          alt, az);
+          gdlAxis3(e, actStream, "Z", xStart, xEnd, xLog,1);
+          gdlAxis3(e, actStream, "X", yStart, yEnd, yLog);
+          break;
+      }
+      // title and sub title
+      gdlWriteTitleAndSubtitle(e, actStream);
+
+      //data: will plot using coordinates transform.
+      //TODO: unless PSYM=0 (optimize)
+
+      Data3d.zValue = zValue;
+      Data3d.Matrix = plplot3d; //try to change for !P.T in future?
+        switch (axisExchangeCode) {
+          case NORMAL: //X->X Y->Y plane XY
+            Data3d.x0=x0;
+            Data3d.y0=y0;
+            Data3d.xs=xs;
+            Data3d.ys=ys;
+            Data3d.code = code012;
+            break;
+          case XY: // X->Y Y->X plane XY
+            Data3d.x0=0;
+            Data3d.y0=x0;
+            Data3d.xs=ys;
+            Data3d.ys=xs;
+            Data3d.code = code102;
+            break;
+          case XZ: // Y->Y X->Z plane YZ
+            Data3d.x0=x0;
+            Data3d.y0=y0;
+            Data3d.xs=xs;
+            Data3d.ys=ys;
+            Data3d.code = code210;
+            break;
+          case YZ: // X->X Y->Z plane XZ
+            Data3d.x0=x0;
+            Data3d.y0=y0;
+            Data3d.xs=xs;
+            Data3d.ys=ys;
+            Data3d.code = code021;
+            break;
+          case XZXY: //X->Y Y->Z plane YZ
+            Data3d.x0=x0;
+            Data3d.y0=y0;
+            Data3d.xs=xs;
+            Data3d.ys=ys;
+            Data3d.code = code120;
+            break;
+          case XZYZ: //X->Z Y->X plane XZ
+            Data3d.x0=x0;
+            Data3d.y0=y0;
+            Data3d.xs=xs;
+            Data3d.ys=ys;
+            Data3d.code = code201;
+            break;
+        }
+
+      actStream->stransform(gdl3dTo2dTransform, &Data3d);
+
+    } else
+    {
+      //fix viewport and coordinates for box
+      if (gdlSetViewPortAndWorldCoordinates(e, actStream, boxPosition,
+          xLog, yLog,
+          xMarginL, xMarginR, yMarginB, yMarginT,
+	      xStart, xEnd, yStart, yEnd, iso)==FALSE) return; //no good: should catch an exception to get out of this mess.
+      //current pen color...
+      gdlSetGraphicsForegroundColorFromKw(e, actStream);
+      gdlSetPlotCharthick(e, actStream);
+
+      gdlBox(e, actStream, xStart, xEnd, yStart, yEnd, xLog, yLog);
+    }
   } 
   
     private: void call_plplot(EnvT* e, GDLGStream* actStream) 
@@ -306,6 +489,7 @@ private:
 
     private: void post_call(EnvT* e, GDLGStream* actStream) 
     {
+     if (doT3d) actStream->stransform(NULL,NULL);
       actStream->lsty(1);//reset linestyle
       actStream->sizeChar(1.0);
     } 

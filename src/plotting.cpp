@@ -32,14 +32,15 @@
 #include "math_utl.hpp"
 
 #ifdef _MSC_VER
-#  define isfinite _finite
-#  define isnan _isnan
+#define snprintf _snprintf
 #endif
 
 namespace lib
 {
 
   using namespace std;
+//  using std::isinf;
+  using std::isnan;
   
 //static values
   static DDouble savedPointX=0.0;
@@ -47,55 +48,95 @@ namespace lib
   static gdlbox saveBox;
   static DDouble epsDouble=0.0;
   static DDouble absoluteMinVal=0.0;
-    static DFloat sym1x[5]={1, -1, 0, 0, 0}; // +
-    static DFloat sym1y[5]={0, 0, 0, -1, 1}; // +
-    static DFloat sym2x[11]= {1, -1, 0, 0, 0, 0,1,-1,0,1,-1}; //*
-    static DFloat sym2y[11]= {0, 0, 0, -1, 1,0,1,-1,0,-1,1}; // *
-    static DFloat sym3x[2]={0,0}; // .
-    static DFloat sym3y[2]={0,0}; // .
-    static DFloat sym4x[5]={ 0, 1, 0, -1, 0 }; //diamond.
-    static DFloat sym4y[5]={ 1, 0, -1, 0, 1 }; //diamond.
-    static DFloat sym5x[4]={ -1, 0, 1, -1 }; // triangle up.
-    static DFloat sym5y[4]={ -1, 1, -1, -1 }; // triangle up.
-    static DFloat sym6x[5]={ -1, 1, 1, -1, -1 }; //square
-    static DFloat sym6y[5]={ 1, 1, -1, -1, 1 }; //square
-    static DFloat sym7x[5]= {1,-1,0,1,-1}; //x
-    static DFloat sym7y[5]= {1,-1,0,-1,1}; //x
-    DLong syml[7]={5,11,2,5,4,5,5};
+  static DDouble absoluteMaxVal=0.0;
+  static DFloat sym1x[5]={1, -1, 0, 0, 0}; // +
+  static DFloat sym1y[5]={0, 0, 0, -1, 1}; // +
+  static DFloat sym2x[11]= {1, -1, 0, 0, 0, 0,1,-1,0,1,-1}; //*
+  static DFloat sym2y[11]= {0, 0, 0, -1, 1,0,1,-1,0,-1,1}; // *
+  static DFloat sym3x[2]={0,0}; // .
+  static DFloat sym3y[2]={0,0}; // .
+  static DFloat sym4x[5]={ 0, 1, 0, -1, 0 }; //diamond.
+  static DFloat sym4y[5]={ 1, 0, -1, 0, 1 }; //diamond.
+  static DFloat sym5x[4]={ -1, 0, 1, -1 }; // triangle up.
+  static DFloat sym5y[4]={ -1, 1, -1, -1 }; // triangle up.
+  static DFloat sym6x[5]={ -1, 1, 1, -1, -1 }; //square
+  static DFloat sym6y[5]={ 1, 1, -1, -1, 1 }; //square
+  static DFloat sym7x[5]= {1,-1,0,1,-1}; //x
+  static DFloat sym7y[5]= {1,-1,0,-1,1}; //x
+  DLong syml[7]={5,11,2,5,4,5,5};
+
+  struct GDL_TICKDATA
+  {
+    bool isLog;
+  };
+
+  struct GDL_TICKNAMEDATA
+  {
+    SizeT counter;
+    SizeT nTickName;
+    DStringGDL* TickName;
+    bool isLog;
+  };
+
+  struct GDL_MULTIAXISTICKDATA
+  {
+    EnvT *e;
+    SizeT counter;
+    int what;
+    SizeT nTickFormat;
+    DDouble axismin;
+    DDouble axismax;
+    DStringGDL* TickFormat;
+    SizeT nTickUnits;
+    DStringGDL* TickUnits;
+    bool isLog;
+  };
 
   // local helper function
   DDouble gdlEpsDouble()
   {
     static bool done=FALSE;
-    if (done) return epsDouble;
-    else
+    if (!done)
     {
-      done=TRUE;
       long int ibeta, it, irnd, ngrd, machep, negep, iexp, minexp, maxexp;
       double epsD, epsnegD, xminD, xmaxD;
       machar_d(&ibeta, &it, &irnd, &ngrd, &machep,
                 &negep, &iexp, &minexp, &maxexp,
-                &epsD, &epsnegD, &xminD, &xmaxD );
-      epsDouble=epsD;
+                &epsDouble, &epsnegD, &xminD, &xmaxD );
+      done=TRUE;
     }
+    return epsDouble;
   }
   DDouble gdlAbsoluteMinValueDouble()
   {
     static bool done=FALSE;
-    if (done) return absoluteMinVal;
-    else
+    if (!done)
     {
-      done=TRUE;
       long int ibeta, it, irnd, ngrd, machep, negep, iexp, minexp, maxexp;
       double epsD, epsnegD, xminD, xmaxD;
-      machar_d(&ibeta, &it, &irnd, &ngrd, &machep,
-                &negep, &iexp, &minexp, &maxexp,
-                &epsD, &epsnegD, &xminD, &xmaxD );
-      absoluteMinVal=xminD;
+       machar_d(&ibeta, &it, &irnd, &ngrd, &machep,
+       &negep, &iexp, &minexp, &maxexp,
+       &epsD, &epsnegD, &absoluteMinVal, &xmaxD );
+      done=TRUE;
     }
+    return absoluteMinVal;
+  }
+  DDouble gdlAbsoluteMaxValueDouble()
+  {
+    static bool done=FALSE;
+    if (!done)
+    {
+      long int ibeta, it, irnd, ngrd, machep, negep, iexp, minexp, maxexp;
+      double epsD, epsnegD, xminD, xmaxD;
+       machar_d(&ibeta, &it, &irnd, &ngrd, &machep,
+       &negep, &iexp, &minexp, &maxexp,
+       &epsD, &epsnegD, &xminD, &absoluteMaxVal );
+      done=TRUE;
+    }
+    return absoluteMaxVal;
   }
 
-  template <typename T> void gdlDoRangeExtrema(T* xVal, T* yVal, DDouble &min, DDouble &max, DDouble xmin, DDouble xmax, bool doMinMax=false, DDouble minVal=0, DDouble maxVal=0)
+  template <typename T> void gdlDoRangeExtrema(T* xVal, T* yVal, DDouble &min, DDouble &max, DDouble xmin, DDouble xmax, bool doMinMax, DDouble minVal, DDouble maxVal)
   {
     DDouble valx, valy;
     SizeT i,k;
@@ -103,11 +144,13 @@ namespace lib
     if(n!=yVal->N_Elements()) return;
     for (i=0,k=0 ; i<n ; ++i)
     {
+       //look only in range x=[xmin,xmax]
        valx=(*xVal)[i];
-       if (isnan(valx)) break;
-       valy=(*yVal)[i];
-       if (isnan(valy)) break;
+       if (std::isnan(valx)) break;
        if(valx<xmin || valx>xmax) break;
+       //min and max of y if not NaN and in range [minVal, maxVal] if doMinMax=yes (min_value, max_value keywords)
+       valy=(*yVal)[i];
+       if (std::isnan(valy)) break;
        if (doMinMax &&(valy<minVal || valy>maxVal)) break;
        if(k==0) {min=valy; max=valy;} else {min=gdlPlot_Min(min,valy); max=gdlPlot_Max(max,valy);}
        k++;
@@ -342,7 +385,7 @@ namespace lib
     }
 
     // general case (only negative OR negative and positive)
-    if ( cas==0 )
+    if ( cas==0 ) //rounding is not aka idl due to use of ceil and floor. TBD.
     {
       x=max-min;
       intv=AutoIntv(x);
@@ -542,9 +585,13 @@ namespace lib
                     (pStruct->GetTag(pStruct->Desc()->TagIndex("SYMSIZE"), 0)))[0];
     e->AssureFloatScalarKWIfPresent("SYMSIZE", symsize);
     if ( symsize<=0.0 ) symsize=1.0;
-
+    
     UsymConvX=(0.5*symsize*(a->wCharLength()/a->charScale())); //be dependent only on symsize!
     UsymConvY=(0.5*symsize*(a->wCharHeight()/a->charScale()));
+    PLFLT wun, wdeux, wtrois, wquatre; //take care of axes world orientation!
+    a->pageWorldCoordinates(wun, wdeux, wtrois, wquatre);
+    if ((wdeux-wun)<0) UsymConvX*=-1.0;
+    if ((wquatre-wtrois)<0) UsymConvY*=-1.0;
     if (GDL_DEBUG_PLSTREAM) fprintf(stderr,"GetUserSymSize(%f,%f)\n",a->wCharLength(),a->wCharHeight());
   }
 
@@ -571,6 +618,45 @@ namespace lib
     if ( (yStyle&4)==4 ) yOpt="";
   }
 
+
+  void CheckMargin3d(EnvT* e, GDLGStream* actStream,
+                   PLFLT& xMR,
+                   PLFLT& xML,
+                   PLFLT& yMB,
+                   PLFLT& yMT)
+  {
+    // [XY]MARGIN
+    DFloat xMarginL, xMarginR, yMarginB, yMarginT;
+    gdlGetDesiredAxisMargin(e, "X", xMarginL, xMarginR);
+    gdlGetDesiredAxisMargin(e, "Y", yMarginB, yMarginT);
+//    PLFLT scl=actStream->dCharLength()/actStream->xSubPageSize(); //current char length/subpage size
+    PLFLT scl=actStream->nCharLength(); //current char length
+    xML=xMarginL*scl; //margin as percentage of subpage
+    xMR=xMarginR*scl;
+    cout<<scl<<","<<xML<<endl;
+//    scl=actStream->dCharHeight()/actStream->ySubPageSize(); //current char length/subpage size
+    scl=actStream->nCharHeight(); //current char height
+    cout<<scl<<endl;
+    yMB=(yMarginB)*scl;
+    yMT=(yMarginT)*scl;
+
+    if ( xML+xMR>=1.0 )
+    {
+      Message(e->GetProName()+": XMARGIN to large (adjusted).");
+      PLFLT xMMult=xML+xMR;
+      xML/=xMMult*1.5;
+      xMR/=xMMult*1.5;
+    }
+    if ( yMB+yMT>=1.0 )
+    {
+      Message(e->GetProName()+": YMARGIN to large (adjusted).");
+      PLFLT yMMult=yMB+yMT;
+      yMB/=yMMult*1.5;
+      yMT/=yMMult*1.5;
+    }
+  }
+
+
   void CheckMargin(EnvT* e, GDLGStream* actStream,
                    DFloat xMarginL,
                    DFloat xMarginR,
@@ -586,7 +672,7 @@ namespace lib
     xMR=xMarginR*scl;
     scl=actStream->dCharHeight()/actStream->ySubPageSize(); //current char length/subpage size
     yMB=(yMarginB+1.85)*scl;
-    yMT=(yMarginT+1)*scl;
+    yMT=(yMarginT+1.85)*scl; //to allow subscripts and superscripts (as in IDL)
 
     if ( xML+xMR>=1.0 )
     {
@@ -640,15 +726,194 @@ namespace lib
     actStream->vpor(x1, x2, y1, y2);
   }
 
+  bool gdlSet3DViewPortAndWorldCoordinates(EnvT* e,
+                                           GDLGStream* actStream,
+                                           DDoubleGDL* Matrix,
+                                           bool xLog, bool yLog,
+                                           DDouble xStart,
+                                           DDouble xEnd,
+                                           DDouble yStart,
+                                           DDouble yEnd,
+                                           DDouble zStart,
+                                           DDouble zEnd,
+                                           bool zLog)
+  {
+    // First, do as gdlSetViewPortAndWorldCoordinates, save some values:
+    // set ![XY].CRANGE
+    gdlStoreAxisCRANGE("X", xStart, xEnd, xLog);
+    gdlStoreAxisCRANGE("Y", yStart, yEnd, yLog);
+    gdlStoreAxisCRANGE("Z", zStart, zEnd, zLog);
+    //set ![XY].type
+    gdlStoreAxisType("X",xLog);
+    gdlStoreAxisType("Y",yLog);
+    gdlStoreAxisType("Z",zLog);
+    //set ![XY].WINDOW and ![XY].S
+    gdlStoreAxisSandWINDOW(actStream, "X", xStart, xEnd, xLog);
+    gdlStoreAxisSandWINDOW(actStream, "Y", yStart, yEnd, yLog);
+    gdlStoreAxisSandWINDOW(actStream, "Z", zStart, zEnd, zLog);
+
+    //3D work
+    enum{ DATA=0,
+          NORMAL,
+          DEVICE
+        } coordinateSystem=DATA;
+    //To center plot, compute projected corners of 1 unit box
+    static DDouble zz[8]={0,0,0,0,1,1,1,1};
+    static DDouble yy[8]={0,0,1,1,0,0,1,1};
+    static DDouble xx[8]={0,1,0,1,0,1,0,1};
+    static DDouble ww[8]={1,1,1,1,1,1,1,1};
+
+    DDoubleGDL* V=(new DDoubleGDL(dimension(8,4)));
+    memcpy(&((*V)[0]),xx,8*sizeof(double));
+    memcpy(&((*V)[8]),yy,8*sizeof(double));
+    memcpy(&((*V)[16]),zz,8*sizeof(double));
+    memcpy(&((*V)[24]),ww,8*sizeof(double));
+
+    DDoubleGDL* pV=(Matrix->MatrixOp(V,false,true));
+
+    DDouble xmin,xmax,ymin,ymax;
+    DLong iMin,iMax;
+    pV->MinMax(&iMin,&iMax,NULL,NULL,false,0,0,4);
+    xmin=(*pV)[iMin];
+    xmax=(*pV)[iMax];
+    pV->MinMax(&iMin,&iMax,NULL,NULL,false,1,0,4);
+    ymin=(*pV)[iMin];
+    ymax=(*pV)[iMax];
+
+    PLFLT xMR, xML, yMB, yMT;
+    DFloat xMarginL, xMarginR, yMarginB, yMarginT;
+    gdlGetDesiredAxisMargin(e, "X", xMarginL, xMarginR);
+    gdlGetDesiredAxisMargin(e, "Y", yMarginB, yMarginT);
+    PLFLT scl=actStream->nCharLength(); //current char length
+    xML=xMarginL*scl; //margin as percentage of subpage
+    xMR=xMarginR*scl;
+    scl=actStream->nCharHeight(); //current char height
+    yMB=(yMarginB)*scl;
+    yMT=(yMarginT)*scl;
+
+    if ( xML+xMR>=1.0 )
+    {
+      PLFLT xMMult=xML+xMR;
+      xML/=xMMult*1.5;
+      xMR/=xMMult*1.5;
+    }
+    if ( yMB+yMT>=1.0 )
+    {
+      PLFLT yMMult=yMB+yMT;
+      yMB/=yMMult*1.5;
+      yMT/=yMMult*1.5;
+    }
+
+    static bool kwP=FALSE;
+    PLFLT positionP[4]={0, 0, 0, 0};
+//default box for 3d: evrything minus P.Title /P.subtitle place
+    PLFLT position[4]={0,0,1,1};
+    // Get !P.position default values
+    static unsigned positionTag=SysVar::P()->Desc()->TagIndex("POSITION");
+    for ( SizeT i=0; i<4; ++i ) positionP[i]=(PLFLT)(*static_cast<DFloatGDL*>(SysVar::P()->GetTag(positionTag, 0)))[i];
+    //check presence of DATA,DEVICE and NORMAL options
+    if ( e->KeywordSet( "DATA")) coordinateSystem=DATA;
+    if ( e->KeywordSet( "DEVICE")) coordinateSystem=DEVICE;
+    if ( e->KeywordSet( "NORMAL")) coordinateSystem=NORMAL;
+    if (coordinateSystem==DATA && !actStream->validWorldBox()) e->Throw("PLOT: Data coordinate system not established.");
+    // read boxPosition if needed
+    int positionIx = e->KeywordIx( "POSITION");
+    DFloatGDL* boxPosition = e->IfDefGetKWAs<DFloatGDL>( positionIx);
+    if (boxPosition == NULL) boxPosition = (DFloatGDL*) 0xF;
+    if ( boxPosition!=(DFloatGDL*)0xF)
+    {
+      for ( SizeT i=0; i<4&&i<boxPosition->N_Elements(); ++i ) position[i]=(*boxPosition)[i];
+    }
+    // modify positionP and/or boxPosition to NORMAL if DEVICE is present
+    if (coordinateSystem==DEVICE)
+    {
+      PLFLT normx;
+      PLFLT normy;
+      actStream->DeviceToNormedDevice(positionP[0], positionP[1], normx, normy);
+      positionP[0]=normx;
+      positionP[1]=normy;
+      actStream->DeviceToNormedDevice(positionP[2], positionP[3], normx, normy);
+      positionP[2]=normx;
+      positionP[3]=normy;
+      if ( boxPosition!=(DFloatGDL*)0xF)
+      {
+        actStream->DeviceToNormedDevice(position[0], position[1], normx, normy);
+        position[0]=normx;
+        position[1]=normy;
+        actStream->DeviceToNormedDevice(position[2], position[3], normx, normy);
+        position[2]=normx;
+        position[3]=normy;
+      }
+    }
+
+    // New plot without POSITION=[] as argument
+    if ( boxPosition==(DFloatGDL*)0xF )
+    {
+      kwP=false;
+      // If !P.position not set use default values. coordinatesSystem not used even if present!
+      if ( positionP[0]==0&&positionP[1]==0&&
+           positionP[2]==0&&positionP[3]==0 )
+      {
+        // Set to (smart?) default values
+        position[0]=0;
+        position[1]=0+2*(yMB/yMarginB); //subtitle
+        position[2]=1.0;
+        position[3]=1.0-2*(yMT/yMarginT); //title
+        actStream->vpor(position[0], position[2], position[1], position[3]);
+      }
+      else
+      {
+        // Use !P.position values.
+        actStream->vpor(positionP[0], positionP[2], positionP[1], positionP[3]);
+     }
+    }
+    else // Position keyword set
+    {
+      kwP=true;
+      actStream->vpor(position[0], position[2], position[1], position[3]);
+    }
+    //adjust 'world' values to give room to axis labels. Could be better if we take
+    //into account projection angles
+    // fix word values without labels:
+    actStream->wind(xmin, xmax, ymin, ymax);
+    //compute world Charsize
+    PLFLT xb, xe, yb, ye;
+    xb=xmin-xMarginL*actStream->wCharLength();
+    xe=xmax+xMarginR*actStream->wCharLength();
+    yb=ymin-yMarginB*actStream->wCharHeight();
+    ye=ymax-yMarginT*actStream->wCharHeight();
+    actStream->wind(xb, xe, yb, ye);
+
+    //Clipping is false in 3D... 
+
+    //set P.CLIP (done by PLOT, CONTOUR, SHADE_SURF, and SURFACE)
+    Guard<BaseGDL> clipbox_guard;
+    DLongGDL* clipBox= new DLongGDL(4, BaseGDL::ZERO); clipbox_guard.Reset(clipBox);
+    PLFLT x,y;
+    actStream->gvpd(xmin, xmax, ymin, ymax);
+
+    actStream->NormedDeviceToDevice(xmin, ymin, x,y);
+    (*clipBox)[0]=x;
+    (*clipBox)[1]=y;
+    actStream->NormedDeviceToDevice(xmax, ymax,x,y);
+    (*clipBox)[2]=x;
+    (*clipBox)[3]=y;
+    gdlStoreCLIP(clipBox);
+    return true;
+  }
+
+
+  //TODO: put margin discovery in gdlSetViewPortAndWorldCoordinates (simplify call list)
+  //also, solve the proble of passing back xStart etc if they are changed by unwantedaxisvalue())
+  
   bool gdlSetViewPortAndWorldCoordinates(EnvT* e,
                                          GDLGStream* actStream,
-                                         DFloatGDL* plotPosition,
+                                         DFloatGDL* boxPosition,
                                          bool xLog, bool yLog,
                                          DFloat xMarginL,
                                          DFloat xMarginR,
                                          DFloat yMarginB,
                                          DFloat yMarginT,
-                                         // input/output
                                          DDouble xStart,
                                          DDouble xEnd,
                                          DDouble yStart,
@@ -678,25 +943,44 @@ namespace lib
     static PLFLT aspect=0.0;
 
     static PLFLT positionP[4]={0, 0, 0, 0};
+    static PLFLT regionP[4]={0, 0, 0, 0};
     static PLFLT position[4]={0,0,1,1};
     DStructGDL* pStruct=SysVar::P();
-    // Get !P.position values
+    // Get !P.position values. !P.REGION is superseded by !P.POSITION
     if ( pStruct!=NULL )
     {
+      
+      static unsigned regionTag=pStruct->Desc()->TagIndex("REGION");
+      for ( SizeT i=0; i<4; ++i ) regionP[i]=(PLFLT)(*static_cast<DFloatGDL*>(pStruct->GetTag(regionTag, 0)))[i];
       static unsigned positionTag=pStruct->Desc()->TagIndex("POSITION");
       for ( SizeT i=0; i<4; ++i ) positionP[i]=(PLFLT)(*static_cast<DFloatGDL*>(pStruct->GetTag(positionTag, 0)))[i];
     }
+    if (regionP[0]!=regionP[2] && positionP[0]==positionP[2]) //if not ignored, and will be used, as 
+                //a surrogate of !P.Position:
+    {
+        //compute position removing margins
+        positionP[0]=regionP[0]+xMarginL*actStream->nCharLength();
+        positionP[1]=regionP[1]+yMarginB*actStream->nCharHeight();
+        positionP[2]=regionP[2]-xMarginR*actStream->nCharLength();
+        positionP[3]=regionP[3]-yMarginT*actStream->nCharHeight();
+    }
+    //compatibility: Position NEVER outside [0,1]:
+    positionP[0]=max(0.0,positionP[0]);
+    positionP[1]=max(0.0,positionP[1]);
+    positionP[2]=min(1.0,positionP[2]);
+    positionP[3]=min(1.0,positionP[3]);
+    
     //check presence of DATA,DEVICE and NORMAL options
     if ( e->KeywordSet( "DATA")) coordinateSystem=DATA;
     if ( e->KeywordSet( "DEVICE")) coordinateSystem=DEVICE;
     if ( e->KeywordSet( "NORMAL")) coordinateSystem=NORMAL;
     if (coordinateSystem==DATA && !actStream->validWorldBox()) e->Throw("PLOT: Data coordinate system not established.");
-    // read plotPosition if needed
-    if ( plotPosition!=NULL && plotPosition!=(DFloatGDL*)0xF )
+    // read boxPosition if needed
+    if ( boxPosition!=NULL && boxPosition!=(DFloatGDL*)0xF )
     {
-      for ( SizeT i=0; i<4&&i<plotPosition->N_Elements(); ++i ) position[i]=(*plotPosition)[i];
+      for ( SizeT i=0; i<4&&i<boxPosition->N_Elements(); ++i ) position[i]=(*boxPosition)[i];
     }
-    // modify positionP and/or plotPosition to NORMAL if DEVICE is present
+    // modify positionP and/or boxPosition to NORMAL if DEVICE is present
     if (coordinateSystem==DEVICE)
     {
       PLFLT normx;
@@ -707,7 +991,7 @@ namespace lib
       actStream->DeviceToNormedDevice(positionP[2], positionP[3], normx, normy);
       positionP[2]=normx;
       positionP[3]=normy;
-      if ( plotPosition!=NULL && plotPosition!=(DFloatGDL*)0xF )
+      if ( boxPosition!=NULL && boxPosition!=(DFloatGDL*)0xF )
       {
         actStream->DeviceToNormedDevice(position[0], position[1], normx, normy);
         position[0]=normx;
@@ -718,7 +1002,7 @@ namespace lib
       }
     }
     // Adjust Start and End for Log (convert to log)
-    if ( plotPosition!=NULL ) //new box
+    if ( boxPosition!=NULL ) //new box
     {
       if ( xLog )
       {
@@ -734,7 +1018,7 @@ namespace lib
       }
     }
     // If pos == NULL (oplot, /OVERPLOT etc: Reuse previous values)
-    if ( plotPosition==NULL )
+    if ( boxPosition==NULL )
     {
       // If position keyword previously set
       if ( kwP )
@@ -774,7 +1058,7 @@ namespace lib
       }
 
       // New plot without POSITION=[] as argument
-      if ( plotPosition==(DFloatGDL*)0xF )
+      if ( boxPosition==(DFloatGDL*)0xF )
       {
         kwP=false;
         // If !P.position not set use default values. coordinatesSystem not used even if present!
@@ -828,7 +1112,7 @@ namespace lib
     //       cout << "xStart " << xStart << "  xEnd "<<xEnd<<endl;
     //        cout << "yStart " << yStart << "  yEnd "<<yEnd<<endl;
     
-    // set ![XY].CRANGE
+    // set ![XYZ].CRANGE (Z is not defined but must be [0,1])
     gdlStoreAxisCRANGE("X", xStart, xEnd, FALSE); //already in log here if relevant!
     gdlStoreAxisCRANGE("Y", yStart, yEnd, FALSE);
 
@@ -840,8 +1124,8 @@ namespace lib
     gdlStoreAxisSandWINDOW(actStream, "X", xStart, xEnd, FALSE);//already in log here if relevant!
     gdlStoreAxisSandWINDOW(actStream, "Y", yStart, yEnd, FALSE);
     //set P.CLIP (done by PLOT, CONTOUR, SHADE_SURF, and SURFACE)
-    auto_ptr<BaseGDL> clipbox_guard;
-    DLongGDL* clipBox= new DLongGDL(4, BaseGDL::ZERO); clipbox_guard.reset(clipBox);
+    Guard<BaseGDL> clipbox_guard;
+    DLongGDL* clipBox= new DLongGDL(4, BaseGDL::ZERO); clipbox_guard.Reset(clipBox);
     PLFLT xmin, xmax, ymin, ymax, x,y;
     actStream->gvpd(xmin, xmax, ymin, ymax);
 
@@ -855,14 +1139,18 @@ namespace lib
     return true;
   }
 
-  void GetSFromPlotStructs(DDouble **sx, DDouble **sy)
+
+  void GetSFromPlotStructs(DDouble **sx, DDouble **sy, DDouble **sz)
   {
     static DStructGDL* xStruct=SysVar::X();
     static DStructGDL* yStruct=SysVar::Y();
+    static DStructGDL* zStruct=SysVar::Z();
     unsigned sxTag=xStruct->Desc()->TagIndex("S");
     unsigned syTag=yStruct->Desc()->TagIndex("S");
-    *sx= &(*static_cast<DDoubleGDL*>(xStruct->GetTag(sxTag, 0)))[0];
-    *sy= &(*static_cast<DDoubleGDL*>(yStruct->GetTag(syTag, 0)))[0];
+    unsigned szTag=zStruct->Desc()->TagIndex("S");
+    if (sx != NULL) *sx= &(*static_cast<DDoubleGDL*>(xStruct->GetTag(sxTag, 0)))[0];
+    if (sy != NULL) *sy= &(*static_cast<DDoubleGDL*>(yStruct->GetTag(syTag, 0)))[0];
+    if (sz != NULL) *sz= &(*static_cast<DDoubleGDL*>(zStruct->GetTag(szTag, 0)))[0];
   }
 
   void GetWFromPlotStructs(DFloat **wx, DFloat **wy)
@@ -988,7 +1276,6 @@ namespace lib
       if ( (*clipBox)[0]==(*clipBox)[3] ||(*clipBox)[1]==(*clipBox)[2] ) return false;
     } else if (GDL_DEBUG_PLSTREAM) fprintf(stderr,"NULL CLIPBOX passed\n");
     //Save current box
-    //Save current box
     a->gvpd(saveBox.nx1, saveBox.nx2, saveBox.ny1, saveBox.ny2); //save norm of current box
     a->gvpw(saveBox.wx1, saveBox.wx2, saveBox.wy1, saveBox.wy2); //save world of current box
     //test axis inversion
@@ -1088,10 +1375,14 @@ namespace lib
                                            T * xVal, T* yVal,
                                            DDouble minVal, DDouble maxVal, bool doMinMax,
                                            bool xLog, bool yLog,
-                                           DLong psym, bool append)
+                                           DLong psym, bool append, DLongGDL *color)
   {
+    bool docolor=(color != NULL);
+    // Get decomposed value for colors
+    DLong decomposed=Graphics::GetDevice()->GetDecomposed();
 
     if (GDL_DEBUG_PLSTREAM) fprintf(stderr,"draw_polyline()\n");
+    SizeT plotIndex=0;
     bool line=false;
     bool valid=true;
     DLong psym_=0;
@@ -1209,23 +1500,22 @@ namespace lib
     // instead of the slow ->join one.
     // 2 tricks:
     // trick 1/ size of buffer is limited to 1e4 (compromize syze/speed) in order to be able to manage very
-    //    large among of data whitout duplicating all the arrays
+    //    large amount of data whitout duplicating all the arrays
     // trick 2/ when we have a NaN or and Inf, we realize the plot, then reset.
 
-    int n_buff_max=500000; // idl default seems to be more than 2e6 !!
+    int GDL_POLYLINE_BUFFSIZE=500000; // idl default seems to be more than 2e6 !!
 
-    if ( minEl<n_buff_max ) n_buff_max=append?minEl+1:minEl;
+    if ( minEl<GDL_POLYLINE_BUFFSIZE ) GDL_POLYLINE_BUFFSIZE=append?minEl+1:minEl;
     int i_buff=0;
-    PLFLT *x_buff=new PLFLT[n_buff_max];
-    PLFLT *y_buff=new PLFLT[n_buff_max];
+    PLFLT *x_buff=new PLFLT[GDL_POLYLINE_BUFFSIZE];
+    PLFLT *y_buff=new PLFLT[GDL_POLYLINE_BUFFSIZE];
 
     // flag to reset Buffer when a NaN or a Infinity are founded
     int reset=0;
 
     bool isBad=FALSE;
 
-    for ( int i=0; i<minEl; ++i )
-    {
+    for ( SizeT i=0; i<minEl; ++i ) {
       isBad=FALSE;
       if ( append ) //start with the old point
       {
@@ -1261,7 +1551,7 @@ namespace lib
       if ( doMinMax ) isBad=((y<minVal)||(y>maxVal));
       if ( xLog ) x=log10(x);
       if ( yLog ) y=log10(y);
-      isBad=(isBad||!isfinite(x)|| !isfinite(y)||isnan(x)||isnan(y));
+      isBad=(isBad||!isfinite(x)|| !isfinite(y)||std::isnan(x)||std::isnan(y));
       if ( isBad )
       {
         reset=1;
@@ -1269,7 +1559,13 @@ namespace lib
         {
           if ( line )
           {
-            a->line(i_buff, x_buff, y_buff);
+            if (docolor) for (SizeT jj=0; jj< i_buff-1 ; ++jj)
+            {
+              a->Color ( ( *color )[plotIndex%color->N_Elements ( )], decomposed, 2);
+              a->line(2, &(x_buff[jj]), &(y_buff[jj]));
+              plotIndex++;
+            }
+            else a->line(i_buff, x_buff, y_buff);
           }
           if (psym_>0&&psym_<9)
           {
@@ -1281,6 +1577,11 @@ namespace lib
               {
                 xx[kk]=x_buff[j]+userSymX[kk]*UsymConvX;
                 yy[kk]=y_buff[j]+userSymY[kk]*UsymConvY;
+              }
+              if (docolor)
+              {
+                a->Color ( ( *color )[plotIndex%color->N_Elements ( )], decomposed, 2 );
+                plotIndex++;
               }
               if ( *do_fill==1 )
               {
@@ -1331,10 +1632,18 @@ namespace lib
 
       //	cout << "nbuf: " << i << " " << i_buff << " "<< n_buff_max-1 << " " << minEl-1 << endl;
 
-      if ( (i_buff==n_buff_max)||((i==minEl-1)&& !append)||((i==minEl)&&append) )
+      if ( (i_buff==GDL_POLYLINE_BUFFSIZE)||((i==minEl-1)&& !append)||((i==minEl)&&append) )
       {
-        if ( line ) a->line(i_buff, x_buff, y_buff);
-
+        if ( line )
+        {
+          if (docolor) for (SizeT jj=0; jj< i_buff-1 ; ++jj)
+            {
+              a->Color ( ( *color )[plotIndex%color->N_Elements ( )], decomposed, 2);
+              a->line(2, &(x_buff[jj]), &(y_buff[jj]));
+              plotIndex++;
+            }
+            else a->line(i_buff, x_buff, y_buff);
+        }
         if ( psym_>0&&psym_<9 )
         {
           PLFLT *xx=new PLFLT[*userSymArrayDim];
@@ -1345,6 +1654,11 @@ namespace lib
             {
               xx[kk]=x_buff[j]+userSymX[kk]*UsymConvX;
               yy[kk]=y_buff[j]+userSymY[kk]*UsymConvY;
+            }
+            if (docolor)
+            {
+              a->Color ( ( *color )[plotIndex%color->N_Elements ( )], decomposed, 2 );
+              plotIndex++;
             }
             if ( *do_fill==1 )
             {
@@ -1375,7 +1689,7 @@ namespace lib
     return (valid);
   }
   // explicit instantiation for SpDDouble
-  template bool draw_polyline(EnvT*, GDLGStream*, Data_<SpDDouble>*, Data_<SpDDouble>*, DDouble, DDouble, bool, bool, bool, DLong, bool);
+  template bool draw_polyline(EnvT*, GDLGStream*, Data_<SpDDouble>*, Data_<SpDDouble>*, DDouble, DDouble, bool, bool, bool, DLong, bool, DLongGDL*);
 
  
   //BACKGROUND COLOR
@@ -1388,24 +1702,20 @@ namespace lib
      (pStruct->GetTag(pStruct->Desc()->TagIndex("BACKGROUND"), 0)))[0];
     if ( kw )
       e->AssureLongScalarKWIfPresent("BACKGROUND", background);
+    a->Background(background);
+  }
 
-    // Get decomposed value
-    Graphics* actDevice=Graphics::GetDevice();
-    DLong decomposed=actDevice->GetDecomposed();
-    if ( decomposed!=0&&decomposed!=1 )
-    {
-      decomposed=0;
-    }
-
-    a->Background(background, decomposed);
+  void gdlSetGraphicsPenColorToBackground(GDLGStream *a)
+  {
+    a->plstream::col0( 0);
   }
 
   //COLOR
 #define GDL_PLPLOT_MAX_SIMPLE_COLORS 16
 #define GDL_PLPLOT_INDEX_WHITE 15
-  void gdlSetGraphicsForegroundColorFromKw(EnvT *e, GDLGStream *a)
+  void gdlSetGraphicsForegroundColorFromKw(EnvT *e, GDLGStream *a, string OtherColorKw)
   {
-    static uint colorindex=1;
+    static unsigned int colorindex=1;
     static long value[GDL_PLPLOT_MAX_SIMPLE_COLORS];
     static int maxindex=2;
     static bool notDone=1;
@@ -1433,7 +1743,10 @@ namespace lib
       maxindex=2;
     }
     DLongGDL *colorVect;
-    int colorIx=e->KeywordIx ( "COLOR" ); //color may be vector in GDL!
+    int colorIx;
+    //eventually do not get color from standard "COLOR" keyword but from another...
+    if (OtherColorKw == "") colorIx=e->KeywordIx ( "COLOR" ); //color may be vector in GDL!
+    else colorIx=e->KeywordIx (OtherColorKw);
     if ( e->GetKW ( colorIx )!=NULL )
     {
       colorVect=e->GetKWAs<DLongGDL>( colorIx );
@@ -1449,13 +1762,8 @@ namespace lib
       maxindex=min(maxindex,GDL_PLPLOT_INDEX_WHITE); //avoid BLACK & WHITE, use last color if more than 16.
     }
     colorindex=i;
-    // Get decomposed value
-    Graphics* actDevice=Graphics::GetDevice();
-    DLong decomposed=actDevice->GetDecomposed();
-    if ( decomposed!=0&&decomposed!=1 )
-    {
-      decomposed=0;
-    }
+    // Get decomposed value for colors
+    DLong decomposed=Graphics::GetDevice()->GetDecomposed();
     a->Color(color, decomposed, colorindex);
   }
 
@@ -1468,7 +1776,7 @@ namespace lib
 
     DFloatGDL* pos=NULL;
 
-    // system variable
+    // system variable !P.REGION first
     static DStructGDL* pStruct=SysVar::P();
     pos=static_cast<DFloatGDL*>(pStruct-> GetTag(pStruct->Desc()->TagIndex("POSITION"), 0));
     if ( (*pos)[0]==(*pos)[2] ) pos=NULL; //ignored
@@ -1689,24 +1997,29 @@ namespace lib
 
   void gdlWriteTitleAndSubtitle(EnvT* e, GDLGStream *a)
   {
-    static DStructGDL* pStruct=SysVar::P();
-    static unsigned titleTag=pStruct->Desc()->TagIndex("TITLE");
-    static unsigned subTitleTag=pStruct->Desc()->TagIndex("SUBTITLE");
-    DString title=
-    (*static_cast<DStringGDL*>(pStruct->GetTag(titleTag, 0)))[0];
-    DString subTitle=
-    (*static_cast<DStringGDL*>(pStruct->GetTag(subTitleTag, 0)))[0];
+    static unsigned titleTag=SysVar::P()->Desc()->TagIndex("TITLE");
+    static unsigned subTitleTag=SysVar::P()->Desc()->TagIndex("SUBTITLE");
+    DString title=(*static_cast<DStringGDL*>(SysVar::P()->GetTag(titleTag, 0)))[0];
+    DString subTitle=(*static_cast<DStringGDL*>(SysVar::P()->GetTag(subTitleTag, 0)))[0];
     e->AssureStringScalarKWIfPresent("TITLE", title);
     e->AssureStringScalarKWIfPresent("SUBTITLE", subTitle);
+    if (title.empty() && subTitle.empty()) return;
+
+    gdlSetPlotCharsize(e, a);
     if (!title.empty())
     {
+      e->AssureStringScalarKWIfPresent("TITLE", title);
       gdlSetPlotCharthick(e, a);
       a->sizeChar(1.25*a->charScale());
-      a->mtex("t", 1.25, 0.5, 0.5, title.c_str());
+      a->mtex("t", 1.5, 0.5, 0.5, title.c_str()); //position is in units of current char height. baseline at half-height
       a->sizeChar(a->charScale()/1.25);
     }
-    if (!subTitle.empty()) a->mtex("b", 5.4, 0.5, 0.5, subTitle.c_str());
-  }
+    if (!subTitle.empty()) 
+    {
+      e->AssureStringScalarKWIfPresent("SUBTITLE", subTitle);
+      a->mtex("b", 5.4, 0.5, 0.5, subTitle.c_str());
+    }
+ }
   
   //crange to struct
 
@@ -1763,27 +2076,34 @@ namespace lib
     }
   }
 
-  //S to struct
+  //Stores [XYZ].WINDOW, .REGION and .S
   void gdlStoreAxisSandWINDOW(GDLGStream* actStream, string axis, DDouble Start, DDouble End, bool log)
   {
-    PLFLT p_xmin, p_xmax, p_ymin, p_ymax, min, max;
+    PLFLT p_xmin, p_xmax, p_ymin, p_ymax, norm_min, norm_max, charDim;
     actStream->gvpd(p_xmin, p_xmax, p_ymin, p_ymax); //viewport normalized coords
     DStructGDL* Struct=NULL;
-    if ( axis=="X" ) {Struct=SysVar::X(); min=p_xmin, max=p_xmax;}
-    if ( axis=="Y" ) {Struct=SysVar::Y(); min=p_ymin, max=p_ymax;}
-    if ( axis=="Z" ) {Struct=SysVar::Z(); min=0, max=0;}  //FIXME!!
+    if ( axis=="X" ) {Struct=SysVar::X(); norm_min=p_xmin; norm_max=p_xmax; charDim=actStream->nCharLength();}
+    if ( axis=="Y" ) {Struct=SysVar::Y(); norm_min=p_ymin; norm_max=p_ymax; charDim=actStream->nCharHeight();}
+    if ( axis=="Z" ) {Struct=SysVar::Z(); norm_min=0; norm_max=1; charDim=actStream->nCharLength();}
     if ( Struct!=NULL )
     {
+      unsigned marginTag=Struct->Desc()->TagIndex("MARGIN");
+      DFloat m1=(*static_cast<DFloatGDL*>(Struct->GetTag(marginTag, 0)))[0];
+      DFloat m2=(*static_cast<DFloatGDL*>(Struct->GetTag(marginTag, 0)))[1];
+      static unsigned regionTag=Struct->Desc()->TagIndex("REGION");
+      (*static_cast<DFloatGDL*>(Struct->GetTag(regionTag, 0)))[0]=max(0.0,norm_min-m1*charDim);
+      (*static_cast<DFloatGDL*>(Struct->GetTag(regionTag, 0)))[1]=min(1.0,norm_max+m2*charDim);
+
       if ( log ) {Start=log10(Start); End=log10(End);}
       static unsigned windowTag=Struct->Desc()->TagIndex("WINDOW");
-      static unsigned sTag=Struct->Desc()->TagIndex("S");
-      (*static_cast<DFloatGDL*>(Struct->GetTag(windowTag, 0)))[0]=min;
-      (*static_cast<DFloatGDL*>(Struct->GetTag(windowTag, 0)))[1]=max;
+      (*static_cast<DFloatGDL*>(Struct->GetTag(windowTag, 0)))[0]=norm_min;
+      (*static_cast<DFloatGDL*>(Struct->GetTag(windowTag, 0)))[1]=norm_max;
 
+      static unsigned sTag=Struct->Desc()->TagIndex("S");
       (*static_cast<DDoubleGDL*>(Struct->GetTag(sTag, 0)))[0]=
-      (min*End-max*Start)/(End-Start);
+      (norm_min*End-norm_max*Start)/(End-Start);
       (*static_cast<DDoubleGDL*>(Struct->GetTag(sTag, 0)))[1]=
-      (max-min)/(End-Start);
+      (norm_max-norm_min)/(End-Start);
     }
   }
 
@@ -1918,10 +2238,10 @@ namespace lib
       if ( Margin->N_Elements()>2 )
         e->Throw("Keyword array parameter "+MarginName+
                  " must have from 1 to 2 elements.");
-      auto_ptr<DFloatGDL> guard;
+      Guard<DFloatGDL> guard;
       DFloatGDL* MarginF=static_cast<DFloatGDL*>
       (Margin->Convert2(GDL_FLOAT, BaseGDL::COPY));
-      guard.reset(MarginF);
+      guard.Reset(MarginF);
       start=(*MarginF)[0];
       if ( MarginF->N_Elements()>1 )
         end=(*MarginF)[1];
@@ -1974,9 +2294,9 @@ namespace lib
       if ( Range->N_Elements()!=2 )
         e->Throw("Keyword array parameter "+RangeName+
                  " must have 2 elements.");
-      auto_ptr<DDoubleGDL> guard;
+      Guard<DDoubleGDL> guard;
       DDoubleGDL* RangeF=static_cast<DDoubleGDL*>(Range->Convert2(GDL_DOUBLE, BaseGDL::COPY));
-      guard.reset(RangeF);
+      guard.Reset(RangeF);
       start=(*RangeF)[0];
       end=(*RangeF)[1];
       set=TRUE;
@@ -2075,7 +2395,7 @@ namespace lib
     if ( axis=="Z" ) Struct=SysVar::Z();
     if ( Struct!=NULL )
     {
-      axisTicklayout=(*static_cast<DFloatGDL*>
+      axisTicklayout=(*static_cast<DLongGDL*>
                 (Struct->GetTag
                 (Struct->Desc()->TagIndex("TICKLAYOUT"), 0)))[0];
     }
@@ -2090,9 +2410,9 @@ namespace lib
     static DStructGDL* pStruct=SysVar::P();
     ticklen=(*static_cast<DFloatGDL*>
             (pStruct->GetTag
-            (pStruct->Desc()->TagIndex("TICKLEN"), 0)))[0];
+            (pStruct->Desc()->TagIndex("TICKLEN"), 0)))[0]; //!P.TICKLEN, always exist, may be 0
     string ticklen_s="TICKLEN";
-    e->AssureFloatScalarKWIfPresent(ticklen_s, ticklen);
+    e->AssureFloatScalarKWIfPresent(ticklen_s, ticklen); //overwritten by TICKLEN option
 
     DStructGDL* Struct=NULL;
     if ( axis=="X" ) Struct=SysVar::X();
@@ -2102,9 +2422,9 @@ namespace lib
     {
       static unsigned ticklenTag=Struct->Desc()->TagIndex("TICKLEN");
       DFloat axisTicklen=0.0;
-      axisTicklen=(*static_cast<DFloatGDL*>(Struct->GetTag(ticklenTag, 0)))[0];
+      axisTicklen=(*static_cast<DFloatGDL*>(Struct->GetTag(ticklenTag, 0)))[0]; //![XYZ].TICKLEN (exist)
       ticklen_s=axis+"TICKLEN";
-      e->AssureFloatScalarKWIfPresent(ticklen_s, axisTicklen);
+      e->AssureFloatScalarKWIfPresent(ticklen_s, axisTicklen); //overriden by kw
       if (axisTicklen!=0.0) ticklen=axisTicklen;
     }
   }
@@ -2144,7 +2464,7 @@ namespace lib
     if ( axis=="Z" ) Struct=SysVar::Z();
     if ( Struct!=NULL )
     {
-      axisTicks=(*static_cast<DFloatGDL*>
+      axisTicks=(*static_cast<DLongGDL*>
                 (Struct->GetTag
                 (Struct->Desc()->TagIndex("TICKS"), 0)))[0];
     }
@@ -2256,14 +2576,64 @@ namespace lib
     Second = F * 86400;
   }
 
+  void doOurOwnFormat(PLINT axisNotUsed, PLFLT value, char *label, PLINT length, PLPointer data)
+  {
+    struct GDL_TICKDATA *ptr = (GDL_TICKDATA* )data;
+    static string normalfmt[7]={"%1.0fx10#u%d#d","%2.1fx10#u%d#d","%3.2fx10#u%d#d","%4.2fx10#u%d#d","%5.4fx10#u%d#d","%6.5fx10#u%d#d","%7.6fx10#u%d#d"};
+    static string specialfmt="10#u%d#d";
+    static string specialfmtlog="10#u%s#d";
+    PLFLT z;
+    int ns;
+    char *i;
+    int sgn=(value<0)?-1:1;
+    if (sgn*value<gdlEpsDouble()) {snprintf(label, length, "0",value); return;}
+    int e=floor(log10(value*sgn));
+    char *test=(char*)calloc(2*length, sizeof(char)); //be safe
+    if (!(e==e)||(e<4 && e>-4)) 
+    {
+      snprintf(test, length, "%f",value);
+      ns=strlen(test);
+      i=rindex(test,'0');
+      while (i==(test+ns-1)) //remove trailing zeros...
+      {
+          *i='\0';
+        i=rindex(test,'0');
+        ns--;
+      }
+      i=rindex(test,'.'); //remove trailing '.'
+      if (i==(test+ns-1)) {*i='\0'; ns--;}
+      if (ptr->isLog) snprintf( label, length, specialfmtlog.c_str(),test);
+      else
+      strncpy(label, test, length);
+    }
+    else
+    {
+      z=value*sgn/pow(10.,e);
+      snprintf(test,20,"%7.6f",z);
+      ns=strlen(test);
+      i=rindex(test,'0');
+      while (i==(test+ns-1))
+      {
+          *i='\0';
+        i=rindex(test,'0');
+        ns--;
+      }
+      ns-=2;ns=(ns>6)?6:ns;
+      if (floor(sgn*z)==1 && ns==0) snprintf( label, length, specialfmt.c_str(),e); else snprintf( label, length, normalfmt[ns].c_str(),sgn*z,e);
+    }
+    free(test);
+  }
+
   void gdlMultiAxisTickFunc(PLINT axis, PLFLT value, char *label, PLINT length, PLPointer data)
   {
+    static GDL_TICKDATA tdata;
     static SizeT internalIndex=0;
     static DLong lastUnits=0;
     string Month;
     PLINT Day , Year , Hour , Minute;
     PLFLT Second;
     struct GDL_MULTIAXISTICKDATA *ptr = (GDL_MULTIAXISTICKDATA* )data;
+    tdata.isLog=ptr->isLog;
     if (ptr->counter != lastUnits)
     {
       lastUnits=ptr->counter;
@@ -2273,7 +2643,8 @@ namespace lib
     {
       if (ptr->counter > ptr->nTickFormat-1)
       {
-        snprintf( label, length, "%f", value );
+        doOurOwnFormat(axis, value, label, length, &tdata);
+//        snprintf( label, length, "%f", value );
       }
       else
       {
@@ -2283,7 +2654,7 @@ namespace lib
           static int stringIx = LibFunIx("STRING");
           assert( stringIx >= 0);
           EnvT* newEnv= new EnvT(e, libFunList[stringIx], NULL);
-          auto_ptr<EnvT> guard( newEnv);
+          Guard<EnvT> guard( newEnv);
           // add parameters
           newEnv->SetNextPar( new DDoubleGDL(value));
           newEnv->SetNextPar( new DStringGDL(((*ptr->TickFormat)[ptr->counter]).c_str()));
@@ -2293,7 +2664,7 @@ namespace lib
         }
         else if (((*ptr->TickFormat)[ptr->counter]).substr(0,10) == "LABEL_DATE")
         { //special internal format, TBD
-          fprintf(stderr,"unsupported LABEL_DATE for TICKFORMAT (FIXME)\n");
+          Warning("unsupported LABEL_DATE for TICKFORMAT (FIXME)");
         }
         else // external function: if tickunits not specified, pass Axis (int), Index(int),Value(Double)
           //    else pass also Level(int)
@@ -2307,7 +2678,7 @@ namespace lib
           SizeT funIx = GDLInterpreter::GetFunIx( callF);
 
           EnvUDT* newEnv = new EnvUDT( e->CallingNode(), funList[ funIx], (BaseGDL**)NULL);
-          auto_ptr< EnvUDT> guard( newEnv);
+          Guard< EnvUDT> guard( newEnv);
           // add parameters
           newEnv->SetNextPar( new DLongGDL(axis));
           newEnv->SetNextPar( new DLongGDL(internalIndex));
@@ -2329,7 +2700,8 @@ namespace lib
     {
       if (ptr->counter > ptr->nTickUnits-1)
       {
-        snprintf( label, length, "%f", value );
+        doOurOwnFormat(axis, value, label, length, &tdata);
+//        snprintf( label, length, "%f", value );
       }
       else
       {
@@ -2365,10 +2737,12 @@ namespace lib
 
   void gdlSingleAxisTickFunc( PLINT axis, PLFLT value, char *label, PLINT length, PLPointer data)
   {
+    static GDL_TICKDATA tdata;
     struct GDL_TICKNAMEDATA *ptr = (GDL_TICKNAMEDATA* )data;
+    tdata.isLog=ptr->isLog;
     if (ptr->counter > ptr->nTickName-1)
     {
-      snprintf( label, length, "%f", value );
+      doOurOwnFormat(axis, value, label, length, &tdata);
     }
     else
     {
@@ -2377,10 +2751,14 @@ namespace lib
     ptr->counter++;
   }
 
-  bool gdlAxis(EnvT *e, GDLGStream *a, string axis, DDouble Start, DDouble End, bool Log, DLong modifierCode)
+  bool gdlAxis(EnvT *e, GDLGStream *a, string axis, DDouble Start, DDouble End, bool Log, DLong modifierCode, DDouble NormedLength)
   {
     static GDL_TICKNAMEDATA data;
     static GDL_MULTIAXISTICKDATA muaxdata;
+
+    static GDL_TICKDATA tdata;
+    tdata.isLog=Log;
+
     data.nTickName=0;
     muaxdata.e=e;
     muaxdata.what=GDL_NONE;
@@ -2389,6 +2767,14 @@ namespace lib
     muaxdata.axismin=Start;
     muaxdata.axismax=End;
 
+    //special values
+    PLFLT OtherAxisSizeInMm;
+    if (axis=="X") OtherAxisSizeInMm=a->mmyPageSize()*(a->boxnYSize());
+    if (axis=="Y") OtherAxisSizeInMm=a->mmxPageSize()*(a->boxnXSize());
+    //special for AXIS who change the requested box size!
+    if (axis=="axisX") {axis="X"; OtherAxisSizeInMm=a->mmyPageSize()*(NormedLength);}
+    if (axis=="axisY") {axis="Y"; OtherAxisSizeInMm=a->mmxPageSize()*(NormedLength);}
+    
     DFloat Charsize;
     gdlGetDesiredAxisCharsize(e, axis, Charsize);
     DLong GridStyle;
@@ -2419,11 +2805,6 @@ namespace lib
     gdlGetDesiredAxisTickv(e, axis, Tickv);
     DString Title;
     gdlGetDesiredAxisTitle(e, axis, Title);
-
-    //special values
-    PLFLT baseTickLen;
-    if (axis=="X") baseTickLen=a->mmyPageSize()*(a->boxnYSize());
-    if (axis=="Y") baseTickLen=a->mmxPageSize()*(a->boxnXSize());
 
     if ( (Style&4)!=4 ) //if we write the axis...
     {
@@ -2464,7 +2845,7 @@ namespace lib
         Opt+="o";
 #endif
         if (modifierCode==2) Opt+="m"; else Opt+="n";
-        if (axis=="X") a->box(Opt.c_str(), TickInterval, Minor, "", 0.0, 0.0);
+        if (axis=="X") a->box(Opt.c_str(), TickInterval, Minor, "", 0.0, 0);
         else if (axis=="Y") a->box("", 0.0 ,0.0, Opt.c_str(), TickInterval, Minor);
 #if (HAVE_PLPLOT_SLABELFUNC)
         a->slabelfunc( NULL, NULL );
@@ -2497,7 +2878,7 @@ namespace lib
             a->smaj(a->mmCharHeight(), 1.0 );
             a->plstream::vpor(un,deux,(PLFLT)(trois-i*3*a->nCharHeight()),quatre);
             a->plstream::wind(xun,xdeux,xtrois,xquatre);
-            a->box(Opt.c_str(), TickInterval, Minor, "", 0.0, 0.0);
+            a->box(Opt.c_str(), TickInterval, Minor, "", 0.0, 0);
           }
           else if (axis=="Y") 
           {
@@ -2525,7 +2906,7 @@ namespace lib
         Opt+="o";
 #endif
         if (modifierCode==2) Opt+="m"; else Opt+="n";
-        if (axis=="X") a->box(Opt.c_str(), TickInterval, Minor, "", 0.0, 0.0);
+        if (axis=="X") a->box(Opt.c_str(), TickInterval, Minor, "", 0.0, 0);
         else if (axis=="Y") a->box("", 0.0 ,0.0, Opt.c_str(), TickInterval, Minor);
         
 #if (HAVE_PLPLOT_SLABELFUNC)        
@@ -2534,19 +2915,27 @@ namespace lib
       }
       else
       {
+#if (HAVE_PLPLOT_SLABELFUNC)
+        a->slabelfunc( doOurOwnFormat, &tdata );
+        Opt+="o";
+#endif
         if (modifierCode==2) Opt+="m"; else Opt+="n";
-        if (axis=="X") a->box(Opt.c_str(), TickInterval, Minor, "", 0.0, 0.0);
+        if (axis=="X") a->box(Opt.c_str(), TickInterval, Minor, "", 0.0, 0);
         else if (axis=="Y") a->box("", 0.0 ,0.0, Opt.c_str(), TickInterval, Minor);
+#if (HAVE_PLPLOT_SLABELFUNC)
+        a->slabelfunc( NULL, NULL );
+#endif
       }
       
       if (TickLayout==0)
       {
-        a->smaj((PLFLT)baseTickLen, 1.0); //set base ticks to default 0.02 viewport converted to mm.
-        a->smin((PLFLT)baseTickLen/2.0,1.0); //idem min (plplt defaults)
+        a->smaj((PLFLT)OtherAxisSizeInMm, 1.0); //set base ticks to default 0.02 viewport converted to mm.
+        a->smin((PLFLT)OtherAxisSizeInMm/2.0,1.0); //idem min (plplt defaults)
         //thick for box and ticks.
         a->wid(Thick);
         //ticks or grid eventually with style and length:
-        Opt="st";
+        if (abs(TickLen)<1e-6) Opt=""; else Opt="st"; //remove ticks if ticklen=0
+        if (TickLen<0) {Opt+="i"; TickLen=-TickLen;}
         switch(modifierCode)
         {
           case 2:
@@ -2558,17 +2947,16 @@ namespace lib
           case 0:
             if ( (Style&8)==8 ) Opt+="b"; else Opt+="bc";
         }
-        if (TickLen<0) {Opt+="i"; TickLen=-TickLen;}
         bool bloatsmall=(TickLen<0.3);
         //gridstyle applies here:
         gdlLineStyle(a,GridStyle);
         a->smaj (0.0, (PLFLT)TickLen); //relative value
         if (bloatsmall) a->smin (0.0, (PLFLT)TickLen); else a->smin( 1.5, 1.0 );
         if ( Log ) Opt+="l";
-        if (axis=="X") a->box(Opt.c_str(), TickInterval, Minor, "", 0.0, 0.0);
+        if (axis=="X") a->box(Opt.c_str(), TickInterval, Minor, "", 0.0, 0);
         else if (axis=="Y") a->box("", 0.0, 0, Opt.c_str(), TickInterval, Minor);
         //reset ticks to default plplot value...
-        a->smaj( 3.0, 1.0 );
+        a->smaj( 3.0, 1.0 );//back to default values
         a->smin( 1.5, 1.0 );
         //reset gridstyle
         gdlLineStyle(a,0);
@@ -2585,15 +2973,16 @@ namespace lib
           case 0:
             if ( (Style&8)==8 ) Opt+="b"; else Opt+="bc";
         }
-        if (axis=="X") a->box(Opt.c_str(), 0.0, 0.0, "", 0.0, 0.0);
-        else if (axis=="Y") a->box("", 0.0, 0 , Opt.c_str(), 0.0, 0.0);
+        if (axis=="X") a->box(Opt.c_str(), 0.0, 0, "", 0.0, 0);
+        else if (axis=="Y") a->box("", 0.0, 0 , Opt.c_str(), 0.0, 0);
       }
       //reset charsize & thick
       a->wid(1);
       a->sizeChar(1.0);
     }
-
+	return 0;
   }
+
   bool gdlBox(EnvT *e, GDLGStream *a, DDouble xStart, DDouble xEnd, DDouble yStart, DDouble yEnd, bool xLog, bool yLog)
   {
     gdlAxis(e, a, "X", xStart, xEnd, xLog);
@@ -2603,10 +2992,189 @@ namespace lib
     return true;
   }
 
+ bool gdlAxis3(EnvT *e, GDLGStream *a, string axis, DDouble Start, DDouble End, bool Log, DLong zAxisCode, DDouble NormedLength)
+  {
+    //exit if nothing to do...
+    string addCode="b"; //for X and Y, and some Z
+    if(zAxisCode==1 || zAxisCode==4) addCode="cm";
+    if(zAxisCode==-1) return true;
+
+    //
+    static GDL_TICKNAMEDATA data;
+    static GDL_MULTIAXISTICKDATA muaxdata;
+    data.nTickName=0;
+    muaxdata.e=e;
+    muaxdata.what=GDL_NONE;
+    muaxdata.nTickFormat=0;
+    muaxdata.nTickUnits=0;
+    muaxdata.axismin=Start;
+    muaxdata.axismax=End;
+    
+    //special values
+    PLFLT OtherAxisSizeInMm;
+    if (axis=="X") OtherAxisSizeInMm=a->mmyPageSize()*(a->boxnYSize());
+    if (axis=="Y") OtherAxisSizeInMm=a->mmxPageSize()*(a->boxnXSize());
+    if (axis=="Z") OtherAxisSizeInMm=a->mmxPageSize()*(a->boxnXSize()); //not always correct
+    //special for AXIS who change the requested box size!
+    if (axis=="axisX") {axis="X"; OtherAxisSizeInMm=a->mmyPageSize()*(NormedLength);}
+    if (axis=="axisY") {axis="Y"; OtherAxisSizeInMm=a->mmxPageSize()*(NormedLength);}
+    if (axis=="axisZ") {axis="Y"; OtherAxisSizeInMm=a->mmxPageSize()*(NormedLength);} //not always correct
+    
+    DFloat Charsize;
+    gdlGetDesiredAxisCharsize(e, axis, Charsize);
+    DLong GridStyle;
+    gdlGetDesiredAxisGridStyle(e, axis, GridStyle);
+    DFloat MarginL, MarginR;
+    gdlGetDesiredAxisMargin(e, axis, MarginL, MarginR);
+    DLong Minor;
+    gdlGetDesiredAxisMinor(e, axis, Minor);
+    DLong Style;
+    gdlGetDesiredAxisStyle(e, axis, Style);
+    DFloat Thick;
+    gdlGetDesiredAxisThick(e, axis, Thick);
+    DStringGDL* TickFormat;
+    gdlGetDesiredAxisTickFormat(e, axis, TickFormat);
+    DDouble TickInterval;
+    gdlGetDesiredAxisTickInterval(e, axis, TickInterval);
+    DLong TickLayout;
+    gdlGetDesiredAxisTickLayout(e, axis, TickLayout);
+    DFloat TickLen;
+    gdlGetDesiredAxisTickLen(e, axis, TickLen);
+    DStringGDL* TickName;
+    gdlGetDesiredAxisTickName(e, axis, TickName);
+    DLong Ticks;
+    gdlGetDesiredAxisTicks(e, axis, Ticks);
+    DStringGDL* TickUnits;
+    gdlGetDesiredAxisTickUnits(e, axis, TickUnits);
+    DDoubleGDL* Tickv;
+    gdlGetDesiredAxisTickv(e, axis, Tickv);
+    DString Title;
+    gdlGetDesiredAxisTitle(e, axis, Title);
+
+    if ( (Style&4)!=4 ) //if we write the axis...
+    {
+      if (TickInterval==0)
+      {
+        if (Ticks<=0) TickInterval=gdlComputeTickInterval(e, axis, Start, End, Log);
+        else if (Ticks>1) TickInterval=(End-Start)/Ticks;
+        else TickInterval=(End-Start);
+      }
+      string Opt;
+      //first write labels only:
+      gdlSetAxisCharsize(e, a, axis);
+      gdlSetPlotCharthick(e, a);
+      // axis legend if box style, else do not draw:
+      Opt="u";
+
+      if      (axis=="X") a->box3(Opt.c_str(), Title.c_str() , 0.0, 0, "", "", 0.0, 0, "", "", 0.0, 0);
+      else if (axis=="Y") a->box3("", "", 0.0 ,0, Opt.c_str(), Title.c_str(), 0.0, 0, "", "", 0.0, 0);
+      else if (axis=="Z") a->box3("", "", 0.0, 0, "", "", 0.0, 0, Opt.c_str(), Title.c_str(), 0.0, 0);
+
+
+      //axis, 1st time: labels
+      Opt=addCode+"nst"; //will write labels beside the left hand axis (u) at major ticks (n)
+      if ( Log ) Opt+="l";
+      if (TickName->NBytes()>0) // /TICKNAME=[array]
+      {
+        data.counter=0;
+        data.TickName=TickName;
+        data.nTickName=TickName->N_Elements();
+#if (HAVE_PLPLOT_SLABELFUNC)
+        a->slabelfunc( gdlSingleAxisTickFunc, &data );
+        Opt+="o";
+#endif
+        if      (axis=="X") a->box3(Opt.c_str(), "" , TickInterval, Minor, "", "", 0.0, 0, "", "", 0.0, 0);
+        else if (axis=="Y") a->box3("", "", 0.0 ,0.0, Opt.c_str(),"", TickInterval, Minor, "", "", 0.0, 0);
+        else if (axis=="Z") a->box3("", "", 0.0, 0, "", "", 0.0, 0, Opt.c_str(), "", TickInterval, Minor);
+#if (HAVE_PLPLOT_SLABELFUNC)
+        a->slabelfunc( NULL, NULL );
+#endif
+      }
+      else if (TickFormat->NBytes()>0) //no /TICKUNITS=> only 1 value taken into account
+      {
+        muaxdata.counter=0;
+        muaxdata.what=GDL_TICKFORMAT;
+        muaxdata.TickFormat=TickFormat;
+        muaxdata.nTickFormat=1;
+#if (HAVE_PLPLOT_SLABELFUNC)
+        a->slabelfunc( gdlMultiAxisTickFunc, &muaxdata );
+        Opt+="o";
+#endif
+        if      (axis=="X") a->box3(Opt.c_str(), "", TickInterval, Minor, "", "", 0.0, 0, "", "", 0.0, 0);
+        else if (axis=="Y") a->box3("", "", 0.0 ,0.0, Opt.c_str(),"", TickInterval, Minor, "", "", 0.0, 0);
+        else if (axis=="Z") a->box3("", "", 0.0, 0, "", "", 0.0, 0, Opt.c_str(), "", TickInterval, Minor);
+
+#if (HAVE_PLPLOT_SLABELFUNC)
+        a->slabelfunc( NULL, NULL );
+#endif
+      }
+      else
+      {
+        if      (axis=="X") a->box3(Opt.c_str(), "", TickInterval, Minor, "", "", 0.0, 0, "", "", 0.0, 0);
+        else if (axis=="Y") a->box3("", "", 0.0 ,0.0, Opt.c_str(),"", TickInterval, Minor, "", "", 0.0, 0);
+        else if (axis=="Z") a->box3("", "", 0.0, 0, "", "", 0.0, 0, Opt.c_str(), "", TickInterval, Minor);
+      }
+
+      if (TickLayout==0)
+      {
+        a->smaj((PLFLT)OtherAxisSizeInMm, 1.0); //set base ticks to default 0.02 viewport converted to mm.
+        a->smin((PLFLT)OtherAxisSizeInMm/2.0,1.0); //idem min (plplt defaults)
+        //thick for box and ticks.
+        a->wid(Thick);
+        //ticks or grid eventually with style and length:
+        if (abs(TickLen)<1e-6) Opt=""; else Opt="st"; //remove ticks if ticklen=0
+        if (TickLen<0) {Opt+="i"; TickLen=-TickLen;}
+        bool bloatsmall=(TickLen<0.3);
+        //gridstyle applies here:
+        gdlLineStyle(a,GridStyle);
+        a->smaj (0.0, (PLFLT)TickLen); //relative value
+        if (bloatsmall) a->smin (0.0, (PLFLT)TickLen); else a->smin( 1.5, 1.0 );
+        if ( Log ) Opt+="l";
+        if      (axis=="X") a->box3(Opt.c_str(), "", TickInterval, Minor, "", "", 0.0, 0, "", "", 0.0, 0);
+        else if (axis=="Y") a->box3("", "", 0.0 ,0.0, Opt.c_str(),"", TickInterval, Minor, "", "", 0.0, 0);
+        else if (axis=="Z") a->box3("", "", 0.0, 0, "", "", 0.0, 0, Opt.c_str(), "", TickInterval, Minor);
+        //reset ticks to default plplot value...
+        a->smaj( 3.0, 1.0 );
+        a->smin( 1.5, 1.0 );
+        //reset gridstyle
+        gdlLineStyle(a,0);
+        // pass over with outer box, with thick. No style applied, only ticks
+        Opt="b";
+        if      (axis=="X") a->box3(Opt.c_str(), "", TickInterval, Minor, "","",0,0,"","",0,0);
+        else if (axis=="Y") a->box3("","",0,0, Opt.c_str(), "", TickInterval, Minor, "","",0,0);
+        else if (axis=="Z") a->box3("","",0,0,"","",0,0, Opt.c_str(), "", TickInterval, Minor);
+      }
+      //reset charsize & thick
+      a->wid(1);
+      a->sizeChar(1.0);
+    }
+	return 0;
+  }
+
+  bool gdlBox3(EnvT *e, GDLGStream *a, DDouble xStart, DDouble xEnd, DDouble yStart,
+      DDouble yEnd, DDouble zStart, DDouble zEnd, bool xLog, bool yLog, bool zLog, bool doSpecialZAxisPlacement)
+  {
+    DLong zAxisCode=0;
+    if (doSpecialZAxisPlacement) e->AssureLongScalarKWIfPresent("ZAXIS", zAxisCode);
+    gdlAxis3(e, a, "X", xStart, xEnd, xLog, 0);
+    gdlAxis3(e, a, "Y", yStart, yEnd, yLog, 0);
+    gdlAxis3(e, a, "Z", zStart, zEnd, zLog, zAxisCode);
+    // title and sub title
+    gdlWriteTitleAndSubtitle(e, a);
+    return true;
+  }
+
+  bool T3Denabled(EnvT *e)
+  {
+    static DStructGDL* pStruct=SysVar::P();
+    DLong ok4t3d=(*static_cast<DLongGDL*>(pStruct->GetTag(pStruct->Desc()->TagIndex("T3D"), 0)))[0];
+    if (ok4t3d==0) return false; else return true;
+  }
+  
   void usersym(EnvT *e)
   {
     DFloatGDL *xyVal, *xVal, *yVal;
-    auto_ptr<BaseGDL> p0_guard;
+    Guard<BaseGDL> p0_guard;
     DLong n;
     DInt do_fill;
     DFloat *x, *y;
@@ -2618,7 +3186,7 @@ namespace lib
 
       xyVal=static_cast<DFloatGDL*>
       (p0->Convert2(GDL_FLOAT, BaseGDL::COPY));
-      p0_guard.reset(p0); // delete upon exit
+      p0_guard.Reset(p0); // delete upon exit
 
       if ( xyVal->Rank()!=2||xyVal->Dim(1)!=2 )
         e->Throw(e->GetParString(0)+" must be a 2-dim array of type [2,N] in this context.");
@@ -2662,4 +3230,5 @@ namespace lib
     }
     SetUsym(n, do_fill, x, y);
   }
+
 } // namespace

@@ -50,6 +50,10 @@
 #include "fftw.hpp"
 #endif
 
+#if defined(USE_EIGEN)
+#include "matrix_cholesky.hpp"
+#endif
+
 #include "gshhs.hpp"
 
 using namespace std;
@@ -68,8 +72,20 @@ void LibInit_jmg()
 				   KLISTEND};
   new DLibFun(lib::routine_names_value,string("ROUTINE_NAMES"),-1,routine_namesKey);
 
-#if defined(HAVE_LIBGSL) && defined(HAVE_LIBGSLCBLAS)
   const string invertKey[]={"DOUBLE",KLISTEND};
+
+#if defined(USE_EIGEN)
+  //  new DLibFun(lib::invert_fun2,string("INVERT_EIG"),2,invertKey);
+  new DLibPro(lib::choldc_pro,string("CHOLDC"),3,invertKey);
+  new DLibFun(lib::cholsol_fun,string("CHOLSOL"),4,invertKey);
+
+  const string lacholKey[]={"DOUBLE","STATUS","UPPER",KLISTEND};
+  new DLibPro(lib::la_choldc_pro,string("LA_CHOLDC"),4,lacholKey);
+  new DLibFun(lib::la_cholsol_fun,string("LA_CHOLSOL"),4,lacholKey);
+#endif
+
+#if defined(HAVE_LIBGSL) && defined(HAVE_LIBGSLCBLAS)
+  
   new DLibFun(lib::invert_fun,string("INVERT"),2,invertKey);
 
   const string fftKey[]={"DOUBLE","INVERSE","OVERWRITE","DIMENSION",KLISTEND};
@@ -81,8 +97,8 @@ void LibInit_jmg()
 
   const string randomKey[]={"DOUBLE","GAMMA","LONG","NORMAL",
 			    "BINOMIAL","POISSON","UNIFORM",KLISTEND};
-  new DLibFun(lib::random_fun,string("RANDOMU"),MAXRANK,randomKey);
-  new DLibFun(lib::random_fun,string("RANDOMN"),MAXRANK,randomKey);
+  new DLibFunRetNew(lib::random_fun,string("RANDOMU"),MAXRANK,randomKey);
+  new DLibFunRetNew(lib::random_fun,string("RANDOMN"),MAXRANK,randomKey);
 
   const string checkmathKey[]={"MASK","NOCLEAR","PRINT",KLISTEND};
   new DLibFun(lib::check_math_fun,string("CHECK_MATH"),2,checkmathKey);
@@ -100,7 +116,7 @@ void LibInit_jmg()
 #endif
 
   const string macharKey[]={"DOUBLE",KLISTEND};
-  new DLibFun(lib::machar_fun,string("MACHAR"),0,macharKey);
+  new DLibFunRetNew(lib::machar_fun,string("MACHAR"),0,macharKey);
 
   const string rk4Key[]={"DOUBLE",KLISTEND};
   new DLibFun(lib::rk4jmg_fun,string("RK4JMG"),5,rk4Key);
@@ -140,6 +156,22 @@ void LibInit_jmg()
 			   "GRAY","LINEAR","NRHO","NTHETA","NX","NY",
 			   "RHO","RMIN","THETA","XMIN","YMIN",KLISTEND};
   new DLibFun(lib::radon_fun,string("RADON"),1,radonKey);
+#ifdef PL_HAVE_QHULL
+  const string triangulateKey[]={"CONNECTIVITY", "SPHERE", "DEGREES", "FVALUE", "REPEATS", "TOLERANCE",KLISTEND};
+  new DLibPro(lib::triangulate,string("TRIANGULATE"),4,triangulateKey);
+
+  const string qhullKey[]={"BOUNDS", "CONNECTIVITY", "DELAUNAY", "SPHERE", "VDIAGRAM" ,"VNORMALS", "VVERTICES", KLISTEND};
+  new DLibPro(lib::qhull,string("QHULL"),8,qhullKey);
+
+  const string sph_scatKey[]={"BOUNDS", "BOUT", "GOUT", "GS", "NLON", "NLAT", KLISTEND};
+  new DLibFun(lib::sph_scat_fun,string("SPH_SCAT"),3,sph_scatKey);
+
+  const string grid_inputKey[]={"SPHERE", "POLAR", "DEGREES", "DUPLICATES", "EPSILON", "EXCLUDE", KLISTEND};
+  new DLibPro(lib::grid_input,string("GRID_INPUT"),6,grid_inputKey);
+
+  const string qgrid3Key[]={"DELTA", "DIMENSION", "MISSING", "START", KLISTEND};
+  new DLibFun(lib::qgrid3_fun,string("QGRID3"),5,qgrid3Key);
+#endif
 
   const string trigridKey[]={"MAX_VALUE","MISSING","NX","NY","MAP",
 			     KLISTEND};
@@ -307,5 +339,3 @@ void LibInit_jmg()
   new DLibFun(lib::call_external, string("CALL_EXTERNAL"), -1, call_externalKey);
 
 }
-
-

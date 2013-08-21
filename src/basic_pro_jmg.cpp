@@ -271,15 +271,20 @@ namespace lib {
   }
 
   // CALL_EXTERNAL by Christoph Fuchs
+  //AC #ifdef USE_EIGEN
+  //AC SizeT defaultAlign = 16;
+  //AC #else  
   typedef struct {
     char      c;
     long long l;
   } testAlign;
   SizeT defaultAlign = (SizeT)( sizeof(testAlign)-sizeof(long long) );
-
+  //AC #endif
+  
   BaseGDL* call_external( EnvT* e)
   {
     DString image, entry;
+    static std::string s;
     SizeT myAlign      = defaultAlign;
     DType myReturnType = GDL_UNDEF;
 
@@ -341,10 +346,11 @@ namespace lib {
 	e->Throw("Conflicting keywords ALL_VALUE and ALL_GDL");
     }
 
-    short* byValue = (short*) malloc( (nParam-2) * sizeof(short) );
-    if (byValue == NULL) {
-	e->Throw("Internal error allocating memory for byValue");
-    }
+//     short* byValue = (short*) malloc( (nParam-2) * sizeof(short) );
+//     if (byValue == NULL) {
+// 	e->Throw("Internal error allocating memory for byValue");
+//     }
+    vector<short> byValue(nParam-2,0);
 
     for (SizeT i=0; i<nParam-2;i++) {
 	byValue[i] = flagAllValue ? 1 : flagAllGdl ? -1 : 0;
@@ -368,11 +374,13 @@ namespace lib {
     e->AssureStringScalarPar( (SizeT)1, entry);
 
     int argc      = nParam-2;
+    // must be void** for dl... stuff
     void **argv   = (void**)malloc((nParam-2) * sizeof(void*) );
     if (argv == NULL) {
 	e->Throw("Internal error allocating memory for argv");
     }
-
+    GDLGuard<void*,void,void> argvGuard(argv, free);
+    
     // Fill argv with the parameters
 
     for(SizeT i =2; i < nParam; i++){
@@ -386,13 +394,13 @@ namespace lib {
 		);
 	    }
 
-	    if (IsNumericType[pType]) {
+	    if (NumericType(pType)) {
 		if (par->Sizeof() > sizeof(void*)) {
 		    e->Throw("Parameter is larger than pointer: "
 			     + e->GetParString(i)
 		    );
 		}
-		memcpy(argv+i-2, (void*) par->DataAddr(), par->Sizeof());
+		memcpy(&argv[i-2], (void*) par->DataAddr(), par->Sizeof());
 	    }
 	    else if (pType == GDL_STRING) {
 		argv[i-2] = (void*) (*(DStringGDL*)(par))[0].c_str();
@@ -407,7 +415,7 @@ namespace lib {
 	    argv[i-2] = (void*) par;
 	}
 	else {					// By reference (default)
-	    if (IsNumericType[pType] || pType == GDL_PTR || pType == GDL_OBJ ) {
+	    if (NumericType(pType) || pType == GDL_PTR || pType == GDL_OBJ ) {
 		argv[i-2] = (void*) par->DataAddr();
 	    }
 	    else if (pType == GDL_STRING) {
@@ -477,7 +485,7 @@ namespace lib {
 		      break;
 	case GDL_ULONG64: ret.d_ulong64 = ((DULong64(*)(int, void**))func)(argc, argv);
 		      break;
-	case GDL_STRING:  ret.d_string  = ((char*(*)   (int, void**))func)(argc, argv);
+	case GDL_STRING:  ret.d_string  = ((char*(*)   (int, void**))func)(argc, argv); 
 		      break;
 	default:      e->Throw("Return type not supported: " + myReturnType );
 		      break;
@@ -490,22 +498,24 @@ namespace lib {
 	while (! dlclose(handle) ) {}
 #endif
     }
-
+// necessary since struct is freed below, i do not see how??? (FIXME)
+    if (myReturnType == GDL_STRING) {s=ret.d_string;}
     // Copy strings and structures back to GDL, free memory
 
-    for(SizeT i = nParam-1; i >= 2; i--){
+    for (SizeT i = nParam - 1; i >= 2; i--) {
 	if (byValue[i-2] != 0) {continue;}
-	BaseGDL* par = e->GetParDefined(i);
-	SizeT pType  = par->Type();
-	if (pType == GDL_STRING) {
-	    ce_StringIDLtoGDL((EXTERN_STRING*) argv[i-2], par, 1);
-	}
-	else if (pType == GDL_STRUCT) {
-	    ce_StructIDLtoGDL( e, argv[i-2], par, 1, myAlign);
-	}
+      BaseGDL* par = e->GetParDefined(i);
+      SizeT pType = par->Type();
+      if (pType == GDL_STRING) {
+        ce_StringIDLtoGDL((EXTERN_STRING*) argv[i - 2], par, 1);
+      }
+      else if (pType == GDL_STRUCT) {
+        ce_StructIDLtoGDL(e, argv[i - 2], par, 1, myAlign);
+      }
     }
 
-    free(argv);
+    // now guarded. s. a.
+    //free(argv);
 
     // Return the return value
 
@@ -528,7 +538,7 @@ namespace lib {
 			break;
         case GDL_ULONG64:   return new DULong64GDL(ret.d_ulong64);
 			break;
-        case GDL_STRING:    return new DStringGDL(ret.d_string);
+        case GDL_STRING:    return new DStringGDL(s);
 			break;
     }
 	    
@@ -606,7 +616,7 @@ namespace lib {
 		SizeT sizeOf;
 		void* source;
 		int   doFree = 0;
-		if (IsNumericType[pType] || pType == GDL_PTR || pType == GDL_OBJ) {
+		if (NumericType(pType) || pType == GDL_PTR || pType == GDL_OBJ) {
 		    source = (void*) member->DataAddr();
 		    length = member->NBytes();
 		    sizeOf = member->Sizeof();
@@ -658,7 +668,7 @@ namespace lib {
 		SizeT length;
 		SizeT sizeOf;
 		void* dest;
-		if (IsNumericType[pType]) {
+		if (NumericType(pType)) {
 		    sizeOf = member->Sizeof();
 		}
 		else {
@@ -670,7 +680,7 @@ namespace lib {
 		    p += space;
 		}
 
-		if (IsNumericType[pType] || pType == GDL_PTR || pType == GDL_OBJ) {
+		if (NumericType(pType) || pType == GDL_PTR || pType == GDL_OBJ) {
 		    length = member->NBytes();
 		    dest   = (void*) member->DataAddr();
 		    memcpy(dest, p, length);
@@ -709,7 +719,9 @@ namespace lib {
 	for (SizeT iTag=0; iTag < nTags; iTag++) {
 	    BaseGDL* member = s->GetTag(iTag);
 	    DType    pType  = member->Type();
-	    if (IsNumericType[pType] || pType == GDL_PTR || pType == GDL_OBJ) {
+	    // there is probably no point transfering PTR and OBJ
+	    // but if it fits why restrict it? They should never be used though
+	    if (NumericType(pType) || pType == GDL_PTR || pType == GDL_OBJ) {
 		totalSize += member->NBytes();
 		sizeOf    =  member->Sizeof();
 	    }

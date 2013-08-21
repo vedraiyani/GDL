@@ -18,6 +18,8 @@
 #ifndef DSTRUCTDESC_HPP_
 #define DSTRUCTDESC_HPP_
 
+#include "includefirst.hpp" // USE_EIGEN3
+
 #include <vector>
 #include <deque>
 #include <string>
@@ -31,10 +33,10 @@
 class DStructBase
 {
 private:
-  std::deque<SizeT>    tagOffset; // data offset of tags
+  std::vector<SizeT>    tagOffset; // data offset of tags
 
 protected:
-  std::deque<BaseGDL*> tags; // Data_<Sp> for data, 'Sp' for structList elements
+  std::vector<BaseGDL*> tags; // Data_<Sp> for data, 'Sp' for structList elements
   void Add( BaseGDL* t)
   {
   tags.push_back(t); // grabs
@@ -43,11 +45,16 @@ protected:
   // and DStringGDL (considers actual string sizes)
   SizeT nBytes = tags.back()->NBytes();
 
-  // alignment
-  const int sizeOfPtr = sizeof( char*);
-  SizeT exceed = nBytes % sizeOfPtr;
+  // alignment 
+#ifdef USE_EIGEN
+  assert( sizeof( char*) <= 16); 
+  const int alignmentInBytes = 16; // set to multiple of 16 >= sizeof( char*)
+#else
+  const int alignmentInBytes = sizeof( char*);
+#endif
+  SizeT exceed = nBytes % alignmentInBytes;
   if( exceed > 0)
-	nBytes += sizeOfPtr - exceed;
+	nBytes += alignmentInBytes - exceed;
 
   // valid tagOffset (used by NBytes())
   tagOffset.push_back( tagOffset.back() + nBytes);
@@ -91,7 +98,7 @@ public:
 
 
 class DStructDesc;
-typedef std::deque<DStructDesc*> StructListT;
+typedef std::vector<DStructDesc*> StructListT;
 
 // descriptor of structs layout ************************************************
 // unnamed struct
@@ -99,7 +106,7 @@ typedef std::deque<DStructDesc*> StructListT;
 class DUStructDesc: public DStructBase
 {
 private:
-  std::deque<std::string>  tNames;  // tag names
+  std::vector<std::string>  tNames;  // tag names
   
 public:
   DUStructDesc(): DStructBase()
@@ -236,7 +243,7 @@ public:
 
   void AddParent( DStructDesc*);
 
-  void GetParentNames( std::deque< std::string>& pNames) const
+  void GetParentNames( std::vector< std::string>& pNames) const
   {
     SizeT nParents=parent.size();
     for( SizeT i=0; i<nParents; ++i)

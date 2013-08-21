@@ -78,10 +78,10 @@ public:
   virtual void Init( BaseGDL*, BaseGDL*, BaseGDL*) { assert( false);}
 
   virtual bool IsRange() { return false;} // default for non-ranges
-  virtual BaseGDL* OverloadIndexNew() { assert( false);}
-  virtual BaseGDL* OverloadIndexNew( BaseGDL*) { assert( false);}
-  virtual BaseGDL* OverloadIndexNew( BaseGDL*, BaseGDL*) { assert( false);}
-  virtual BaseGDL* OverloadIndexNew( BaseGDL*, BaseGDL*, BaseGDL*) { assert( false);}
+  virtual BaseGDL* OverloadIndexNew() { assert( false); return 0;}
+  virtual BaseGDL* OverloadIndexNew( BaseGDL*) { assert( false); return 0;}
+  virtual BaseGDL* OverloadIndexNew( BaseGDL*, BaseGDL*) { assert( false); return 0;}
+  virtual BaseGDL* OverloadIndexNew( BaseGDL*, BaseGDL*, BaseGDL*) { assert( false); return 0;}
 
   virtual void Clear() {}
   virtual ~ArrayIndexT() {}
@@ -133,6 +133,7 @@ return arrayIxArr[ ix];
 SizeT size() const { return sz;}
 void push_back( ArrayIndexT* aIx)
 {
+// if( sz >= MAXRANK) // debug
 assert( sz < MAXRANK);
 arrayIxArr[ sz++] = aIx;
 }
@@ -389,7 +390,7 @@ public:
 //   // if this is used, Init was NOT called before
 //   BaseGDL* Index( BaseGDL* var, IxExprListT& ixL)
 //   {
-//     if( s >= var->Size())
+//     if( s >= var->N_Elements()/*var->Size()*/)
 //       throw GDLException(-1,NULL,"Scalar subscript out of range [>].h1",true,false);
 //     return var->NewIx( s);
 //   }
@@ -778,7 +779,7 @@ public:
   BaseGDL* OverloadIndexNew( BaseGDL* s_) 
   {
     Init( s_);
-    DLong arr[3] = {sInit,-1,1};
+    DLong arr[3] = {static_cast<DLong>(sInit),-1,1};
     return new DLongGDL( arr, 3);
   }
   
@@ -848,7 +849,7 @@ public:
 
   BaseGDL* OverloadIndexNew()
   {
-    DLong arr[3] = {sInit,-1,1};
+    DLong arr[3] = {static_cast<DLong>(sInit),-1,1};
     return new DLongGDL( arr, 3);
   }
 
@@ -888,7 +889,7 @@ public:
   BaseGDL* OverloadIndexNew( BaseGDL* s_, BaseGDL* e_) 
   {
     Init( s_, e_);
-    DLong arr[3] = {sInit,eInit,1};
+    DLong arr[3] = {static_cast<DLong>(sInit),static_cast<DLong>(eInit),1};
     return new DLongGDL( arr, 3);
   }
 
@@ -909,7 +910,7 @@ public:
 
   void Init( BaseGDL* s_, BaseGDL* e_)
   {
-// 	SizeT varSize = var->Size();
+// 	SizeT varSize = var->N_Elements()/*var->Size()*/;
     
     int retMsg=s_->Scalar2RangeT(sInit);
     if( retMsg == 0) // index empty or array
@@ -983,7 +984,7 @@ public:
 
   BaseGDL* OverloadIndexNew()
   {
-    DLong arr[3] = {sInit,eInit,1};
+    DLong arr[3] = {static_cast<DLong>(sInit),static_cast<DLong>(eInit),1};
     return new DLongGDL( arr, 3);
   }
 
@@ -1026,7 +1027,7 @@ public:
   BaseGDL* OverloadIndexNew( BaseGDL* s_, BaseGDL* stride_) 
   {
     Init( s_, stride_);
-    DLong arr[3] = {sInit,-1,stride};
+    DLong arr[3] = {static_cast<DLong>(sInit),-1,static_cast<DLong>(stride)};
     return new DLongGDL( arr, 3);
   }
 
@@ -1066,12 +1067,12 @@ public:
 // 			" form low:high must be >= 0, < size, with low <= high.",true,false);
 //       }
     // stride
-    retMsg=stride_->Scalar2index( stride);
+    retMsg=stride_->Scalar2Index( stride);
     if( retMsg == 0) // index empty or array
       {
 			if( stride_->N_Elements() == 0)
 			throw
-				GDLException(  "Internal error: Scalar2index:"
+				GDLException(  "Internal error: Scalar2Index:"
 					" stride index empty",true,false);
 			else
 			throw
@@ -1114,7 +1115,7 @@ public:
 
   BaseGDL* OverloadIndexNew()
   {
-    DLong arr[3] = {sInit,-1,stride};
+    DLong arr[3] = {static_cast<DLong>(sInit),-1,static_cast<DLong>(stride)};
     return new DLongGDL( arr, 3);
   }
 
@@ -1166,7 +1167,7 @@ public:
   BaseGDL* OverloadIndexNew( BaseGDL* s_, BaseGDL* e_, BaseGDL* stride_)
   {
     Init( s_, e_, stride_);
-    DLong arr[3] = {sInit,eInit,stride};
+    DLong arr[3] = {static_cast<DLong>(sInit),static_cast<DLong>(eInit),static_cast<DLong>(stride)};
     return new DLongGDL( arr, 3);
   }
 
@@ -1218,12 +1219,12 @@ public:
       }
                             
     // stride
-    retMsg=stride_->Scalar2index(stride);
+    retMsg=stride_->Scalar2Index(stride);
     if( retMsg == 0) // index empty or array
       {
 	if( stride_->N_Elements() == 0)
 	  throw 
-	    GDLException(  "Internal error: Scalar2index:"
+	    GDLException(  "Internal error: Scalar2Index:"
 			  " stride index empty",true,false); 
 	else
 	  throw 
@@ -1281,7 +1282,7 @@ public:
 
   BaseGDL* OverloadIndexNew()
   {
-    DLong arr[3] = {sInit,eInit,stride};
+    DLong arr[3] = {static_cast<DLong>(sInit),static_cast<DLong>(eInit),static_cast<DLong>(stride)};
     return new DLongGDL( arr, 3);
   }
 

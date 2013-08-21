@@ -19,7 +19,7 @@
 #define dstructgdl_hpp_
 
 #include <string>
-#include <deque>
+// #include <deque>
 
 #include "typedefs.hpp"
 #include "datatypes.hpp" // for friend declaration
@@ -42,8 +42,12 @@ private:
   typedef SpDStruct::DataT DataT;
   
   //public:
-  std::deque<BaseGDL*> typeVar;   // for accessing data
-  DataT                dd;        // the data
+  std::vector<BaseGDL*> typeVar;   // for accessing data
+#ifdef USE_EIGEN  
+  EIGEN_ALIGN16 DataT        dd; // the data
+#else
+  DataT                      dd; // the data
+#endif
     
   void InitTypeVar( SizeT t)
   {
@@ -57,7 +61,7 @@ private:
 
 public:
 
-  static std::deque< void*> freeList;
+  static std::vector< void*> freeList;
 
   // operator new and delete
   static void* operator new( size_t bytes);
@@ -436,7 +440,7 @@ public:
   // members
   // used by the interpreter
   // throws (datatypes.cpp)
-  int Scalar2index( SizeT& st) const;
+  int Scalar2Index( SizeT& st) const;
   int Scalar2RangeT( RangeT& st) const;
   RangeT LoopIndex() const;
 
@@ -565,7 +569,7 @@ DStructGDL* NewResult() const
   DStructGDL*   Pow( BaseGDL* r);
   DStructGDL*   PowInv( BaseGDL* r);
   DStructGDL*   PowInt( BaseGDL* r);
-  DStructGDL*   MatrixOp( BaseGDL* r,bool,bool,bool);
+  DStructGDL*   MatrixOp( BaseGDL* r, bool atranspose, bool btranspose);
 
 
   DStructGDL*   AndOpS( BaseGDL* r);

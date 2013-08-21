@@ -1,4 +1,4 @@
-/* $ANTLR 2.7.7 (20110618): "format.g" -> "FMTLexer.cpp"$ */
+/* $ANTLR 2.7.7 (20120518): "format.g" -> "FMTLexer.cpp"$ */
 
 #include "includefirst.hpp"
 

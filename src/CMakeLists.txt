@@ -133,6 +133,8 @@ gsl_fun.hpp
 gsl_matrix.cpp
 gsl_matrix.hpp
 gzstream.hpp
+hash.cpp
+hash.hpp
 hdf5_fun.cpp
 hdf5_fun.hpp
 hdf_fun.cpp
@@ -155,6 +157,8 @@ libinit_gm.cpp
 libinit_jmg.cpp
 libinit_mes.cpp
 libinit_ng.cpp
+list.cpp
+list.hpp
 magick_cl.cpp
 magick_cl.hpp
 math_fun.cpp
@@ -169,6 +173,8 @@ math_fun_ng.cpp
 math_fun_ng.hpp
 math_utl.cpp
 math_utl.hpp
+matrix_cholesky.cpp
+matrix_cholesky.hpp
 mpi.cpp
 mpi.hpp
 ncdf_att_cl.cpp
@@ -199,6 +205,7 @@ plotting_oplot.cpp
 plotting_plot.cpp
 plotting_plots.cpp
 plotting_polyfill.cpp
+plotting_shade_surf.cpp
 plotting_surface.cpp
 plotting_windows.cpp
 plotting_xyouts.cpp

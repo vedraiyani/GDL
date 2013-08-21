@@ -16,12 +16,15 @@
  ***************************************************************************/
 
 #ifndef DEVICEPS_HPP_
-#  define DEVICEPS_HPP_
+#define DEVICEPS_HPP_
 
-#  include "gdlpsstream.hpp"
-#  include "plotting.hpp" // get_axis_crange for TV()
-#  include "initsysvar.hpp"
-#  include <gsl/gsl_const_mksa.h> // GSL_CONST_MKSA_INCH
+#include "gdlpsstream.hpp"
+#include "plotting.hpp" // get_axis_crange for TV()
+#include "initsysvar.hpp"
+#include <gsl/gsl_const_mksa.h> // GSL_CONST_MKSA_INCH
+
+#include "objects.hpp"
+
 
 #  ifdef USE_PSLIB
 #    include <stdio.h> // tmpnam
@@ -34,6 +37,14 @@
 #  else
 #    define SETOPT setopt
 #  endif
+
+#ifdef _MSC_VER
+#define cm2in (.01 / GSL_CONST_MKSA_INCH); // This is not good, but works
+#define dpi 72.0 //in dpi;
+#else
+  static const float cm2in = .01 / GSL_CONST_MKSA_INCH;
+  static const PLFLT dpi = 72.0 ; //in dpi;
+#endif
 
 class DevicePS: public Graphics
 {
@@ -49,12 +60,7 @@ class DevicePS: public Graphics
   bool             encapsulated;
   float	           scale;
 
-#ifdef _MSC_VER
-#define cm2in (.01 / GSL_CONST_MKSA_INCH); // This is not good, but works
-#else
-  static const float cm2in = .01 / GSL_CONST_MKSA_INCH;
-#endif
-  static const PLFLT dpi = 72.0 ; //in dpi;
+  GDLStream  *psUnit;
 
   void InitStream()
   {
@@ -70,43 +76,53 @@ class DevicePS: public Graphics
 
     actStream->sfnam( fileName.c_str());
 
+    // trying to solve bug report 3611898
+    // AC 29-Avril-2013: the way I found to link GDLPSStream* and GDLStream*
+    DLong lun=GetLUN();
+    psUnit = &fileUnits[ lun-1];
+    psUnit->Open(fileName,fstream::out,false,false,false,
+		 defaultStreamWidth,false,false);
+    (*static_cast<DLongGDL*>( dStruct->GetTag(dStruct->Desc()->TagIndex("UNIT"))))[0]=lun;
+
     // zeroing offsets (xleng and yleng are the default ones but they need to be specified 
     // for the offsets to be taken into account by spage(), works with plplot >= 5.9.9)
-    actStream->spage(dpi, dpi, 540, 720, 32, 32); //plplot default: portrait!
+    actStream->spage(dpi, dpi, 540, 720, 0, 0); //plplot default: portrait!
 
     // as setting the offsets and sizes with plPlot is (extremely) tricky, and some of these setting
     // are hardcoded into plplot (like EPS header, and offsets in older versions of plplot)
     // here we only specify the aspect ratio - size an offset are handled by pslib when device,/close is called
-    PLFLT pageRatio=YPageSize/XPageSize;
-      std::string as = i2s( pageRatio);
-      actStream->SETOPT( "a", as.c_str());
 
+    // patch 3611949 by Joanna, 29 Avril 2013
+    PLFLT pageRatio=XPageSize/YPageSize;
+    std::string as = i2s( pageRatio);
+    actStream->SETOPT( "a", as.c_str());
+    
     // plot orientation
-    actStream->sdiori(orient_portrait ? 90.0 : 0.0);
-
+    //std::cout  << "orientation : " << orient_portrait<< std::endl;
+    
+    actStream->sdiori(orient_portrait ? 1 : 2);
+    
     // no pause on destruction
     actStream->spause( false);
 
     // extended fonts
     actStream->fontld( 1);
     
-    actStream->SETOPT( "drvopt","text=0");
+    // avoid to set color map 0 -- makes plplot very slow (?)
+    PLINT r[ctSize], g[ctSize], b[ctSize];
+    actCT.Get( r, g, b);
+//    actStream->scmap0( r, g, b, ctSize);
+    actStream->scmap1( r, g, b, ctSize);
     // default: black+white (IDL behaviour)
     if (color == 0)
     {
-//      actStream->SETOPT( "drvopt","text=0,color=0");
-////      actStream->scolor(0); // has no effect
+      actStream->SETOPT( "drvopt","text=0,color=0");
     }
     else
     {
-      actStream->SETOPT( "drvopt","color=1");
-          // set color map
-        PLINT r[ctSize], g[ctSize], b[ctSize];
-        actCT.Get( r, g, b);
-//        actStream->scmap0( r, g, b, ctSize);
-        actStream->scmap1( r, g, b, ctSize);
-        actStream->scolbg(255,255,255); // white background
+      actStream->SETOPT( "drvopt","text=0,color=1"); //need to pass all options with the same 'setopt' command.
     }
+    actStream->scolbg(255,255,255); // start with a white background
 
     actStream->Init();
     
@@ -131,7 +147,7 @@ private:
   {
 #  ifndef USE_PSLIB
     Warning("Warning: pslib support is mandatory for the PostScript driver to handle the following");
-    Warning("         keywords: [X,Y]SIZE, [X,Y]OFFSET, SCALE_FACTOR, LANDSCAPE, PORTRAIT, ENCAPSULATED");
+    Warning("         keywords:  [X,Y]OFFSET, SCALE_FACTOR, ENCAPSULATED");
 #  else
     PSDoc *ps = PS_new(); 
     GDLGuard<PSDoc> psGuard( ps, PS_delete);
@@ -197,8 +213,19 @@ private:
     //psfont = PS_findfont(ps, "Helvetica", "", 0); 
     //PS_setfont(ps, psfont, 8.0); 
 
+      char bbstr [20], offstr [20];
+      int bbXSize, bbYSize;
     {
-      PS_begin_page(ps, XPageSize * cm2in * dpi, YPageSize * cm2in * dpi);
+
+      int bbXoff = XOffset*cm2in*dpi;
+      int bbYoff = YOffset*cm2in*dpi;
+      bbXSize = orient_portrait ? bbXoff + XPageSize*cm2in*dpi*scale : bbXoff + YPageSize*cm2in*dpi*scale;
+      bbYSize = orient_portrait ? bbYoff + YPageSize*cm2in*dpi*scale : bbYoff + XPageSize*cm2in*dpi*scale;
+      sprintf(bbstr,"%i %i %i %i",bbXoff,bbYoff,bbXSize,bbYSize);
+      sprintf(offstr,"%i %i",bbXoff,bbYoff);
+    
+      PS_set_info(ps,"BoundingBox",bbstr);
+      PS_begin_page(ps, bbXSize, bbYSize);
       {
         int psimage = PS_open_image_file(ps, "eps", fileName.c_str(), NULL, 0);
         if (psimage == 0)
@@ -206,14 +233,14 @@ private:
           Warning("Warning: pslib failed to load plPlot output file.");
           goto cleanup;
         }
-
-        float scl = !orient_portrait
-          ? ((XPageSize-XOffset) * cm2in * dpi ) / (PS_get_value(ps, "imagewidth", (float) psimage))
-          : ((YPageSize-YOffset) * cm2in * dpi) / (PS_get_value(ps, "imageheight", (float) psimage));
+	
+        float scl = 0.98*min((bbXSize-bbXoff) / (width-offx), (bbYSize-bbYoff) / (height-offy) );
+	int margx = ((bbXSize-bbXoff) - scl*(width-offx))/2;
+	int margy = ((bbYSize-bbYoff) - scl*(height-offy))/2;
         PS_place_image(ps, psimage, 
-          (XOffset * cm2in * dpi)-offx,
-          (YOffset * cm2in * dpi)-offy,
-          scale * scl
+		       bbXoff-offx*scl + margx,
+		       bbYoff-offy*scl + margy,
+		       scl
         );
         PS_close_image(ps, psimage); 
       }
@@ -221,7 +248,7 @@ private:
       PS_close(ps);
     }
     
-    // write contents to fileName
+    // Replace PageBoundingBox and CropBox and write contents to fileName
     {
       rewind(fp);
       FILE *fp_plplot = fopen(fileName.c_str(), "w");
@@ -231,12 +258,50 @@ private:
         Warning("Warning: failed to open plPlot-generated file");
         goto cleanup;
       }
-      const size_t buflen=4096;
-      unsigned char buff[buflen];
+
+      // When multiple pages are supported, PageBoundingBox and the cropbox
+      // will appear more than once. Then this section will need to be redone.
+
+      // Edit: change the two 0's after the PageBoundingBox
+      string pbstr=string("%%PageBoundingBox: ")+offstr;
+      // edits will be in the first 12288 bytes; add the length of offstr-3
+      const size_t buflen=12288 + pbstr.length()-22;
+      //const size_t buflen=4096;
+      char buff[buflen];
+
+      //do the first read:
+      size_t cnt = fread(&buff, 1, 12288, fp);
+      string sbuff;
+      sbuff = string(buff);
+
+      // find the PageBoundingBox statement
+      size_t pos = sbuff.find("%%PageBoundingBox: 0 0");
+      if (pos != string::npos) {
+	sbuff.replace(pos,22,pbstr); // will change the size of sbuff by offstr-3
+	cnt = cnt + pbstr.length()-22;
+      }
+
+      // PSlib outputs pdfmarks which resize the PDF to the size of the boundingbox
+      // this is nice, but not IDL behaviour (and anyway, the two 0's are wrong)
+      char mychar[60];
+      sprintf(mychar,"[ /CropBox [0 0 %i.00 %i.00] /PAGE pdfmark",bbXSize,bbYSize);
+      string pdfstr=string(mychar); 
+      string pdfrepl(pdfstr.length(),' ');
+      pos = sbuff.find(pdfstr);
+      if (pos != string::npos) {sbuff.replace(pos,pdfstr.length(),pdfrepl);} // will not change size of sbuff
+
+      // write the first buflen to file
+      strcpy(buff,sbuff.c_str());
+      if (fwrite(&buff, 1, buflen, fp_plplot) < buflen)
+        {
+          Warning("Warning: failed to overwrite the plPlot-generated file with pslib output");
+        }
+
+      // read the rest of fp and write to file
       while (true)
       {
-        size_t cnt = fread(&buff, 1, buflen, fp);
-        if (!cnt) break;
+       cnt = fread(&buff, 1, buflen, fp);
+         if (!cnt) break;
         if (fwrite(&buff, 1, cnt, fp_plplot) < cnt)
         {
           Warning("Warning: failed to overwrite the plPlot-generated file with pslib output");
@@ -255,9 +320,129 @@ private:
 #  endif
   }
 
+private:
+  void epsHacks()
+  {
+    // using namespace std;
+    //PLPLOT outputs a strange boundingbox; this hack directly edits the eps file.  
+    //if the plplot bug ever gets fixed, this hack won't be needed.
+    char *bb;
+    FILE *feps;
+    size_t buflen=2048;//largely sufficient
+    char buffer[buflen]; 
+    int cnt;
+    ifstream myfile (fileName.c_str());
+    feps=fopen(fileName.c_str(), "r");
+    cnt=fread(buffer,sizeof(char),buflen,feps);
+
+    //read original boundingbox
+    bb = strstr(buffer, "%%BoundingBox:");
+    int offx, offy, width, height;
+    bb += 15;
+    sscanf(bb, "%i %i %i %i", &offx, &offy, &width, &height);
+    float hsize = XPageSize*cm2in*dpi*scale, vsize = YPageSize*cm2in*dpi*scale;
+    float newwidth = (width - offx), newheight = (height - offy);
+    float hscale = (orient_portrait ? hsize : vsize)/newwidth/5.0;
+    float vscale = (orient_portrait ? vsize : hsize)/newheight/5.0;
+    hscale = min(hscale,vscale)*0.98;
+    vscale = hscale;
+    float hoff = -5.*offx*hscale + ((orient_portrait ? hsize : vsize) - 5.0*hscale*newwidth)*0.5;
+    float voff = -5.*offy*vscale + ((orient_portrait ? vsize : hsize) - 5.0*vscale*newheight)*0.5;
+
+    //replace with a more sensible boundingbox
+    string sbuff = string(buffer);
+    stringstream searchstr,replstr;
+    searchstr << "BoundingBox: " << offx << " " << offy << " " << width << " " << height;
+    replstr << "BoundingBox: 0 0 " << floor((orient_portrait ? hsize : vsize)+0.5) << " " << floor((orient_portrait ? vsize : hsize)+0.5);
+    size_t pos = sbuff.find(searchstr.str());
+    int extralen;
+    if (pos != string::npos) {
+      sbuff.replace(pos,searchstr.str().length(),replstr.str()); 
+      extralen = replstr.str().length()-searchstr.str().length();
+    }
+
+    //replace values of hscale, vscale
+    searchstr.str("");
+    searchstr << "{hs 3600 div} def" << endl << "/YScale" << endl << "   {vs 2700 div} def";
+    replstr.str("");
+    replstr << hscale << " def" << endl << "/YScale" << endl << "   " << vscale << " def";
+    pos = sbuff.find(searchstr.str());
+    if (pos != string::npos) {
+      sbuff.replace(pos,searchstr.str().length(),replstr.str()); 
+      extralen = extralen + replstr.str().length()-searchstr.str().length();
+    }
+
+    //replace the values of hoffset and voffset
+    searchstr.str("");
+    searchstr << "0 @hoffset" << endl << "0 @voffset";
+    replstr.str("");
+    replstr << floor(hoff+0.5) << " " << "@hoffset" << endl << floor(voff+0.5) << " " << "@voffset";
+    pos = sbuff.find(searchstr.str());
+    if (pos != string::npos) {
+      sbuff.replace(pos,searchstr.str().length(),replstr.str()); 
+      extralen = extralen + replstr.str().length()-searchstr.str().length();
+    }
+
+    //add landscape
+    if (!orient_portrait) {
+    searchstr.str("%%Page: 1 1");
+    replstr.str("");
+    replstr << "%%Page: 1 1" << endl << "%%PageOrientation: Landscape" << endl;
+    pos = sbuff.find(searchstr.str());
+    if (pos != string::npos) {
+      sbuff.replace(pos,searchstr.str().length(),replstr.str()); 
+      extralen = extralen + replstr.str().length()-searchstr.str().length();
+    }
+    }
+
+    //open temp file
+    FILE *fp = tmpfile(); // this creates a file which should be deleted automaticaly when it is closed
+    FILEGuard fpGuard( fp, fclose);
+    if (fp == NULL) { 
+      Warning("Warning: failed to create temporary PostScript file."); 
+      return;
+    }
+
+    // write the first buflen to temp file
+    char buffer2[buflen + extralen];
+    strcpy(buffer2,sbuff.c_str());
+    fwrite(&buffer2, 1, buflen+extralen, fp); 
+
+    // read the rest of feps and write to temp file
+    while (true)
+      {
+    	cnt = fread(&buffer, 1, buflen, feps);
+    	if (!cnt) break;
+        if (fwrite(&buffer, 1, cnt, fp) < cnt)
+    	  {
+    	    Warning("Warning: failed to write to temporary file");
+    	  }
+      }
+    fclose(feps);
+
+    // copy temp file to fileName
+    rewind(fp);
+    FILE *fp_plplot = fopen(fileName.c_str(), "w");
+    FILEGuard fp_plplotGuard( fp_plplot, fclose);
+    if (fp_plplot == NULL) {
+      Warning("Warning: failed to open plPlot-generated file");
+      return;
+    }
+    while (true)
+      {
+    	cnt = fread(&buffer, 1, buflen, fp);
+    	if (!cnt) break;
+        if (fwrite(&buffer, 1, cnt, fp_plplot) < cnt)
+    	  {
+    	    Warning("Warning: failed to overwrite the plPlot-generated file with pslib output");
+    	  }
+      }
+
+  }
+
 public:
   DevicePS(): Graphics(), fileName( "gdl.ps"), actStream( NULL), color(0), 
-    decomposed( 0), encapsulated(false), scale(1.), XPageSize(21.0), YPageSize(29.7),
+    decomposed( 0), encapsulated(false), scale(1.), XPageSize(17.78), YPageSize(12.7),
     XOffset(0.0),YOffset(0.0)
   {
     name = "PS";
@@ -269,10 +454,10 @@ public:
 
     dStruct = new DStructGDL( "!DEVICE");
     dStruct->InitTag("NAME",       DStringGDL( name)); 
-    dStruct->InitTag("X_SIZE",     DLongGDL( 29700)); //29700/1000=29.7 cm
-    dStruct->InitTag("Y_SIZE",     DLongGDL( 21000));
-    dStruct->InitTag("X_VSIZE",    DLongGDL( 29700));
-    dStruct->InitTag("Y_VSIZE",    DLongGDL( 21000));
+    dStruct->InitTag("X_SIZE",     DLongGDL( XPageSize*scale*1000)); //29700/1000=29.7 cm
+    dStruct->InitTag("Y_SIZE",     DLongGDL( YPageSize*scale*1000));
+    dStruct->InitTag("X_VSIZE",    DLongGDL( XPageSize*scale*1000));
+    dStruct->InitTag("Y_VSIZE",    DLongGDL( YPageSize*scale*1000));
     dStruct->InitTag("X_CH_SIZE",  DLongGDL( 360));
     dStruct->InitTag("Y_CH_SIZE",  DLongGDL( 360));
     dStruct->InitTag("X_PX_CM",    DFloatGDL( 1000.0)); //1000 pix/cm
@@ -327,11 +512,18 @@ public:
 
   bool CloseFile()
   {
+    // trying to solve bug report 3611898
+    // this is needed to decrement Lun number ...
+    (*static_cast<DLongGDL*>( dStruct->GetTag(dStruct->Desc()->TagIndex("UNIT"))))[0]=0;
     if (actStream != NULL)
     {
+      psUnit->Close();
+      psUnit->Free();
+      psUnit=NULL;
+
       delete actStream;
       actStream = NULL;
-      if (!encapsulated) pslibHacks(); // needs to be called after the plPlot-generated file is closed
+      if (!encapsulated) pslibHacks(); else epsHacks(); // needs to be called after the plPlot-generated file is closed
     }
     return true;
   }
@@ -410,7 +602,6 @@ public:
 
   bool SetEncapsulated(bool val)
   {
-    // TODO ?: change XPageSize, YPageSize, XOffset, YOffset
     encapsulated = val;
     return true;
   }

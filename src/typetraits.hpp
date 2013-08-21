@@ -25,6 +25,7 @@
 
 #include "basegdl.hpp"
 #include "dstructdesc.hpp"
+#include "gdlarray.hpp"
 
 // define type parameterization here
 struct SpDByte: public BaseGDL
@@ -36,9 +37,6 @@ struct SpDByte: public BaseGDL
   BaseGDL* GetInstance() const;
   BaseGDL* GetEmptyInstance() const;
 
-  typedef DByte Ty;
-  typedef GDLArray<Ty>    DataT;
-
   SizeT NBytes() const
   {
 	return (this->N_Elements() * sizeof( Ty));
@@ -48,11 +46,32 @@ struct SpDByte: public BaseGDL
   static const std::string str; 
   static const DByte zero;
 
-  static const bool IS_INTEGER;
-  static const bool IS_SIGNED;
-  static const bool IS_NUMERIC;
-  static const bool IS_COMPLEX;
+//   static const bool IS_INTEGER;
+//   static const bool IS_SIGNED;
+//   static const bool IS_NUMERIC;
+//   static const bool IS_COMPLEX;
+//   static const bool IS_POD;
+//   static const bool IS_CONVERTABLE;
+  static const bool IS_INTEGER = true;
+  static const bool IS_SIGNED = false;
+  static const bool IS_NUMERIC = true;
+  static const bool IS_FLOAT = false;
+  static const bool IS_COMPLEX = false;
+  static const bool IS_POD = true;
+  static const bool IS_CONVERTABLE = true;
 
+  typedef DByte Ty;
+  typedef GDLArray<Ty,IS_POD>    DataT;
+
+  template <typename ReturnType>
+  struct IfInteger { typedef ReturnType type; };
+  template <typename ReturnType>
+  struct IfFloat {};
+  template <typename ReturnType>
+  struct IfComplex {};
+  template <typename ReturnType>
+  struct IfOther {};
+ 
   DType   Type()    const;
   const std::string& TypeStr() const;
 
@@ -68,9 +87,6 @@ struct SpDInt: public BaseGDL
   BaseGDL* GetInstance() const;
   BaseGDL* GetEmptyInstance() const;
 
-  typedef DInt Ty;
-  typedef GDLArray<Ty>    DataT;
-
   SizeT NBytes() const
   {
 	return (this->N_Elements() * sizeof( Ty));
@@ -80,11 +96,32 @@ struct SpDInt: public BaseGDL
   static const std::string str; 
   static const DInt zero;
 
-  static const bool IS_INTEGER;
-  static const bool IS_SIGNED;
-  static const bool IS_NUMERIC;
-  static const bool IS_COMPLEX;
+//   static const bool IS_INTEGER;
+//   static const bool IS_SIGNED;
+//   static const bool IS_NUMERIC;
+//   static const bool IS_COMPLEX;
+//   static const bool IS_POD;
+//   static const bool IS_CONVERTABLE;
+  static const bool IS_INTEGER = true;
+  static const bool IS_SIGNED = true;
+  static const bool IS_NUMERIC = true;
+  static const bool IS_FLOAT = false;
+  static const bool IS_COMPLEX = false;
+  static const bool IS_POD = true;
+  static const bool IS_CONVERTABLE = true;
 
+  typedef DInt Ty;
+  typedef GDLArray<Ty,IS_POD>    DataT;
+
+  template <typename ReturnType>
+  struct IfInteger { typedef ReturnType type; };
+  template <typename ReturnType>
+  struct IfFloat {};
+  template <typename ReturnType>
+  struct IfComplex {};
+  template <typename ReturnType>
+  struct IfOther {};
+ 
   DType   Type()    const;
   const std::string& TypeStr() const;
 
@@ -100,9 +137,6 @@ struct SpDUInt: public BaseGDL
   BaseGDL* GetInstance() const;
   BaseGDL* GetEmptyInstance() const;
 
-  typedef DUInt Ty;
-  typedef GDLArray<Ty>    DataT;
-
   SizeT NBytes() const
   {
 	return (this->N_Elements() * sizeof( Ty));
@@ -112,10 +146,32 @@ struct SpDUInt: public BaseGDL
   static const std::string str; 
   static const DUInt zero;
 
-  static const bool IS_INTEGER;
-  static const bool IS_SIGNED;
-  static const bool IS_NUMERIC;
-  static const bool IS_COMPLEX;
+//   static const bool IS_INTEGER;
+//   static const bool IS_SIGNED;
+//   static const bool IS_NUMERIC;
+//   static const bool IS_COMPLEX;
+//   static const bool IS_POD;
+//   static const bool IS_CONVERTABLE;
+  static const bool IS_INTEGER = true;
+  static const bool IS_SIGNED = false;
+  static const bool IS_NUMERIC = true;
+  static const bool IS_FLOAT = false;
+  static const bool IS_COMPLEX = false;
+  static const bool IS_POD = true;
+  static const bool IS_CONVERTABLE = true;
+
+  typedef DUInt Ty;
+  typedef GDLArray<Ty,IS_POD>    DataT;
+
+  template <typename ReturnType>
+  struct IfInteger { typedef ReturnType type; };
+  template <typename ReturnType>
+  struct IfFloat {};
+  template <typename ReturnType>
+  struct IfComplex {};
+  template <typename ReturnType>
+  struct IfOther {};
+ 
 
   DType   Type()    const;
   const std::string& TypeStr() const;
@@ -132,9 +188,6 @@ struct SpDLong: public BaseGDL
   BaseGDL* GetInstance() const;
   BaseGDL* GetEmptyInstance() const;
 
-  typedef DLong Ty;
-  typedef GDLArray<Ty>    DataT;
-
   SizeT NBytes() const
   {
 	return (this->N_Elements() * sizeof( Ty));
@@ -144,10 +197,32 @@ struct SpDLong: public BaseGDL
   static const std::string str; 
   static const DLong  zero;
 
-  static const bool IS_INTEGER;
-  static const bool IS_SIGNED;
-  static const bool IS_NUMERIC;
-  static const bool IS_COMPLEX;
+//   static const bool IS_INTEGER;
+//   static const bool IS_SIGNED;
+//   static const bool IS_NUMERIC;
+//   static const bool IS_COMPLEX;
+//   static const bool IS_POD;
+//   static const bool IS_CONVERTABLE;
+  static const bool IS_INTEGER = true;
+  static const bool IS_SIGNED = true;
+  static const bool IS_NUMERIC = true;
+  static const bool IS_FLOAT = false;
+  static const bool IS_COMPLEX = false;
+  static const bool IS_POD = true;
+  static const bool IS_CONVERTABLE = true;
+
+  typedef DLong Ty;
+  typedef GDLArray<Ty,IS_POD>    DataT;
+
+  template <typename ReturnType>
+  struct IfInteger { typedef ReturnType type; };
+  template <typename ReturnType>
+  struct IfFloat {};
+  template <typename ReturnType>
+  struct IfComplex {};
+  template <typename ReturnType>
+  struct IfOther {};
+ 
 
   DType   Type()    const;
   const std::string& TypeStr() const;
@@ -164,9 +239,6 @@ struct SpDULong: public BaseGDL
   BaseGDL* GetInstance() const;
   BaseGDL* GetEmptyInstance() const;
 
-  typedef DULong Ty;
-  typedef GDLArray<Ty>    DataT;
-
   SizeT NBytes() const
   {
 	return (this->N_Elements() * sizeof( Ty));
@@ -176,10 +248,32 @@ struct SpDULong: public BaseGDL
   static const std::string str; 
   static const DULong zero;
 
-  static const bool IS_INTEGER;
-  static const bool IS_SIGNED;
-  static const bool IS_NUMERIC;
-  static const bool IS_COMPLEX;
+//   static const bool IS_INTEGER;
+//   static const bool IS_SIGNED;
+//   static const bool IS_NUMERIC;
+//   static const bool IS_COMPLEX;
+//   static const bool IS_POD;
+//   static const bool IS_CONVERTABLE;
+  static const bool IS_INTEGER = true;
+  static const bool IS_SIGNED = false;
+  static const bool IS_NUMERIC = true;
+  static const bool IS_FLOAT = false;
+  static const bool IS_COMPLEX = false;
+  static const bool IS_POD = true;
+  static const bool IS_CONVERTABLE = true;
+
+  typedef DULong Ty;
+  typedef GDLArray<Ty,IS_POD>    DataT;
+
+  template <typename ReturnType>
+  struct IfInteger { typedef ReturnType type; };
+  template <typename ReturnType>
+  struct IfFloat {};
+  template <typename ReturnType>
+  struct IfComplex {};
+  template <typename ReturnType>
+  struct IfOther {};
+ 
 
   DType   Type()    const;
   const std::string& TypeStr() const;
@@ -196,9 +290,6 @@ struct SpDLong64: public BaseGDL
   BaseGDL* GetInstance() const;
   BaseGDL* GetEmptyInstance() const;
 
-  typedef DLong64 Ty;
-  typedef GDLArray<Ty>    DataT;
-
   SizeT NBytes() const
   {
 	return (this->N_Elements() * sizeof( Ty));
@@ -208,10 +299,32 @@ struct SpDLong64: public BaseGDL
   static const std::string str; 
   static const DLong64  zero;
 
-  static const bool IS_INTEGER;
-  static const bool IS_SIGNED;
-  static const bool IS_NUMERIC;
-  static const bool IS_COMPLEX;
+//   static const bool IS_INTEGER;
+//   static const bool IS_SIGNED;
+//   static const bool IS_NUMERIC;
+//   static const bool IS_COMPLEX;
+//   static const bool IS_POD;
+//   static const bool IS_CONVERTABLE;
+  static const bool IS_INTEGER = true;
+  static const bool IS_SIGNED = true;
+  static const bool IS_NUMERIC = true;
+  static const bool IS_FLOAT = false;
+  static const bool IS_COMPLEX = false;
+  static const bool IS_POD = true;
+  static const bool IS_CONVERTABLE = true;
+
+  typedef DLong64 Ty;
+  typedef GDLArray<Ty,IS_POD>    DataT;
+
+  template <typename ReturnType>
+  struct IfInteger { typedef ReturnType type; };
+  template <typename ReturnType>
+  struct IfFloat {};
+  template <typename ReturnType>
+  struct IfComplex {};
+  template <typename ReturnType>
+  struct IfOther {};
+ 
 
   DType   Type()    const;
   const std::string& TypeStr() const;
@@ -228,9 +341,6 @@ struct SpDULong64: public BaseGDL
   BaseGDL* GetInstance() const;
   BaseGDL* GetEmptyInstance() const;
 
-  typedef DULong64 Ty;
-  typedef GDLArray<Ty>    DataT;
-
   SizeT NBytes() const
   {
 	return (this->N_Elements() * sizeof( Ty));
@@ -240,10 +350,32 @@ struct SpDULong64: public BaseGDL
   static const std::string str; 
   static const DULong64 zero;
 
-  static const bool IS_INTEGER;
-  static const bool IS_SIGNED;
-  static const bool IS_NUMERIC;
-  static const bool IS_COMPLEX;
+//   static const bool IS_INTEGER;
+//   static const bool IS_SIGNED;
+//   static const bool IS_NUMERIC;
+//   static const bool IS_COMPLEX;
+//   static const bool IS_POD;
+//   static const bool IS_CONVERTABLE;
+  static const bool IS_INTEGER = true;
+  static const bool IS_SIGNED = false;
+  static const bool IS_NUMERIC = true;
+  static const bool IS_FLOAT = false;
+  static const bool IS_COMPLEX = false;
+  static const bool IS_POD = true;
+  static const bool IS_CONVERTABLE = true;
+
+  typedef DULong64 Ty;
+  typedef GDLArray<Ty,IS_POD>    DataT;
+
+  template <typename ReturnType>
+  struct IfInteger { typedef ReturnType type; };
+  template <typename ReturnType>
+  struct IfFloat {};
+  template <typename ReturnType>
+  struct IfComplex {};
+  template <typename ReturnType>
+  struct IfOther {};
+ 
 
   DType   Type()    const;
   const std::string& TypeStr() const;
@@ -260,9 +392,6 @@ struct SpDFloat: public BaseGDL
   BaseGDL* GetInstance() const;
   BaseGDL* GetEmptyInstance() const;
 
-  typedef DFloat Ty;
-  typedef GDLArray<Ty>    DataT;
-
   SizeT NBytes() const
   {
 	return (this->N_Elements() * sizeof( Ty));
@@ -272,11 +401,32 @@ struct SpDFloat: public BaseGDL
   static const std::string str; 
   static const DFloat zero;
 
-  static const bool IS_INTEGER;
-  static const bool IS_SIGNED;
-  static const bool IS_NUMERIC;
-  static const bool IS_COMPLEX;
+//   static const bool IS_INTEGER;
+//   static const bool IS_SIGNED;
+//   static const bool IS_NUMERIC;
+//   static const bool IS_COMPLEX;
+//   static const bool IS_POD;
+//   static const bool IS_CONVERTABLE;
+  static const bool IS_INTEGER = false;
+  static const bool IS_SIGNED = true;
+  static const bool IS_NUMERIC = true;
+  static const bool IS_FLOAT = true;
+  static const bool IS_COMPLEX = false;
+  static const bool IS_POD = true;
+  static const bool IS_CONVERTABLE = true;
 
+  typedef DFloat Ty;
+  typedef GDLArray<Ty,IS_POD>    DataT;
+
+  template <typename ReturnType>
+  struct IfInteger {};
+  template <typename ReturnType>
+  struct IfFloat { typedef ReturnType type; };
+  template <typename ReturnType>
+  struct IfComplex {};
+  template <typename ReturnType>
+  struct IfOther {};
+ 
   DType   Type()    const;
   const std::string& TypeStr() const;
 
@@ -292,9 +442,6 @@ struct SpDDouble: public BaseGDL
   BaseGDL* GetInstance() const;
   BaseGDL* GetEmptyInstance() const;
 
-  typedef DDouble Ty;
-  typedef GDLArray<Ty>    DataT;
-
   SizeT NBytes() const
   {
 	return (this->N_Elements() * sizeof( Ty));
@@ -304,10 +451,32 @@ struct SpDDouble: public BaseGDL
   static const std::string str; 
   static const DDouble zero;
 
-  static const bool IS_INTEGER;
-  static const bool IS_SIGNED;
-  static const bool IS_NUMERIC;
-  static const bool IS_COMPLEX;
+//   static const bool IS_INTEGER;
+//   static const bool IS_SIGNED;
+//   static const bool IS_NUMERIC;
+//   static const bool IS_COMPLEX;
+//   static const bool IS_POD;
+//   static const bool IS_CONVERTABLE;
+
+  static const bool IS_INTEGER = false;
+  static const bool IS_SIGNED = true;
+  static const bool IS_NUMERIC = true;
+  static const bool IS_FLOAT = true;
+  static const bool IS_COMPLEX = false;
+  static const bool IS_POD = true;
+  static const bool IS_CONVERTABLE = true;
+
+  typedef DDouble Ty;
+  typedef GDLArray<Ty,IS_POD>    DataT;
+
+  template <typename ReturnType>
+  struct IfInteger {};
+  template <typename ReturnType>
+  struct IfFloat { typedef ReturnType type; };
+  template <typename ReturnType>
+  struct IfComplex {};
+  template <typename ReturnType>
+  struct IfOther {};
 
   DType   Type()    const;
   const std::string& TypeStr() const;
@@ -324,22 +493,40 @@ struct SpDString: public BaseGDL
   BaseGDL* GetInstance() const;
   BaseGDL* GetEmptyInstance() const;
 
-  typedef DString Ty;
-  typedef GDLArray<Ty>    DataT;
-
   SizeT NBytes() const
   {
 	return (this->N_Elements() * sizeof( Ty));
   }
 
+//   static const bool IS_INTEGER;
+//   static const bool IS_SIGNED;
+//   static const bool IS_NUMERIC;
+//   static const bool IS_COMPLEX;
+//   static const bool IS_POD;
+//   static const bool IS_CONVERTABLE;
+  static const bool IS_INTEGER = false;
+  static const bool IS_SIGNED = false;
+  static const bool IS_NUMERIC = false;
+  static const bool IS_FLOAT = false;
+  static const bool IS_COMPLEX = false;
+  static const bool IS_POD = false;
+  static const bool IS_CONVERTABLE = true;
+
+  typedef DString Ty;
+  typedef GDLArray<Ty,IS_POD>    DataT;
+
   static const DType    t;
   static const std::string str; 
   static const Ty       zero;
 
-  static const bool IS_INTEGER;
-  static const bool IS_SIGNED;
-  static const bool IS_NUMERIC;
-  static const bool IS_COMPLEX;
+  template <typename ReturnType>
+  struct IfInteger {};
+  template <typename ReturnType>
+  struct IfFloat {};
+  template <typename ReturnType>
+  struct IfComplex {};
+  template <typename ReturnType>
+  struct IfOther { typedef ReturnType type; };
 
   DType   Type()    const;
   const std::string& TypeStr() const;
@@ -378,22 +565,32 @@ public:
   BaseGDL* GetInstance() const;
   BaseGDL* GetEmptyInstance() const;
 
-  typedef char Ty;
-  typedef GDLArray<Ty> DataT;
-
   SizeT NBytes() const
   {
     return ( this->N_Elements() * desc->NBytes());
   }
 
+//   static const bool IS_INTEGER;
+//   static const bool IS_SIGNED;
+//   static const bool IS_NUMERIC;
+//   static const bool IS_COMPLEX;
+//   static const bool IS_POD;
+//   static const bool IS_CONVERTABLE;
+
+  static const bool IS_INTEGER = false;
+  static const bool IS_SIGNED = false;
+  static const bool IS_NUMERIC = false;
+  static const bool IS_FLOAT = false;
+  static const bool IS_COMPLEX = false;
+  static const bool IS_POD = false;
+  static const bool IS_CONVERTABLE = false;
+
+  typedef char Ty;
+  typedef GDLArray<Ty,true> DataT; // we are using char here
+
   static const DType  t;
   static const std::string str; 
   static const Ty     zero;
-
-  static const bool IS_INTEGER;
-  static const bool IS_SIGNED;
-  static const bool IS_NUMERIC;
-  static const bool IS_COMPLEX;
 
   DType   Type()    const;
   const std::string& TypeStr() const;
@@ -411,22 +608,40 @@ struct SpDPtr: public BaseGDL
   BaseGDL* GetInstance() const;
   BaseGDL* GetEmptyInstance() const;
 
-  typedef DPtr Ty;
-  typedef GDLArray<Ty>    DataT;
-
   SizeT NBytes() const
   {
 	return (this->N_Elements() * sizeof( Ty));
   }
 
+//   static const bool IS_INTEGER;
+//   static const bool IS_SIGNED;
+//   static const bool IS_NUMERIC;
+//   static const bool IS_COMPLEX;
+//   static const bool IS_POD;
+//   static const bool IS_CONVERTABLE;
+  static const bool IS_INTEGER = false;
+  static const bool IS_SIGNED = false;
+  static const bool IS_NUMERIC = false;
+  static const bool IS_FLOAT = false;
+  static const bool IS_COMPLEX = false;
+  static const bool IS_POD = false; // due to ref counting
+  static const bool IS_CONVERTABLE = false;
+
+  typedef DPtr Ty;
+  typedef GDLArray<Ty,true>    DataT; // on this level, DPtr is POD
+
+  template <typename ReturnType>
+  struct IfInteger {};
+  template <typename ReturnType>
+  struct IfFloat {};
+  template <typename ReturnType>
+  struct IfComplex {};
+  template <typename ReturnType>
+  struct IfOther { typedef ReturnType type; };
+
   static const DType    t;
   static const std::string str; 
   static const Ty       zero;
-
-  static const bool IS_INTEGER;
-  static const bool IS_SIGNED;
-  static const bool IS_NUMERIC;
-  static const bool IS_COMPLEX;
 
   DType   Type()    const;
   const std::string& TypeStr() const;
@@ -444,22 +659,40 @@ struct SpDObj: public BaseGDL
   BaseGDL* GetInstance() const;
   BaseGDL* GetEmptyInstance() const;
 
-  typedef DObj Ty;
-  typedef GDLArray<Ty>    DataT;
-
   SizeT NBytes() const
   {
 	return (this->N_Elements() * sizeof( Ty));
   }
 
+//   static const bool IS_INTEGER;
+//   static const bool IS_SIGNED;
+//   static const bool IS_NUMERIC;
+//   static const bool IS_COMPLEX;
+//   static const bool IS_POD;
+//   static const bool IS_CONVERTABLE;
+  static const bool IS_INTEGER = false;
+  static const bool IS_SIGNED = false;
+  static const bool IS_NUMERIC = false;
+  static const bool IS_FLOAT = false;
+  static const bool IS_COMPLEX = false;
+  static const bool IS_POD = false; // due to ref counting
+  static const bool IS_CONVERTABLE = false;
+
+  typedef DObj Ty;
+  typedef GDLArray<Ty, true>    DataT; // on this level, DObj is POD
+
+  template <typename ReturnType>
+  struct IfInteger {};
+  template <typename ReturnType>
+  struct IfFloat {};
+  template <typename ReturnType>
+  struct IfComplex {};
+  template <typename ReturnType>
+  struct IfOther { typedef ReturnType type; };
+
   static const DType    t;
   static const std::string str; 
   static const Ty       zero;
-
-  static const bool IS_INTEGER;
-  static const bool IS_SIGNED;
-  static const bool IS_NUMERIC;
-  static const bool IS_COMPLEX;
 
   DType   Type()    const;
   const std::string& TypeStr() const;
@@ -476,22 +709,41 @@ struct SpDComplex: public BaseGDL
   BaseGDL* GetInstance() const;
   BaseGDL* GetEmptyInstance() const;
 
-  typedef DComplex Ty;
-  typedef GDLArray<Ty>    DataT;
-
   SizeT NBytes() const
   {
 	return (this->N_Elements() * sizeof( Ty));
   }
 
+//   static const bool IS_INTEGER;
+//   static const bool IS_SIGNED;
+//   static const bool IS_NUMERIC;
+//   static const bool IS_COMPLEX;
+//   static const bool IS_POD;
+//   static const bool IS_CONVERTABLE;
+
+  static const bool IS_INTEGER = false;
+  static const bool IS_SIGNED = true;
+  static const bool IS_NUMERIC = true;
+  static const bool IS_FLOAT = false;
+  static const bool IS_COMPLEX = true;
+  static const bool IS_POD = false;
+  static const bool IS_CONVERTABLE = true;
+
+  typedef DComplex Ty;
+  typedef GDLArray<Ty, TreatPODComplexAsPOD>    DataT; // ATTENTION: srictly complex is non-pod
+
+  template <typename ReturnType>
+  struct IfInteger {};
+  template <typename ReturnType>
+  struct IfFloat {};
+  template <typename ReturnType>
+  struct IfComplex { typedef ReturnType type; };
+  template <typename ReturnType>
+  struct IfOther {};
+
   static const DType  t;
   static const std::string str; 
   static const DComplex zero;
-
-  static const bool IS_INTEGER;
-  static const bool IS_SIGNED;
-  static const bool IS_NUMERIC;
-  static const bool IS_COMPLEX;
 
   DType   Type()    const;
   const std::string& TypeStr() const;
@@ -508,22 +760,41 @@ struct SpDComplexDbl: public BaseGDL
   BaseGDL* GetInstance() const;
   BaseGDL* GetEmptyInstance() const;
 
-  typedef DComplexDbl Ty;
-  typedef GDLArray<Ty>    DataT;
-
   SizeT NBytes() const
   {
 	return (this->N_Elements() * sizeof( Ty));
   }
 
+//   static const bool IS_INTEGER;
+//   static const bool IS_SIGNED;
+//   static const bool IS_NUMERIC;
+//   static const bool IS_COMPLEX;
+//   static const bool IS_POD;
+//   static const bool IS_CONVERTABLE;
+
+  static const bool IS_SIGNED = true;
+  static const bool IS_NUMERIC = true;
+  static const bool IS_INTEGER = false;
+  static const bool IS_FLOAT = false;
+  static const bool IS_COMPLEX = true;
+  static const bool IS_POD = false;
+  static const bool IS_CONVERTABLE = true;
+
+  typedef DComplexDbl Ty;
+  typedef GDLArray<Ty, TreatPODComplexAsPOD>    DataT; // ATTENTION: srictly complex is non-pod
+
+  template <typename ReturnType>
+  struct IfInteger {};
+  template <typename ReturnType>
+  struct IfFloat {};
+  template <typename ReturnType>
+  struct IfComplex { typedef ReturnType type; };
+  template <typename ReturnType>
+  struct IfOther {};
+
   static const DType  t;
   static const std::string str; 
   static const DComplexDbl zero;
-
-  static const bool IS_INTEGER;
-  static const bool IS_SIGNED;
-  static const bool IS_NUMERIC;
-  static const bool IS_COMPLEX;
 
   DType   Type()    const;
   const std::string& TypeStr() const;

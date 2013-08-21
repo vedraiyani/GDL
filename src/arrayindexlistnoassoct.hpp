@@ -87,13 +87,14 @@ public:
 
   ArrayIndexListT* Clone() { return new ArrayIndexListOneNoAssocT( *this);}
 
-  void InitAsOverloadIndex( IxExprListT& ix_, IxExprListT* cleanupIxIn, IxExprListT& ixOut) 
+  IxExprListT* GetCleanupIx() { return &cleanupIx;}
+  void InitAsOverloadIndex( IxExprListT& ix_, /*IxExprListT* cleanupIxIn,*/ IxExprListT& ixOut) 
   { 
     assert( allIx == NULL);
     assert( ix_.size() == nParam);
 
-    if( cleanupIxIn != NULL)
-      cleanupIx = *cleanupIxIn;
+//     if( cleanupIxIn != NULL)
+//       cleanupIx = *cleanupIxIn;
 
     DLongGDL* isRange = new DLongGDL( dimension(1, BaseGDL::NOZERO));
     ixOut.push_back(isRange);
@@ -125,13 +126,13 @@ public:
       }
   }
   
-  void Init( IxExprListT& ix_, IxExprListT* cleanupIxIn)
+  void Init( IxExprListT& ix_)//, IxExprListT* cleanupIxIn)
   {
     assert( allIx == NULL);
     assert( ix_.size() == nParam);
 
-    if( cleanupIxIn != NULL)
-      cleanupIx = *cleanupIxIn;
+//     if( cleanupIxIn != NULL)
+//       cleanupIx = *cleanupIxIn;
     
     if( nParam == 0) //return;
       {
@@ -180,7 +181,7 @@ public:
     // ArrayIndexScalar[VP] are not initialized
     // they need the NIter call, but
     // for only one index they have their own ArrayIndexListT
-    nIx=ix->NIter( var->Size());
+    nIx=ix->NIter( var->N_Elements()/*var->Size()*/);
   }
   
   // structure of indexed expression
@@ -276,7 +277,7 @@ public:
   {
     // scalar case
     if( right->N_Elements() == 1 && //!var->IsAssoc() &&
-	ix->NIter( var->Size()) == 1)// && var->Type() != GDL_STRUCT) 
+	ix->NIter( var->N_Elements()/*var->Size()*/) == 1)// && var->Type() != GDL_STRUCT) 
       {
 	var->AssignAtIx( ix->GetIx0(), right);
 	return;
@@ -291,7 +292,7 @@ public:
     else
       {
 	BaseGDL* rConv = right->Convert2( var->Type(), BaseGDL::COPY);
-	std::auto_ptr<BaseGDL> conv_guard( rConv);
+	Guard<BaseGDL> conv_guard( rConv);
 	
 	var->AssignAt( rConv, this); // assigns inplace
       }
@@ -300,11 +301,11 @@ public:
   // optimized for one dimensional access
   BaseGDL* Index( BaseGDL* var, IxExprListT& ix_)
   {
-    Init( ix_, NULL);
-    if( ix->Scalar())// && ix->NIter( var->Size()) == 1)// && var->Type() != GDL_STRUCT) 
-//     if( !var->IsAssoc() && ix->NIter( var->Size()) == 1)// && var->Type() != GDL_STRUCT) 
+    Init( ix_);//, NULL);
+    if( ix->Scalar())// && ix->NIter( var->N_Elements()/*var->Size()*/) == 1)// && var->Type() != GDL_STRUCT) 
+//     if( !var->IsAssoc() && ix->NIter( var->N_Elements()/*var->Size()*/) == 1)// && var->Type() != GDL_STRUCT) 
       {
-	SizeT assertValue = ix->NIter( var->Size());
+	SizeT assertValue = ix->NIter( var->N_Elements()/*var->Size()*/);
 	assert( assertValue == 1);
 
 	return var->NewIx( ix->GetIx0());
@@ -379,7 +380,7 @@ public:
 
   ArrayIndexListT* Clone() { return new ArrayIndexListOneScalarNoAssocT( *this);}
 
-  void InitAsOverloadIndex( IxExprListT& ix_, IxExprListT* cleanupIxIn, IxExprListT& ixOut); 
+  void InitAsOverloadIndex( IxExprListT& ix_,  IxExprListT& ixOut); 
   
   void Init() {}
 
@@ -500,7 +501,7 @@ public:
 
   ArrayIndexListT* Clone() { return new ArrayIndexListOneScalarVPNoAssocT( *this);}
 
-  void InitAsOverloadIndex( IxExprListT& ix_, IxExprListT* cleanupIxIn, IxExprListT& ixOut); 
+  void InitAsOverloadIndex( IxExprListT& ix_, /*IxExprListT* cleanupIxIn,*/ IxExprListT& ixOut); 
 
   void Init() {}
 
@@ -528,10 +529,10 @@ public:
     
     // for assoc variables last index is the record
 //     if( var->IsAssoc()) return;
-    if( s >= var->Size())
-      throw GDLException(-1,NULL,"Scalar subscript out of range [>].1",true,false);
+    if( s >= var->N_Elements()/*var->Size()*/)
+      throw GDLException(-1,NULL,"Scalar subscript too large.",true,false);
     if( s < 0)
-      throw GDLException(-1,NULL,"Scalar subscript out of range [<].1",true,false);
+      throw GDLException(-1,NULL,"Scalar subscript too small (<-1).",true,false);
   }
   
   // structure of indexed expression
@@ -575,7 +576,7 @@ public:
     if( right->N_Elements() == 1) // && !var->IsAssoc()) // && var->Type() != GDL_STRUCT) 
       {
 	s = varPtr->Data()->LoopIndex();
-	if( s >= var->Size())
+	if( s >= var->N_Elements()/*var->Size()*/)
 	  throw GDLException(-1,NULL,"Scalar subscript out of range [>].2",true,false);
 	var->AssignAtIx( s, right);
 	return;
@@ -589,7 +590,7 @@ public:
     else
       {
 	BaseGDL* rConv = right->Convert2( var->Type(), BaseGDL::COPY);
-	std::auto_ptr<BaseGDL> conv_guard( rConv);
+	Guard<BaseGDL> conv_guard( rConv);
 	
 	var->AssignAt( rConv, this); // assigns inplace
       }
@@ -665,7 +666,7 @@ public:
 //     delete (*aIV)[0];
   }    
 
-  void InitAsOverloadIndex( IxExprListT& ix_, IxExprListT* cleanupIxIn, IxExprListT& ixOut) 
+  void InitAsOverloadIndex( IxExprListT& ix_, /*IxExprListT* cleanupIxIn,*/ IxExprListT& ixOut) 
   { 
     assert( 0 == nParam);
     assert( rawData != NULL);
@@ -709,7 +710,7 @@ public:
   bool ToAssocIndex( SizeT& lastIx)
   {
     if( sInit < 0)
-      throw GDLException(-1,NULL,"Record number must be a scalar > 0 in this context.",true,false);      
+      throw GDLException(-1,NULL,"Record number must be a scalar > 0 in this context. ("+i2s(sInit)+")",true,false);      
     lastIx = sInit;
     return true;
   }
@@ -719,12 +720,12 @@ public:
   {
 //     if( var->IsAssoc()) return;
     if( sInit < 0)
-      s = sInit + var->Size();
+      s = sInit + var->N_Elements()/*var->Size()*/;
     // for assoc variables last index is the record
     if( s < 0)
-      throw GDLException(-1,NULL,"Scalar subscript out of range [<].1",true,false);
-    if( s >= var->Size())
-      throw GDLException(-1,NULL,"Scalar subscript out of range [>].1",true,false);
+      throw GDLException(-1,NULL,"Scalar subscript out of range [<0] ("+i2s(s)+")",true,false);
+    if( s >= var->N_Elements()/*var->Size()*/)
+      throw GDLException(-1,NULL,"Scalar subscript out of range [>] ("+i2s(s)+")",true,false);
   }
 
   // returns one dim long ix in case of one element array index
@@ -745,11 +746,11 @@ public:
     if( right->N_Elements() == 1)// && !var->IsAssoc())// && var->Type() != GDL_STRUCT) 
       {
 	if( sInit < 0)
-	  s = sInit + var->Size();
+	  s = sInit + var->N_Elements()/*var->Size()*/;
 	if( s < 0)
-	  throw GDLException(-1,NULL,"Scalar subscript out of range [<].4",true,false);
-	if( s >= var->Size())
-	  throw GDLException(-1,NULL,"Scalar subscript out of range [>].4",true,false);
+	  throw GDLException(-1,NULL,"Scalar subscript out of range [<0]. ("+i2s(s)+")",true,false);
+	if( s >= var->N_Elements()/*var->Size()*/)
+	  throw GDLException(-1,NULL,"Scalar subscript out of range [>]. ("+i2s(s)+")",true,false);
 	var->AssignAtIx( s, right); // must use COPY_BYTE_AS_INT
 	return;
       }
@@ -762,7 +763,7 @@ public:
     else
       {
 		BaseGDL* rConv = right->Convert2( var->Type(), BaseGDL::COPY);
-		std::auto_ptr<BaseGDL> conv_guard( rConv);
+		Guard<BaseGDL> conv_guard( rConv);
 	
 		var->AssignAt( rConv, this); // assigns inplace
       }
@@ -775,13 +776,13 @@ public:
 //     if( !var->IsAssoc())// && var->Type() != GDL_STRUCT)
       {
 	if( sInit < 0)
-	  s = sInit + var->Size();
+	  s = sInit + var->N_Elements()/*var->Size()*/;
 	if( s < 0)
-		throw GDLException(-1,NULL,"Scalar subscript out of range [<].5",true,false);
-	if( s >= var->Size())
+		throw GDLException(-1,NULL,"Scalar subscript out of range [<0]: ("+i2s(s)+")",true,false);
+	if( s >= var->N_Elements()/*var->Size()*/)
 	{
-// 	    std::cout << s << " var->Size():" << var->Size() << std::endl;
-		throw GDLException(-1,NULL,"Scalar subscript out of range [>].5",true,false);
+// 	    std::cout << s << " var->N_Elements()/*var->Size()*/:" << var->N_Elements()/*var->Size()*/ << std::endl;
+		throw GDLException(-1,NULL,"Scalar subscript out of range [>]: ("+i2s(s)+")",true,false);
 	}
 	
 	return var->NewIx( s);
@@ -887,7 +888,7 @@ public:
     nParam = 0;
   }    
 
-  void InitAsOverloadIndex( IxExprListT& ix, IxExprListT* cleanupIxIn, IxExprListT& ixOut) 
+  void InitAsOverloadIndex( IxExprListT& ix, /*IxExprListT* cleanupIxIn,*/ IxExprListT& ixOut) 
   { 
     assert( ix.size() == 0);
 
@@ -1001,7 +1002,7 @@ public:
     else
       {
 	BaseGDL* rConv = right->Convert2( var->Type(), BaseGDL::COPY);
-	std::auto_ptr<BaseGDL> conv_guard( rConv);
+	Guard<BaseGDL> conv_guard( rConv);
 	
 	var->AssignAt( rConv, this); // assigns inplace (not only scalar)
       }
@@ -1095,7 +1096,7 @@ public:
     nParam = 0;
   }    
   
-  void InitAsOverloadIndex( IxExprListT& ix, IxExprListT* cleanupIxIn, IxExprListT& ixOut) 
+  void InitAsOverloadIndex( IxExprListT& ix, /*IxExprListT* cleanupIxIn,*/ IxExprListT& ixOut) 
   { 
     assert( ix.size() == 0);
 
@@ -1177,7 +1178,7 @@ public:
     else
       {
 	BaseGDL* rConv = right->Convert2( var->Type(), BaseGDL::COPY);
-	std::auto_ptr<BaseGDL> conv_guard( rConv);
+	Guard<BaseGDL> conv_guard( rConv);
 	
 	var->AssignAt( rConv, this); // assigns inplace (not only scalar)
       }
@@ -1227,7 +1228,7 @@ public:
 class ArrayIndexListMultiNoAssocT: public ArrayIndexListT
 {
 private:
-	IxExprListT cleanupIx;
+  IxExprListT cleanupIx;
 
 protected:
   ArrayIndexVectorT ixList;
@@ -1271,7 +1272,7 @@ public:
 //     for( std::vector<ArrayIndexT*>::iterator i=ixList.begin();
 // 	 i != ixList.end(); ++i)
 //       {	delete *i;}
-	cleanupIx.Cleanup();
+    cleanupIx.Cleanup();
   }
 
   // constructor
@@ -1366,15 +1367,17 @@ public:
     cleanupIx.Cleanup();
   }
 
+  IxExprListT* GetCleanupIx() { return &cleanupIx;}
+  
   ArrayIndexListT* Clone() { return new ArrayIndexListMultiNoAssocT( *this);}
 
-  void InitAsOverloadIndex( IxExprListT& ix, IxExprListT* cleanupIxIn, IxExprListT& ixOut) 
+  void InitAsOverloadIndex( IxExprListT& ix, /*IxExprListT* cleanupIxIn,*/ IxExprListT& ixOut) 
   { 
     assert( allIx == NULL);
     assert( ix.size() == nParam);
 
-    if( cleanupIxIn != NULL)
-      cleanupIx = *cleanupIxIn;
+//     if( cleanupIxIn != NULL)
+//       cleanupIx = *cleanupIxIn;
 
     DLongGDL* isRange = new DLongGDL( dimension(ixList.size(), BaseGDL::NOZERO));
     ixOut.push_back(isRange);
@@ -1414,13 +1417,13 @@ public:
       }
   }
 
-  void Init( IxExprListT& ix, IxExprListT* cleanupIxIn)
+  void Init( IxExprListT& ix)//, IxExprListT* cleanupIxIn)
   {
     assert( allIx == NULL);
     assert( ix.size() == nParam);
 
-    if( cleanupIxIn != NULL)
-      cleanupIx = *cleanupIxIn;
+//     if( cleanupIxIn != NULL)
+//       cleanupIx = *cleanupIxIn;
 
     SizeT pIX = 0;
     for( SizeT i=0; i<ixList.size(); ++i)
@@ -1518,26 +1521,26 @@ public:
 
 	if( i == acRank) // counted up to acRank -> all scalar
 	{
-		accessType = ALLONE; // needed for GetDim()
-		const dimension& varDim  = var->Dim();
-		SizeT            varRank = varDim.Rank();
+	    accessType = ALLONE; // needed for GetDim()
+	    const dimension& varDim  = var->Dim();
+	    SizeT            varRank = varDim.Rank();
 
-		varStride = varDim.Stride();
-		nIterLimitGt1 = 0; // marker for BuildIx
+	    varStride = varDim.Stride();
+	    nIterLimitGt1 = 0; // marker for BuildIx
 
-		ixList[0]->NIter( (0<varRank)?varDim[0]:1);
-		assert( varStride[0] == 1);
-		baseIx = ixList[0]->GetIx0(); //  * varStride[0]; // GetS() not ok because INDEXED
+	    ixList[0]->NIter( (0<varRank)?varDim[0]:1);
+	    assert( varStride[0] == 1);
+	    baseIx = ixList[0]->GetIx0(); //  * varStride[0]; // GetS() not ok because INDEXED
 
-		// check boundary
-		for(SizeT i=1; i<acRank; ++i)
-		{
-			ixList[i]->NIter( (i<varRank)?varDim[i]:1);
-			baseIx += ixList[i]->GetIx0() * varStride[i]; // GetS() not ok because INDEXED
-		}
+	    // check boundary
+	    for(SizeT i=1; i<acRank; ++i)
+	    {
+		    ixList[i]->NIter( (i<varRank)?varDim[i]:1);
+		    baseIx += ixList[i]->GetIx0() * varStride[i]; // GetS() not ok because INDEXED
+	    }
 
-		nIx = 1;
-		return;			
+	    nIx = 1;
+	    return;			
 // 			accessType = ALLONE;
 // 			varStride = var->Dim().Stride();
 // 			// check boundary
@@ -1736,7 +1739,7 @@ public:
     }
     allIx = new (allIxInstance) AllIxNewMultiT( &ixList, acRank, nIx, varStride, nIterLimit, stride);
     return allIx;
-}
+  }
 
   // returns one dim long ix in case of one element array index
   // used by AssignAt and Index functions
@@ -1759,7 +1762,7 @@ public:
     else
       {
 	BaseGDL* rConv = right->Convert2( var->Type(), BaseGDL::COPY);
-	std::auto_ptr<BaseGDL> conv_guard( rConv);
+	Guard<BaseGDL> conv_guard( rConv);
 	
 	var->AssignAt( rConv, this); // assigns inplace
       }
@@ -1769,7 +1772,7 @@ public:
   BaseGDL* Index( BaseGDL* var, IxExprListT& ix)
   {
     // normal case
-    Init( ix, NULL);
+    Init( ix);//, NULL);
     SetVariable( var);
     if( nIx == 1)// && !var->IsAssoc())
     {

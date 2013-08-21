@@ -20,6 +20,7 @@
 
 namespace lib {
 
+  
   // control !CPU settings
   void cpu( EnvT* e);
 
@@ -101,8 +102,9 @@ namespace lib {
   // the following by Sylwester Arabas
   // (slayoo@igf.fuw.edu.pl)
   void caldat(EnvT* e);
+  BaseGDL* julday(EnvT* e);
   void pm(EnvT* e);
 
-} // namespace
+  } // namespace
 
 #endif

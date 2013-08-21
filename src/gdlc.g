@@ -1214,8 +1214,18 @@ numeric_constant!//
 	;
 
 arrayindex_list
+{		
+    int rank = 1;
+}
 	: LSQUARE! arrayindex (COMMA! arrayindex)* RSQUARE!
-	| LBRACE! arrayindex (COMMA! arrayindex)* RBRACE!
+	| LBRACE! arrayindex 
+        ({++rank <= MAXRANK}? COMMA! arrayindex
+            // {   // this is needed here because an ARRAYEXPR_FN which 
+            //     // is a function call might have more paremeters
+            //     if( 
+            //         throw antlr::NoViableAltException(LT(1), getFilename());
+            // }
+        )* RBRACE!
 	;	
 
 all!
@@ -1456,7 +1466,8 @@ deref_expr
 }
 //	: array_expr_1st (DOT array_expr_nth)*
 	: a1:array_expr_1st 
-        ((tag_access)=> nDot=tag_access
+        // ((tag_access)=> nDot=tag_access
+        ((DOT)=> nDot=tag_access
             { 
 
                 dot=#[DOT,"."];
@@ -1501,6 +1512,43 @@ assign_expr
         { #assign_expr = #([ASSIGN,":="], #assign_expr);}
     ;
 
+// arrayexpr_mfcall_last
+//     : (IDENTIFIER^ arrayindex_list) 
+// 	;
+
+// only used for production in primary_expr
+arrayexpr_mfcall!
+{
+    RefDNode dot;
+    RefDNode tag;
+    int nDot;
+}
+	: a1:array_expr_1st 
+        (   // this rule is only for prodction // (tag_access_keeplast)=>
+            nDot=t1:tag_access_keeplast
+            { 
+                if( --nDot > 0)
+                    {
+                        dot=#[DOT,"DOT_A_MF"];
+                        dot->SetNDot( nDot);    
+                        dot->SetLine( #a1->getLine());
+                        tag = #(dot, #a1, #t1);
+                    }
+           }		
+        )
+        id:IDENTIFIER al:arrayindex_list
+        {
+            if( nDot > 0)
+                #arrayexpr_mfcall = #([ARRAYEXPR_MFCALL,"arrayexpr_mfcall"], #tag, #id, #al);
+            else
+                #arrayexpr_mfcall = #([ARRAYEXPR_MFCALL,"arrayexpr_mfcall"], #a1, #id, #al);
+        }
+    | ASTERIX deref_arrayexpr_mfcall:arrayexpr_mfcall
+        { #arrayexpr_mfcall = 
+			#([DEREF,"deref"], #deref_arrayexpr_mfcall);}
+	;
+
+
 // only here a function call is ok also (all other places must be an array)
 primary_expr 
 {
@@ -1518,11 +1566,13 @@ primary_expr
         // ambiguity (arrayexpr or mfcall)
         (deref_dot_expr_keeplast 
             (IDENTIFIER LBRACE expr (COMMA expr)* RBRACE))=>
-        d2:deref_dot_expr_keeplast 
-            // here it is impossible to decide about function call
-            // as we do not know the object type/struct tag
-            IDENTIFIER arrayindex_list 
-            { #primary_expr = #([ARRAYEXPR_MFCALL,"arrayexpr_mfcall"], #primary_expr);}
+
+        arrayexpr_mfcall
+        // d2:deref_dot_expr_keeplast 
+        //     // here it is impossible to decide about function call
+        //     // as we do not know the object type/struct tag
+        //     IDENTIFIER arrayindex_list 
+        //     { #primary_expr = #([ARRAYEXPR_MFCALL,"arrayexpr_mfcall"], #primary_expr);}
     | 
         // not the above -> unambigous mfcall (or unambigous array expr handled below)
         (deref_dot_expr_keeplast formal_function_call)=> 
@@ -1566,11 +1616,17 @@ primary_expr
             }
 		| 
             // still ambiguity (arrayexpr or fcall)
-            var arrayindex_list     // array_expr_fn
+        (var arrayindex_list)=> var arrayindex_list     // array_expr_fn
             { 
 //             std::cout << "***(IDENTIFIER LBRACE expr (COMMA expr)* RBRACE) 2" << std::endl;
 
                 #primary_expr = #([ARRAYEXPR_FCALL,"arrayexpr_fcall"], #primary_expr);}
+        |   // if arrayindex_list failed (due to to many indices)
+            // this must be a function call
+            formal_function_call
+			{ 
+                   #primary_expr = #([FCALL, "fcall"], #primary_expr);
+            }
 // 	  		( parent=member_function_call
 // 				{ 
 //                     if( parent)

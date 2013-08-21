@@ -54,7 +54,7 @@ Data_<Sp>* Data_<Sp>::AndOpNew( BaseGDL* r)
 #pragma omp parallel if (nEl >= CpuTPOOL_MIN_ELTS && (CpuTPOOL_MAX_ELTS == 0 || CpuTPOOL_MAX_ELTS <= nEl))
     {
 #pragma omp for
-      for( int i=0; i < nEl; ++i)
+      for( OMPInt i=0; i < nEl; ++i)
 	(*res)[i] = (*this)[i] & (*right)[i]; // & Ty(1);
     }
   return res;
@@ -86,7 +86,7 @@ Data_<SpDFloat>* Data_<SpDFloat>::AndOpNew( BaseGDL* r)
 #pragma omp parallel if (nEl >= CpuTPOOL_MIN_ELTS && (CpuTPOOL_MAX_ELTS == 0 || CpuTPOOL_MAX_ELTS <= nEl))
     {
 #pragma omp for
-      for ( int i=0; i < nEl; ++i )
+      for ( OMPInt i=0; i < nEl; ++i )
 	if ( (*right)[i] == zero ) (*res)[i] = zero; else (*res)[i] = (*this)[i];
     }
   return res;
@@ -110,7 +110,7 @@ Data_<SpDFloat>* Data_<SpDFloat>::AndOpInvNew( BaseGDL* r)
 #pragma omp parallel if (nEl >= CpuTPOOL_MIN_ELTS && (CpuTPOOL_MAX_ELTS == 0 || CpuTPOOL_MAX_ELTS <= nEl))
     {
 #pragma omp for
-      for( int i=0; i < nEl; ++i)
+      for( OMPInt i=0; i < nEl; ++i)
 	if( (*this)[i] != zero) (*res)[i] = (*right)[i]; else (*res)[i] = zero; 
     }
   return res;
@@ -135,7 +135,7 @@ Data_<SpDDouble>* Data_<SpDDouble>::AndOpNew( BaseGDL* r)
 #pragma omp parallel if (nEl >= CpuTPOOL_MIN_ELTS && (CpuTPOOL_MAX_ELTS == 0 || CpuTPOOL_MAX_ELTS <= nEl))
     {
 #pragma omp for
-      for( int i=0; i < nEl; ++i)
+      for( OMPInt i=0; i < nEl; ++i)
 	if ( (*right)[i] == zero ) (*res)[i] = zero; else (*res)[i] = (*this)[i];
     }
   return res;
@@ -159,22 +159,12 @@ Data_<SpDDouble>* Data_<SpDDouble>::AndOpInvNew( BaseGDL* r)
 #pragma omp parallel if (nEl >= CpuTPOOL_MIN_ELTS && (CpuTPOOL_MAX_ELTS == 0 || CpuTPOOL_MAX_ELTS <= nEl))
     {
 #pragma omp for
-      for( int i=0; i < nEl; ++i)
+      for( OMPInt i=0; i < nEl; ++i)
 	if( (*this)[i] != zero) (*res)[i] = (*right)[i]; else (*res)[i] = zero;
     }
   return res;
 }
 // invalid types
-DStructGDL* DStructGDL::AndOpNew( BaseGDL* r)
-{
-  throw GDLException("Cannot apply operation to datatype STRUCT.",true,false);  
-  return NULL;
-}
-DStructGDL* DStructGDL::AndOpInvNew( BaseGDL* r)
-{
-  throw GDLException("Cannot apply operation to datatype STRUCT.",true,false);  
-  return NULL;
-}
 template<>
 Data_<SpDString>* Data_<SpDString>::AndOpNew( BaseGDL* r)
 {
@@ -245,7 +235,7 @@ Data_<Sp>* Data_<Sp>::AndOpSNew( BaseGDL* r)
 #pragma omp parallel if (nEl >= CpuTPOOL_MIN_ELTS && (CpuTPOOL_MAX_ELTS == 0 || CpuTPOOL_MAX_ELTS <= nEl)) shared(s)
     {
 #pragma omp for
-      for( int i=0; i < nEl; ++i)
+      for( OMPInt i=0; i < nEl; ++i)
 	(*res)[i] = (*this)[i] & s;
     }
   return res;
@@ -291,7 +281,7 @@ Data_<SpDFloat>* Data_<SpDFloat>::AndOpInvSNew( BaseGDL* r)
 #pragma omp parallel if (nEl >= CpuTPOOL_MIN_ELTS && (CpuTPOOL_MAX_ELTS == 0 || CpuTPOOL_MAX_ELTS <= nEl))
 	{
 #pragma omp for
-	  for( int i=0; i < nEl; ++i)
+	  for( OMPInt i=0; i < nEl; ++i)
 	    if( (*this)[i] != zero) (*res)[i] = s; else (*res)[i] = zero;
 	}
 	return res;
@@ -332,29 +322,13 @@ Data_<SpDDouble>* Data_<SpDDouble>::AndOpInvSNew( BaseGDL* r)
 #pragma omp parallel if (nEl >= CpuTPOOL_MIN_ELTS && (CpuTPOOL_MAX_ELTS == 0 || CpuTPOOL_MAX_ELTS <= nEl))
 	{
 #pragma omp for
-	  for( int i=0; i < nEl; ++i)
+	  for( OMPInt i=0; i < nEl; ++i)
 	    if( (*this)[i] != zero) (*res)[i] = s; else (*res)[i] = zero;
 	}
 	return res;
     }
 }
 // invalid types
-DStructGDL* DStructGDL::AndOpSNew( BaseGDL* r)
-{
-  throw GDLException("Cannot apply operation to datatype STRUCT.",true,false);  
-  return NULL;
-}
-DStructGDL* DStructGDL::AndOpInvSNew( BaseGDL* r)
-{
-  throw GDLException("Cannot apply operation to datatype STRUCT.",true,false);  
-  return NULL;
-}
-// template<>
-// DStructGDL* DStructGDL::AndOpInvNew( BaseGDL* r)
-// {
-//  throw GDLException("Cannot apply operation to datatype STRUCT.",true,false);  
-//  return res;
-// }
 template<>
 Data_<SpDString>* Data_<SpDString>::AndOpSNew( BaseGDL* r)
 {
@@ -418,7 +392,7 @@ Data_<Sp>* Data_<Sp>::OrOpNew( BaseGDL* r)
 #pragma omp parallel if (nEl >= CpuTPOOL_MIN_ELTS && (CpuTPOOL_MAX_ELTS == 0 || CpuTPOOL_MAX_ELTS <= nEl))
     {
 #pragma omp for
-      for( int i=0; i < nEl; ++i)
+      for( OMPInt i=0; i < nEl; ++i)
 	(*res)[i] = (*this)[i] | (*right)[i]; // | Ty(1);
     }
   //C delete right;
@@ -451,7 +425,7 @@ Data_<SpDFloat>* Data_<SpDFloat>::OrOpNew( BaseGDL* r)
 #pragma omp parallel if (nEl >= CpuTPOOL_MIN_ELTS && (CpuTPOOL_MAX_ELTS == 0 || CpuTPOOL_MAX_ELTS <= nEl))
     {
 #pragma omp for
-      for( int i=0; i < nEl; ++i)
+      for( OMPInt i=0; i < nEl; ++i)
 	if( (*this)[i] == zero) (*res)[i] = (*right)[i]; else (*res)[i] = (*this)[i];
     }  //C delete right;
   return res;
@@ -475,7 +449,7 @@ Data_<SpDFloat>* Data_<SpDFloat>::OrOpInvNew( BaseGDL* r)
 #pragma omp parallel if (nEl >= CpuTPOOL_MIN_ELTS && (CpuTPOOL_MAX_ELTS == 0 || CpuTPOOL_MAX_ELTS <= nEl))
     {
 #pragma omp for
-      for( int i=0; i < nEl; ++i)
+      for( OMPInt i=0; i < nEl; ++i)
 	if( (*right)[i] != zero) (*res)[i] = (*right)[i]; else (*res)[i] = (*this)[i];
     }  //C delete right;
   return res;
@@ -501,7 +475,7 @@ Data_<SpDDouble>* Data_<SpDDouble>::OrOpNew( BaseGDL* r)
 #pragma omp parallel if (nEl >= CpuTPOOL_MIN_ELTS && (CpuTPOOL_MAX_ELTS == 0 || CpuTPOOL_MAX_ELTS <= nEl))
     {
 #pragma omp for
-      for( int i=0; i < nEl; ++i)
+      for( OMPInt i=0; i < nEl; ++i)
 	if( (*this)[i] == zero) (*res)[i] = (*right)[i]; else (*res)[i] = (*this)[i];
     }  //C delete right;
   return res;
@@ -525,22 +499,12 @@ Data_<SpDDouble>* Data_<SpDDouble>::OrOpInvNew( BaseGDL* r)
 #pragma omp parallel if (nEl >= CpuTPOOL_MIN_ELTS && (CpuTPOOL_MAX_ELTS == 0 || CpuTPOOL_MAX_ELTS <= nEl))
     {
 #pragma omp for
-      for( int i=0; i < nEl; ++i)
+      for( OMPInt i=0; i < nEl; ++i)
 	if( (*right)[i] != zero) (*res)[i] = (*right)[i]; else (*res)[i] = (*this)[i];
     }  //C delete right;
   return res;
 }
 // invalid types
-DStructGDL* DStructGDL::OrOpNew( BaseGDL* r)
-{
-  throw GDLException("Cannot apply operation to datatype STRUCT.",true,false);  
-  return NULL;
-}
-DStructGDL* DStructGDL::OrOpInvNew( BaseGDL* r)
-{
-  throw GDLException("Cannot apply operation to datatype STRUCT.",true,false);  
-  return NULL;
-}
 template<>
 Data_<SpDString>* Data_<SpDString>::OrOpNew( BaseGDL* r)
 {
@@ -595,7 +559,7 @@ Data_<Sp>* Data_<Sp>::OrOpSNew( BaseGDL* r)
 #pragma omp parallel if (nEl >= CpuTPOOL_MIN_ELTS && (CpuTPOOL_MAX_ELTS == 0 || CpuTPOOL_MAX_ELTS <= nEl))
     {
 #pragma omp for
-      for( int i=0; i < nEl; ++i)
+      for( OMPInt i=0; i < nEl; ++i)
 	(*res)[i] = (*this)[i] | s;
     }  //C delete right;
   return res;
@@ -628,7 +592,7 @@ Data_<SpDFloat>* Data_<SpDFloat>::OrOpSNew( BaseGDL* r)
 #pragma omp parallel if (nEl >= CpuTPOOL_MIN_ELTS && (CpuTPOOL_MAX_ELTS == 0 || CpuTPOOL_MAX_ELTS <= nEl))
 	{
 #pragma omp for
-	  for( int i=0; i < nEl; ++i)
+	  for( OMPInt i=0; i < nEl; ++i)
 	    if( (*this)[i] == zero) (*res)[i] = s; else (*res)[i] = (*this)[i];
 	}
 	return res;
@@ -664,7 +628,7 @@ Data_<SpDFloat>* Data_<SpDFloat>::OrOpInvSNew( BaseGDL* r)
 #pragma omp parallel if (nEl >= CpuTPOOL_MIN_ELTS && (CpuTPOOL_MAX_ELTS == 0 || CpuTPOOL_MAX_ELTS <= nEl))
 	{
 #pragma omp for
-	  for( int i=0; i < nEl; ++i)
+	  for( OMPInt i=0; i < nEl; ++i)
 	    if( (*this)[i] != zero) (*res)[i] = s; else (*res)[i] = zero;
 	}
 	return res;
@@ -691,7 +655,7 @@ Data_<SpDDouble>* Data_<SpDDouble>::OrOpSNew( BaseGDL* r)
 #pragma omp parallel if (nEl >= CpuTPOOL_MIN_ELTS && (CpuTPOOL_MAX_ELTS == 0 || CpuTPOOL_MAX_ELTS <= nEl))
 	{
 #pragma omp for
-	  for( int i=0; i < nEl; ++i)
+	  for( OMPInt i=0; i < nEl; ++i)
 	    if( (*this)[i] == zero) (*res)[i] = s; else (*res)[i] = (*this)[i];
 	}
 	return res;
@@ -725,23 +689,13 @@ Data_<SpDDouble>* Data_<SpDDouble>::OrOpInvSNew( BaseGDL* r)
 #pragma omp parallel if (nEl >= CpuTPOOL_MIN_ELTS && (CpuTPOOL_MAX_ELTS == 0 || CpuTPOOL_MAX_ELTS <= nEl))
 	{
 #pragma omp for
-	  for( int i=0; i < nEl; ++i)
+	  for( OMPInt i=0; i < nEl; ++i)
 	    if( (*this)[i] != zero) (*res)[i] = s; else (*res)[i] = zero;
 	}
 	return res;
     } 
 }
 // invalid types
-DStructGDL* DStructGDL::OrOpSNew( BaseGDL* r)
-{
-  throw GDLException("Cannot apply operation to datatype STRUCT.",true,false);  
-  return NULL;
-}
-DStructGDL* DStructGDL::OrOpInvSNew( BaseGDL* r)
-{
-  throw GDLException("Cannot apply operation to datatype STRUCT.",true,false);  
-  return NULL;
-}
 template<>
 Data_<SpDString>* Data_<SpDString>::OrOpSNew( BaseGDL* r)
 {
@@ -805,7 +759,7 @@ Data_<Sp>* Data_<Sp>::XorOpNew( BaseGDL* r)
 #pragma omp parallel if (nEl >= CpuTPOOL_MIN_ELTS && (CpuTPOOL_MAX_ELTS == 0 || CpuTPOOL_MAX_ELTS <= nEl))
 	{
 #pragma omp for
-		for( int i=0; i < nEl; ++i)
+		for( OMPInt i=0; i < nEl; ++i)
 			(*res)[i] = (*this)[i] ^ s;
 	}
 	return res;
@@ -817,7 +771,7 @@ Data_<Sp>* Data_<Sp>::XorOpNew( BaseGDL* r)
 #pragma omp parallel if (nEl >= CpuTPOOL_MIN_ELTS && (CpuTPOOL_MAX_ELTS == 0 || CpuTPOOL_MAX_ELTS <= nEl))
 	{
 #pragma omp for
-	  for( int i=0; i < nEl; ++i)
+	  for( OMPInt i=0; i < nEl; ++i)
  		(*res)[i] = (*this)[i] ^ (*right)[i];
 	}
 	return res;
@@ -834,11 +788,6 @@ template<>
 Data_<SpDDouble>* Data_<SpDDouble>::XorOpNew( BaseGDL* r)
 {
   throw GDLException("Cannot apply operation to datatype DOUBLE.",true,false);  
-  return NULL;
-}
-DStructGDL* DStructGDL::XorOpNew( BaseGDL* r)
-{
-  throw GDLException("Cannot apply operation to datatype STRUCT.",true,false);  
   return NULL;
 }
 template<>
@@ -893,7 +842,7 @@ Data_<Sp>* Data_<Sp>::XorOpSNew( BaseGDL* r)
 #pragma omp parallel if (nEl >= CpuTPOOL_MIN_ELTS && (CpuTPOOL_MAX_ELTS == 0 || CpuTPOOL_MAX_ELTS <= nEl))
     {
 #pragma omp for
-      for( int i=0; i < nEl; ++i)
+      for( OMPInt i=0; i < nEl; ++i)
 	(*res)[i] = (*this)[i] ^ s;
     }
   return res;
@@ -914,11 +863,6 @@ Data_<SpDDouble>* Data_<SpDDouble>::XorOpSNew( BaseGDL* r)
   return NULL;
 }
 // invalid types
-DStructGDL* DStructGDL::XorOpSNew( BaseGDL* r)
-{
-  throw GDLException("Cannot apply operation to datatype STRUCT.",true,false);  
-  return NULL;
-}
 template<>
 Data_<SpDString>* Data_<SpDString>::XorOpSNew( BaseGDL* r)
 {
@@ -970,14 +914,24 @@ BaseGDL* Data_<Sp>::AddNew( BaseGDL* r)
       return res;
     }
 
+#ifdef USE_EIGEN
+
+        Eigen::Map<Eigen::Array<Ty,Eigen::Dynamic,1> ,Eigen::Aligned> mThis(&(*this)[0], nEl);
+        Eigen::Map<Eigen::Array<Ty,Eigen::Dynamic,1> ,Eigen::Aligned> mRight(&(*right)[0], nEl);
+        Eigen::Map<Eigen::Array<Ty,Eigen::Dynamic,1> ,Eigen::Aligned> mRes(&(*res)[0], nEl);
+	mRes = mThis + mRight;
+	return res;
+#else
+    
   TRACEOMP( __FILE__, __LINE__)
 #pragma omp parallel if (nEl >= CpuTPOOL_MIN_ELTS && (CpuTPOOL_MAX_ELTS == 0 || CpuTPOOL_MAX_ELTS <= nEl))
     {
 #pragma omp for
-      for( int i=0; i < nEl; ++i)
+      for( OMPInt i=0; i < nEl; ++i)
 	(*res)[i] = (*this)[i] + (*right)[i];
     }  //C delete right;
   return res;
+#endif
 }
 
 template<class Sp>
@@ -1005,23 +959,13 @@ BaseGDL* Data_<SpDString>::AddInvNew( BaseGDL* r)
 #pragma omp parallel if (nEl >= CpuTPOOL_MIN_ELTS && (CpuTPOOL_MAX_ELTS == 0 || CpuTPOOL_MAX_ELTS <= nEl))
     {
 #pragma omp for
-      for( int i=0; i < nEl; ++i)
+      for( OMPInt i=0; i < nEl; ++i)
 	(*res)[i] = (*right)[i] + (*this)[i];
     }  //C delete right;
   return res;
 }
 
 // invalid types
-DStructGDL* DStructGDL::AddNew( BaseGDL* r)
-{
-  throw GDLException("Cannot apply operation to datatype STRUCT.",true,false);  
-  return NULL;
-}
-DStructGDL* DStructGDL::AddInvNew( BaseGDL* r)
-{
-  throw GDLException("Cannot apply operation to datatype STRUCT.",true,false);  
-  return NULL;
-}
 template<>
 BaseGDL* Data_<SpDPtr>::AddNew( BaseGDL* r)
 {
@@ -1055,14 +999,24 @@ BaseGDL* Data_<Sp>::AddSNew( BaseGDL* r)
       return res;
     }
   Ty s = (*right)[0];
+#ifdef USE_EIGEN
+
+        Eigen::Map<Eigen::Array<Ty,Eigen::Dynamic,1> ,Eigen::Aligned> mThis(&(*this)[0], nEl);
+        Eigen::Map<Eigen::Array<Ty,Eigen::Dynamic,1> ,Eigen::Aligned> mRes(&(*res)[0], nEl);
+	mRes = mThis + s;
+	return res;
+#else
+    
   TRACEOMP( __FILE__, __LINE__)
 #pragma omp parallel if (nEl >= CpuTPOOL_MIN_ELTS && (CpuTPOOL_MAX_ELTS == 0 || CpuTPOOL_MAX_ELTS <= nEl))
     {
 #pragma omp for
-      for( int i=0; i < nEl; ++i)
+      for( OMPInt i=0; i < nEl; ++i)
 	(*res)[i] = (*this)[i] + s;
     }  //C delete right;
   return res;
+#endif
+  
 }
 template<class Sp>
 BaseGDL* Data_<Sp>::AddInvSNew( BaseGDL* r)
@@ -1086,23 +1040,13 @@ BaseGDL* Data_<SpDString>::AddInvSNew( BaseGDL* r)
 #pragma omp parallel if (nEl >= CpuTPOOL_MIN_ELTS && (CpuTPOOL_MAX_ELTS == 0 || CpuTPOOL_MAX_ELTS <= nEl))
     {
 #pragma omp for
-      for( int i=0; i < nEl; ++i)
+      for( OMPInt i=0; i < nEl; ++i)
 	(*res)[i] = s + (*this)[i];
     }  //C delete right;
   return res;
 }
 
 // invalid types
-DStructGDL* DStructGDL::AddSNew( BaseGDL* r)
-{
-  throw GDLException("Cannot apply operation to datatype STRUCT.",true,false);  
-  return NULL;
-}
-DStructGDL* DStructGDL::AddInvSNew( BaseGDL* r)
-{
-  throw GDLException("Cannot apply operation to datatype STRUCT.",true,false);  
-  return NULL;
-}
 template<>
 BaseGDL* Data_<SpDPtr>::AddSNew( BaseGDL* r)
 {
@@ -1145,25 +1089,44 @@ BaseGDL* Data_<Sp>::SubNew( BaseGDL* r)
   Ty s;
   if( right->StrictScalar(s)) 
     {
+#ifdef USE_EIGEN
+
+        Eigen::Map<Eigen::Array<Ty,Eigen::Dynamic,1> ,Eigen::Aligned> mThis(&(*this)[0], nEl);
+        Eigen::Map<Eigen::Array<Ty,Eigen::Dynamic,1> ,Eigen::Aligned> mRes(&(*res)[0], nEl);
+	mRes = mThis - s;
+	return res;
+#else
       TRACEOMP( __FILE__, __LINE__)
 #pragma omp parallel if (nEl >= CpuTPOOL_MIN_ELTS && (CpuTPOOL_MAX_ELTS == 0 || CpuTPOOL_MAX_ELTS <= nEl))
 	{
 #pragma omp for
-	  for( int i=0; i < nEl; ++i)
+	  for( OMPInt i=0; i < nEl; ++i)
 	    (*res)[i] = (*this)[i] - s;
 	}
+  return res;
+#endif
+      
     }
   else 
     {
+#ifdef USE_EIGEN
+
+        Eigen::Map<Eigen::Array<Ty,Eigen::Dynamic,1> ,Eigen::Aligned> mThis(&(*this)[0], nEl);
+        Eigen::Map<Eigen::Array<Ty,Eigen::Dynamic,1> ,Eigen::Aligned> mRight(&(*right)[0], nEl);
+        Eigen::Map<Eigen::Array<Ty,Eigen::Dynamic,1> ,Eigen::Aligned> mRes(&(*res)[0], nEl);
+	mRes = mThis - mRight;
+	return res;
+#else
       TRACEOMP( __FILE__, __LINE__)
 #pragma omp parallel if (nEl >= CpuTPOOL_MIN_ELTS && (CpuTPOOL_MAX_ELTS == 0 || CpuTPOOL_MAX_ELTS <= nEl))
 	{
 #pragma omp for
-	  for( int i=0; i < nEl; ++i)
+	  for( OMPInt i=0; i < nEl; ++i)
 	    (*res)[i] = (*this)[i] - (*right)[i];
 	}
-    }
   return res;
+#endif
+    }
 }
 // inverse substraction: left=right-left
 template<class Sp>
@@ -1181,26 +1144,25 @@ BaseGDL* Data_<Sp>::SubInvNew( BaseGDL* r)
       (*res)[0] = (*right)[0] - (*this)[0];
       return res;
     }
+#ifdef USE_EIGEN
+
+  Eigen::Map<Eigen::Array<Ty,Eigen::Dynamic,1> ,Eigen::Aligned> mThis(&(*this)[0], nEl);
+  Eigen::Map<Eigen::Array<Ty,Eigen::Dynamic,1> ,Eigen::Aligned> mRight(&(*right)[0], nEl);
+  Eigen::Map<Eigen::Array<Ty,Eigen::Dynamic,1> ,Eigen::Aligned> mRes(&(*res)[0], nEl);
+  mRes = mRight - mThis;
+  return res;
+#else
   TRACEOMP( __FILE__, __LINE__)
 #pragma omp parallel if (nEl >= CpuTPOOL_MIN_ELTS && (CpuTPOOL_MAX_ELTS == 0 || CpuTPOOL_MAX_ELTS <= nEl))
     {
 #pragma omp for
-      for( int i=0; i < nEl; ++i)
+      for( OMPInt i=0; i < nEl; ++i)
 	(*res)[i] = (*right)[i] - (*this)[i];
     }  
   return res;
+#endif  
 }
 // invalid types
-DStructGDL* DStructGDL::SubNew( BaseGDL* r)
-{
-  throw GDLException("Cannot apply operation to datatype STRUCT.",true,false);  
-  return NULL;
-}
-DStructGDL* DStructGDL::SubInvNew( BaseGDL* r)
-{
-  throw GDLException("Cannot apply operation to datatype STRUCT.",true,false);  
-  return NULL;
-}
 template<>
 BaseGDL* Data_<SpDString>::SubNew( BaseGDL* r)
 {
@@ -1253,15 +1215,24 @@ BaseGDL* Data_<Sp>::SubSNew( BaseGDL* r)
     }
   
   Ty s = (*right)[0];
+#ifdef USE_EIGEN
+
+        Eigen::Map<Eigen::Array<Ty,Eigen::Dynamic,1> ,Eigen::Aligned> mThis(&(*this)[0], nEl);
+        Eigen::Map<Eigen::Array<Ty,Eigen::Dynamic,1> ,Eigen::Aligned> mRes(&(*res)[0], nEl);
+	mRes = mThis - s;
+	return res;
+#else
   
   TRACEOMP( __FILE__, __LINE__)
 #pragma omp parallel if (nEl >= CpuTPOOL_MIN_ELTS && (CpuTPOOL_MAX_ELTS == 0 || CpuTPOOL_MAX_ELTS <= nEl))
     {
 #pragma omp for
-      for( int i=0; i < nEl; ++i)
+      for( OMPInt i=0; i < nEl; ++i)
 	(*res)[i] = (*this)[i] - s;
     }
   return res;
+#endif
+  
 }
 // inverse substraction: left=right-left
 template<class Sp>
@@ -1282,26 +1253,25 @@ BaseGDL* Data_<Sp>::SubInvSNew( BaseGDL* r)
   Ty s = (*right)[0];
   // right->Scalar(s); 
   //  dd = s - dd;
+#ifdef USE_EIGEN
+
+        Eigen::Map<Eigen::Array<Ty,Eigen::Dynamic,1> ,Eigen::Aligned> mThis(&(*this)[0], nEl);
+        Eigen::Map<Eigen::Array<Ty,Eigen::Dynamic,1> ,Eigen::Aligned> mRes(&(*res)[0], nEl);
+	mRes = s - mThis;
+	return res;
+#else
   TRACEOMP( __FILE__, __LINE__)
 #pragma omp parallel if (nEl >= CpuTPOOL_MIN_ELTS && (CpuTPOOL_MAX_ELTS == 0 || CpuTPOOL_MAX_ELTS <= nEl))
     {
 #pragma omp for
-      for( int i=0; i < nEl; ++i)
+      for( OMPInt i=0; i < nEl; ++i)
 	(*res)[i] = s - (*this)[i];
     }
   return res;
+#endif
+  
 }
 // invalid types
-DStructGDL* DStructGDL::SubSNew( BaseGDL* r)
-{
-  throw GDLException("Cannot apply operation to datatype STRUCT.",true,false);  
-  return NULL;
-}
-DStructGDL* DStructGDL::SubInvSNew( BaseGDL* r)
-{
-  throw GDLException("Cannot apply operation to datatype STRUCT.",true,false);  
-  return NULL;
-}
 template<>
 BaseGDL* Data_<SpDString>::SubSNew( BaseGDL* r)
 {
@@ -1359,17 +1329,12 @@ Data_<Sp>* Data_<Sp>::LtMarkNew( BaseGDL* r)
 #pragma omp parallel if (nEl >= CpuTPOOL_MIN_ELTS && (CpuTPOOL_MAX_ELTS == 0 || CpuTPOOL_MAX_ELTS <= nEl))
     {
 #pragma omp for
-      for( int i=0; i < nEl; ++i)
+      for( OMPInt i=0; i < nEl; ++i)
 	if( (*this)[i] > (*right)[i]) (*res)[i] = (*right)[i]; else (*res)[i] = (*this)[i];
     }  //C delete right;
   return res;
 }
 // invalid types
-DStructGDL* DStructGDL::LtMarkNew( BaseGDL* r)
-{
-  throw GDLException("Cannot apply operation to datatype STRUCT.",true,false);  
-  return NULL;
-}
 template<>
 Data_<SpDString>* Data_<SpDString>::LtMarkNew( BaseGDL* r)
 {
@@ -1421,17 +1386,12 @@ Data_<Sp>* Data_<Sp>::LtMarkSNew( BaseGDL* r)
 #pragma omp parallel if (nEl >= CpuTPOOL_MIN_ELTS && (CpuTPOOL_MAX_ELTS == 0 || CpuTPOOL_MAX_ELTS <= nEl))
     {
 #pragma omp for
-      for( int i=0; i < nEl; ++i)
+      for( OMPInt i=0; i < nEl; ++i)
 	if( (*this)[i] > s) (*res)[i] = s; else (*res)[i] = (*this)[i];
     }  //C delete right;
   return res;
 }
 // invalid types
-DStructGDL* DStructGDL::LtMarkSNew( BaseGDL* r)
-{
-  throw GDLException("Cannot apply operation to datatype STRUCT.",true,false);  
-  return NULL;
-}
 template<>
 Data_<SpDString>* Data_<SpDString>::LtMarkSNew( BaseGDL* r)
 {
@@ -1485,17 +1445,12 @@ Data_<Sp>* Data_<Sp>::GtMarkNew( BaseGDL* r)
 #pragma omp parallel if (nEl >= CpuTPOOL_MIN_ELTS && (CpuTPOOL_MAX_ELTS == 0 || CpuTPOOL_MAX_ELTS <= nEl))
     {
 #pragma omp for
-      for( int i=0; i < nEl; ++i)
+      for( OMPInt i=0; i < nEl; ++i)
 	if( (*this)[i] < (*right)[i]) (*res)[i] = (*right)[i]; else (*res)[i] = (*this)[i];
     }  //C delete right;
   return res;
 }
 // invalid types
-DStructGDL* DStructGDL::GtMarkNew( BaseGDL* r)
-{
-  throw GDLException("Cannot apply operation to datatype STRUCT.",true,false);  
-  return NULL;
-}
 template<>
 Data_<SpDString>* Data_<SpDString>::GtMarkNew( BaseGDL* r)
 {
@@ -1547,17 +1502,12 @@ Data_<Sp>* Data_<Sp>::GtMarkSNew( BaseGDL* r)
 #pragma omp parallel if (nEl >= CpuTPOOL_MIN_ELTS && (CpuTPOOL_MAX_ELTS == 0 || CpuTPOOL_MAX_ELTS <= nEl))
     {
 #pragma omp for
-      for( int i=0; i < nEl; ++i)
+      for( OMPInt i=0; i < nEl; ++i)
 	if( (*this)[i] < s) (*res)[i] = s; else (*res)[i] = (*this)[i];
     }  ;
   return res;
 }
 // invalid types
-DStructGDL* DStructGDL::GtMarkSNew( BaseGDL* r)
-{
-  throw GDLException("Cannot apply operation to datatype STRUCT.",true,false);  
-  return NULL;
-}
 template<>
 Data_<SpDString>* Data_<SpDString>::GtMarkSNew( BaseGDL* r)
 {
@@ -1609,21 +1559,26 @@ Data_<Sp>* Data_<Sp>::MultNew( BaseGDL* r)
       (*res)[0] = (*this)[0] * (*right)[0];
       return res;
     }
+#ifdef USE_EIGEN
+
+        Eigen::Map<Eigen::Array<Ty,Eigen::Dynamic,1> ,Eigen::Aligned> mThis(&(*this)[0], nEl);
+        Eigen::Map<Eigen::Array<Ty,Eigen::Dynamic,1> ,Eigen::Aligned> mRight(&(*right)[0], nEl);
+        Eigen::Map<Eigen::Array<Ty,Eigen::Dynamic,1> ,Eigen::Aligned> mRes(&(*res)[0], nEl);
+	mRes = mThis * mRight;
+	return res;
+#else
   TRACEOMP( __FILE__, __LINE__)
 #pragma omp parallel if (nEl >= CpuTPOOL_MIN_ELTS && (CpuTPOOL_MAX_ELTS == 0 || CpuTPOOL_MAX_ELTS <= nEl))
     {
 #pragma omp for
-      for( int i=0; i < nEl; ++i)
+      for( OMPInt i=0; i < nEl; ++i)
 	(*res)[i] = (*this)[i] * (*right)[i];
     }  //C delete right;
   return res;
+#endif
+  
 }
 // invalid types
-DStructGDL* DStructGDL::MultNew( BaseGDL* r)
-{
-  throw GDLException("Cannot apply operation to datatype STRUCT.",true,false);  
-  return NULL;
-}
 template<>
 Data_<SpDString>* Data_<SpDString>::MultNew( BaseGDL* r)
 {
@@ -1659,21 +1614,25 @@ Data_<Sp>* Data_<Sp>::MultSNew( BaseGDL* r )
       return res;
     }
   Ty s = ( *right ) [0];
+#ifdef USE_EIGEN
+
+	Eigen::Map<Eigen::Array<Ty,Eigen::Dynamic,1> ,Eigen::Aligned> mThis(&(*this)[0], nEl);
+        Eigen::Map<Eigen::Array<Ty,Eigen::Dynamic,1> ,Eigen::Aligned> mRes(&(*res)[0], nEl);
+	mRes = mThis * s;
+	return res;
+#else
   TRACEOMP ( __FILE__, __LINE__ )
 #pragma omp parallel if (nEl >= CpuTPOOL_MIN_ELTS && (CpuTPOOL_MAX_ELTS == 0 || CpuTPOOL_MAX_ELTS <= nEl))
     {
 #pragma omp for
-      for ( int i=0; i < nEl; ++i )
+      for ( OMPInt i=0; i < nEl; ++i )
 	(*res ) [i] = (*this )[i] * s;
     }
   return res;
+#endif
+  
 }
 // invalid types
-DStructGDL* DStructGDL::MultSNew( BaseGDL* r)
-{
-  throw GDLException("Cannot apply operation to datatype STRUCT.",true,false);  
-  return NULL;
-}
 template<>
 Data_<SpDString>* Data_<SpDString>::MultSNew( BaseGDL* r)
 {
@@ -1724,7 +1683,7 @@ Data_<Sp>* Data_<Sp>::DivNew( BaseGDL* r)
 #pragma omp parallel if (nEl >= CpuTPOOL_MIN_ELTS && (CpuTPOOL_MAX_ELTS == 0 || CpuTPOOL_MAX_ELTS <= nEl))
 	{
 #pragma omp for
-	  for( int ix=i; ix < nEl; ++ix)
+	  for( OMPInt ix=i; ix < nEl; ++ix)
 	    if( (*right)[ix] != this->zero)
 	    	(*res)[ix] = (*this)[ix] / (*right)[ix];
 	    else	
@@ -1759,7 +1718,7 @@ Data_<Sp>* Data_<Sp>::DivInvNew( BaseGDL* r)
 #pragma omp parallel if (nEl >= CpuTPOOL_MIN_ELTS && (CpuTPOOL_MAX_ELTS == 0 || CpuTPOOL_MAX_ELTS <= nEl))
 	{
 #pragma omp for
-	  for( int ix=i; ix < nEl; ++ix)
+	  for( OMPInt ix=i; ix < nEl; ++ix)
 	    if( (*this)[ix] != this->zero)
 	      (*res)[ix] = (*right)[ix] / (*this)[ix];
 	    else
@@ -1769,16 +1728,6 @@ Data_<Sp>* Data_<Sp>::DivInvNew( BaseGDL* r)
     }
 }
 // invalid types
-DStructGDL* DStructGDL::DivNew( BaseGDL* r)
-{
-  throw GDLException("Cannot apply operation to datatype STRUCT.",true,false);  
-  return NULL;
-}
-DStructGDL* DStructGDL::DivInvNew( BaseGDL* r)
-{
-  throw GDLException("Cannot apply operation to datatype STRUCT.",true,false);  
-  return NULL;
-}
 template<>
 Data_<SpDString>* Data_<SpDString>::DivNew( BaseGDL* r)
 {
@@ -1878,7 +1827,7 @@ Data_<Sp>* Data_<Sp>::DivInvSNew( BaseGDL* r)
 #pragma omp parallel if (nEl >= CpuTPOOL_MIN_ELTS && (CpuTPOOL_MAX_ELTS == 0 || CpuTPOOL_MAX_ELTS <= nEl))
 	{
 #pragma omp for
-	  for( int ix=i; ix < nEl; ++ix)
+	  for( OMPInt ix=i; ix < nEl; ++ix)
 	    if( (*this)[ix] != this->zero)
 	      (*res)[ix] = s / (*this)[ix];
 	    else 
@@ -1888,16 +1837,6 @@ Data_<Sp>* Data_<Sp>::DivInvSNew( BaseGDL* r)
     }
 }
 // invalid types
-DStructGDL* DStructGDL::DivSNew( BaseGDL* r)
-{
-  throw GDLException("Cannot apply operation to datatype STRUCT.",true,false);  
-  return NULL;
-}
-DStructGDL* DStructGDL::DivInvSNew( BaseGDL* r)
-{
-  throw GDLException("Cannot apply operation to datatype STRUCT.",true,false);  
-  return NULL;
-}
 template<>
 Data_<SpDString>* Data_<SpDString>::DivSNew( BaseGDL* r)
 {
@@ -1963,7 +1902,7 @@ Data_<Sp>* Data_<Sp>::ModNew( BaseGDL* r)
 #pragma omp parallel if (nEl >= CpuTPOOL_MIN_ELTS && (CpuTPOOL_MAX_ELTS == 0 || CpuTPOOL_MAX_ELTS <= nEl))
 	{
 #pragma omp for
-	  for( int ix=i; ix < nEl; ++ix)
+	  for( OMPInt ix=i; ix < nEl; ++ix)
 	    if( (*right)[ix] != this->zero)
 	      (*res)[ix] = (*this)[ix] % (*right)[ix];
 	    else
@@ -1996,7 +1935,7 @@ Data_<Sp>* Data_<Sp>::ModInvNew( BaseGDL* r)
 #pragma omp parallel if (nEl >= CpuTPOOL_MIN_ELTS && (CpuTPOOL_MAX_ELTS == 0 || CpuTPOOL_MAX_ELTS <= nEl))
 	{
 #pragma omp for
-	  for( int ix=i; ix < nEl; ++ix)
+	  for( OMPInt ix=i; ix < nEl; ++ix)
 	    if( (*this)[ix] != this->zero)
 	      (*res)[ix] = (*right)[ix] % (*this)[ix];
 	    else
@@ -2032,7 +1971,7 @@ Data_<SpDFloat>* Data_<SpDFloat>::ModNew( BaseGDL* r)
 #pragma omp parallel if (nEl >= CpuTPOOL_MIN_ELTS && (CpuTPOOL_MAX_ELTS == 0 || CpuTPOOL_MAX_ELTS <= nEl))
    {
 #pragma omp for
-      for( int i=0; i < nEl; ++i)
+      for( OMPInt i=0; i < nEl; ++i)
 	(*res)[i] = Modulo((*this)[i],(*right)[i]);
   }  
   return res;
@@ -2058,7 +1997,7 @@ Data_<SpDFloat>* Data_<SpDFloat>::ModInvNew( BaseGDL* r)
 #pragma omp parallel if (nEl >= CpuTPOOL_MIN_ELTS && (CpuTPOOL_MAX_ELTS == 0 || CpuTPOOL_MAX_ELTS <= nEl))
     {
 #pragma omp for
-      for( int i=0; i < nEl; ++i)
+      for( OMPInt i=0; i < nEl; ++i)
 	(*res)[i] = Modulo((*right)[i],(*this)[i]);
     }  
   return res;
@@ -2090,7 +2029,7 @@ Data_<SpDDouble>* Data_<SpDDouble>::ModNew( BaseGDL* r)
 #pragma omp parallel if (nEl >= CpuTPOOL_MIN_ELTS && (CpuTPOOL_MAX_ELTS == 0 || CpuTPOOL_MAX_ELTS <= nEl))
     {
 #pragma omp for
-      for( int i=0; i < nEl; ++i)
+      for( OMPInt i=0; i < nEl; ++i)
 	(*res)[i] = Modulo((*this)[i],(*right)[i]);
     }
   return res;
@@ -2116,22 +2055,12 @@ Data_<SpDDouble>* Data_<SpDDouble>::ModInvNew( BaseGDL* r)
 #pragma omp parallel if (nEl >= CpuTPOOL_MIN_ELTS && (CpuTPOOL_MAX_ELTS == 0 || CpuTPOOL_MAX_ELTS <= nEl))
     {
 #pragma omp for
-      for( int i=0; i < nEl; ++i)
+      for( OMPInt i=0; i < nEl; ++i)
 	(*res)[i] = Modulo((*right)[i],(*this)[i]);
     }  
   return res;
 }
 // invalid types
-DStructGDL* DStructGDL::ModNew( BaseGDL* r)
-{
-  throw GDLException("Cannot apply operation to datatype STRUCT.",true,false);  
-  return NULL;
-}
-DStructGDL* DStructGDL::ModInvNew( BaseGDL* r)
-{
-  throw GDLException("Cannot apply operation to datatype STRUCT.",true,false);  
-  return NULL;
-}
 template<>
 Data_<SpDString>* Data_<SpDString>::ModNew( BaseGDL* r)
 {
@@ -2260,7 +2189,7 @@ Data_<Sp>* Data_<Sp>::ModInvSNew( BaseGDL* r)
 #pragma omp parallel if (nEl >= CpuTPOOL_MIN_ELTS && (CpuTPOOL_MAX_ELTS == 0 || CpuTPOOL_MAX_ELTS <= nEl))
 	{
 #pragma omp for
-	  for( int ix=i; ix < nEl; ++ix)
+	  for( OMPInt ix=i; ix < nEl; ++ix)
 	    if( (*this)[ix] != this->zero)
 	      (*res)[ix] = s % (*this)[ix];
 	    else 
@@ -2289,7 +2218,7 @@ TRACEOMP( __FILE__, __LINE__)
 #pragma omp parallel if (nEl >= CpuTPOOL_MIN_ELTS && (CpuTPOOL_MAX_ELTS == 0 || CpuTPOOL_MAX_ELTS <= nEl))
     {
 #pragma omp for
-      for( int i=0; i < nEl; ++i)
+      for( OMPInt i=0; i < nEl; ++i)
 	(*res)[i] = Modulo((*this)[i],s);
     }  
   return res;
@@ -2315,7 +2244,7 @@ Data_<SpDFloat>* Data_<SpDFloat>::ModInvSNew( BaseGDL* r)
 #pragma omp parallel if (nEl >= CpuTPOOL_MIN_ELTS && (CpuTPOOL_MAX_ELTS == 0 || CpuTPOOL_MAX_ELTS <= nEl))
     {
 #pragma omp for
-      for( int i=0; i < nEl; ++i)
+      for( OMPInt i=0; i < nEl; ++i)
 	(*res)[i] = Modulo(s,(*this)[i]);
     }
   return res;
@@ -2340,7 +2269,7 @@ TRACEOMP( __FILE__, __LINE__)
 #pragma omp parallel if (nEl >= CpuTPOOL_MIN_ELTS && (CpuTPOOL_MAX_ELTS == 0 || CpuTPOOL_MAX_ELTS <= nEl))
     {
 #pragma omp for
-      for( int i=0; i < nEl; ++i)
+      for( OMPInt i=0; i < nEl; ++i)
 	(*res)[i] = Modulo((*this)[i],s);
     }  
   return res;
@@ -2366,22 +2295,12 @@ Data_<SpDDouble>* Data_<SpDDouble>::ModInvSNew( BaseGDL* r)
 #pragma omp parallel if (nEl >= CpuTPOOL_MIN_ELTS && (CpuTPOOL_MAX_ELTS == 0 || CpuTPOOL_MAX_ELTS <= nEl))
     {
 #pragma omp for
-      for( int i=0; i < nEl; ++i)
+      for( OMPInt i=0; i < nEl; ++i)
 	(*res)[i] = Modulo(s,(*this)[i]);
     }
   return res;
 }
 // invalid types
-DStructGDL* DStructGDL::ModSNew( BaseGDL* r)
-{
-  throw GDLException("Cannot apply operation to datatype STRUCT.",true,false);  
-  return NULL;
-}
-DStructGDL* DStructGDL::ModInvSNew( BaseGDL* r)
-{
-  throw GDLException("Cannot apply operation to datatype STRUCT.",true,false);  
-  return NULL;
-}
 template<>
 Data_<SpDString>* Data_<SpDString>::ModSNew( BaseGDL* r)
 
@@ -2491,7 +2410,7 @@ Data_<Sp>* Data_<Sp>::PowNew( BaseGDL* r)
 #pragma omp parallel if (nEl >= CpuTPOOL_MIN_ELTS && (CpuTPOOL_MAX_ELTS == 0 || CpuTPOOL_MAX_ELTS <= nEl))
     {
 #pragma omp for
-      for( int i=0; i < nEl; ++i)
+      for( OMPInt i=0; i < nEl; ++i)
 	(*res)[i] = pow( (*this)[i], (*right)[i]); // valarray
     }  //C delete right;
   return res;
@@ -2515,7 +2434,7 @@ Data_<Sp>* Data_<Sp>::PowInvNew( BaseGDL* r)
 #pragma omp parallel if (nEl >= CpuTPOOL_MIN_ELTS && (CpuTPOOL_MAX_ELTS == 0 || CpuTPOOL_MAX_ELTS <= nEl))
     {
 #pragma omp for
-      for( int i=0; i < nEl; ++i)
+      for( OMPInt i=0; i < nEl; ++i)
 	(*res)[i] = pow( (*right)[i], (*this)[i]);
     }
   return res;
@@ -2527,12 +2446,6 @@ Data_<Sp>* Data_<Sp>::PowIntNew( BaseGDL* r)
 {
   assert( 0);
   throw GDLException("Internal error: Data_::PowIntNew called.",true,false);
-  return NULL;
-}
-DStructGDL* DStructGDL::PowIntNew( BaseGDL* r)
-{
-  assert( 0);
-  throw GDLException("Internal error: DStructGDL::PowIntNew called.",true,false);  
   return NULL;
 }
 // floats power of value with GDL_LONG: left=left ^ right
@@ -2553,7 +2466,7 @@ Data_<SpDFloat>* Data_<SpDFloat>::PowIntNew( BaseGDL* r)
 #pragma omp parallel if (nEl >= CpuTPOOL_MIN_ELTS && (CpuTPOOL_MAX_ELTS == 0 || CpuTPOOL_MAX_ELTS <= nEl))
 	{
 #pragma omp for
-	  for( int i=0; i < nEl; ++i)
+	  for( OMPInt i=0; i < nEl; ++i)
 	    (*res)[i] = pow( (*this)[i], r0);
 	}      return res;
     }
@@ -2565,7 +2478,7 @@ Data_<SpDFloat>* Data_<SpDFloat>::PowIntNew( BaseGDL* r)
 #pragma omp parallel if (rEl >= CpuTPOOL_MIN_ELTS && (CpuTPOOL_MAX_ELTS == 0 || CpuTPOOL_MAX_ELTS <= rEl)) 
 	{
 #pragma omp for
-	  for( int i=0; i < rEl; ++i)
+	  for( OMPInt i=0; i < rEl; ++i)
 	    (*res)[ i] = pow( s0, (*right)[ i]);
 	}      return res;
     }
@@ -2576,7 +2489,7 @@ Data_<SpDFloat>* Data_<SpDFloat>::PowIntNew( BaseGDL* r)
 #pragma omp parallel if (nEl >= CpuTPOOL_MIN_ELTS && (CpuTPOOL_MAX_ELTS == 0 || CpuTPOOL_MAX_ELTS <= nEl))
 	{
 #pragma omp for
-	  for( int i=0; i < nEl; ++i)
+	  for( OMPInt i=0; i < nEl; ++i)
 	    (*res)[i] = pow( (*this)[i], (*right)[i]);
 	}      return res;
     }
@@ -2587,7 +2500,7 @@ Data_<SpDFloat>* Data_<SpDFloat>::PowIntNew( BaseGDL* r)
 #pragma omp parallel if (rEl >= CpuTPOOL_MIN_ELTS && (CpuTPOOL_MAX_ELTS == 0 || CpuTPOOL_MAX_ELTS <= rEl)) 
 	{
 #pragma omp for
-	  for( int i=0; i < rEl; ++i)
+	  for( OMPInt i=0; i < rEl; ++i)
 	    (*res)[i] = pow( (*this)[i], (*right)[i]);
 	}      return res;
     }
@@ -2609,7 +2522,7 @@ Data_<SpDDouble>* Data_<SpDDouble>::PowIntNew( BaseGDL* r)
 #pragma omp parallel if (nEl >= CpuTPOOL_MIN_ELTS && (CpuTPOOL_MAX_ELTS == 0 || CpuTPOOL_MAX_ELTS <= nEl))
 	{
 #pragma omp for
-	  for( int i=0; i < nEl; ++i)
+	  for( OMPInt i=0; i < nEl; ++i)
 	    (*res)[i] = pow( (*this)[i], r0);
 	}      return res;
     }
@@ -2621,7 +2534,7 @@ Data_<SpDDouble>* Data_<SpDDouble>::PowIntNew( BaseGDL* r)
 #pragma omp parallel if (rEl >= CpuTPOOL_MIN_ELTS && (CpuTPOOL_MAX_ELTS == 0 || CpuTPOOL_MAX_ELTS <= rEl)) 
 	{
 #pragma omp for
-	  for( int i=0; i < rEl; ++i)
+	  for( OMPInt i=0; i < rEl; ++i)
 	    (*res)[ i] = pow( s0, (*right)[ i]);
 	}      return res;
     }
@@ -2632,7 +2545,7 @@ Data_<SpDDouble>* Data_<SpDDouble>::PowIntNew( BaseGDL* r)
 #pragma omp parallel if (nEl >= CpuTPOOL_MIN_ELTS && (CpuTPOOL_MAX_ELTS == 0 || CpuTPOOL_MAX_ELTS <= nEl))
 	{
 #pragma omp for
-	  for( int i=0; i < nEl; ++i)
+	  for( OMPInt i=0; i < nEl; ++i)
 	    (*res)[i] = pow( (*this)[i], (*right)[i]);
 	}      return res;
     }
@@ -2643,7 +2556,7 @@ Data_<SpDDouble>* Data_<SpDDouble>::PowIntNew( BaseGDL* r)
 #pragma omp parallel if (rEl >= CpuTPOOL_MIN_ELTS && (CpuTPOOL_MAX_ELTS == 0 || CpuTPOOL_MAX_ELTS <= rEl)) 
 	{
 #pragma omp for
-	  for( int i=0; i < rEl; ++i)
+	  for( OMPInt i=0; i < rEl; ++i)
 	    (*res)[i] = pow( (*this)[i], (*right)[i]);
 	}      return res;
     }
@@ -2667,7 +2580,7 @@ Data_<SpDFloat>* Data_<SpDFloat>::PowNew( BaseGDL* r)
 #pragma omp parallel if (nEl >= CpuTPOOL_MIN_ELTS && (CpuTPOOL_MAX_ELTS == 0 || CpuTPOOL_MAX_ELTS <= nEl))
 	{
 #pragma omp for
-	for( int i=0; i < nEl; ++i)
+	for( OMPInt i=0; i < nEl; ++i)
 	  (*res)[i] = pow( (*this)[i], (*right)[i]);
 	}
   return res;
@@ -2690,7 +2603,7 @@ Data_<SpDFloat>* Data_<SpDFloat>::PowInvNew( BaseGDL* r)
 #pragma omp parallel if (nEl >= CpuTPOOL_MIN_ELTS && (CpuTPOOL_MAX_ELTS == 0 || CpuTPOOL_MAX_ELTS <= nEl))
     {
 #pragma omp for
-      for( int i=0; i < nEl; ++i)
+      for( OMPInt i=0; i < nEl; ++i)
 	(*res)[i] = pow( (*right)[i], (*this)[i]);
     }  //C delete right;
   return res;
@@ -2713,7 +2626,7 @@ Data_<SpDDouble>* Data_<SpDDouble>::PowNew( BaseGDL* r)
 #pragma omp parallel if (nEl >= CpuTPOOL_MIN_ELTS && (CpuTPOOL_MAX_ELTS == 0 || CpuTPOOL_MAX_ELTS <= nEl))
 	{
 #pragma omp for
-	for( int i=0; i < nEl; ++i)
+	for( OMPInt i=0; i < nEl; ++i)
 	  (*res)[i] = pow( (*this)[i], (*right)[i]);
 	}
   return res;
@@ -2737,7 +2650,7 @@ Data_<SpDDouble>* Data_<SpDDouble>::PowInvNew( BaseGDL* r)
 #pragma omp parallel if (nEl >= CpuTPOOL_MIN_ELTS && (CpuTPOOL_MAX_ELTS == 0 || CpuTPOOL_MAX_ELTS <= nEl))
     {
 #pragma omp for
-      for( int i=0; i < nEl; ++i)
+      for( OMPInt i=0; i < nEl; ++i)
 	(*res)[i] = pow( (*right)[i], (*this)[i]);
     }  //C delete right;
   return res;
@@ -2768,7 +2681,7 @@ SizeT nEl = N_Elements();
 #pragma omp parallel if (nEl >= CpuTPOOL_MIN_ELTS && (CpuTPOOL_MAX_ELTS == 0 || CpuTPOOL_MAX_ELTS <= nEl))
 	    {
 #pragma omp for
-	      for( int i=0; i<nEl; ++i)
+	      for( OMPInt i=0; i<nEl; ++i)
 		(*res)[ i] = pow( (*this)[ i], s);
 	    }	  //C delete right;
 	  return res;
@@ -2787,7 +2700,7 @@ SizeT nEl = N_Elements();
 #pragma omp parallel if (rEl >= CpuTPOOL_MIN_ELTS && (CpuTPOOL_MAX_ELTS == 0 || CpuTPOOL_MAX_ELTS <= rEl)) 
 		    {
 #pragma omp for
-		      for( int i=0; i<rEl; ++i)
+		      for( OMPInt i=0; i<rEl; ++i)
 			(*res)[ i] = pow( s, (*right)[ i]);
 		    }		  //C delete right;
 		  return res;
@@ -2799,7 +2712,7 @@ SizeT nEl = N_Elements();
 #pragma omp parallel if (nEl >= CpuTPOOL_MIN_ELTS && (CpuTPOOL_MAX_ELTS == 0 || CpuTPOOL_MAX_ELTS <= nEl))
 		{
 #pragma omp for
-		  for( int i=0; i<nEl; ++i)
+		  for( OMPInt i=0; i<nEl; ++i)
 		    (*res)[ i] = pow( (*this)[ i], (*right)[ i]);
 		}	      //C delete right;
 	      return res;
@@ -2812,7 +2725,7 @@ SizeT nEl = N_Elements();
 #pragma omp parallel if (rEl >= CpuTPOOL_MIN_ELTS && (CpuTPOOL_MAX_ELTS == 0 || CpuTPOOL_MAX_ELTS <= rEl)) 
 		{
 #pragma omp for
-		  for( int i=0; i<rEl; ++i)
+		  for( OMPInt i=0; i<rEl; ++i)
 		    (*res)[ i] = pow( (*this)[ i], (*right)[ i]);
 		}	      //C delete right;
 	      //C delete this;
@@ -2836,7 +2749,7 @@ SizeT nEl = N_Elements();
 #pragma omp parallel if (nEl >= CpuTPOOL_MIN_ELTS && (CpuTPOOL_MAX_ELTS == 0 || CpuTPOOL_MAX_ELTS <= nEl))
 	    {
 #pragma omp for
-	      for( int i=0; i<nEl; ++i)
+	      for( OMPInt i=0; i<nEl; ++i)
 		(*res)[ i] = pow( (*this)[ i], s);
 	    }	  //C delete right;
 	  return res;
@@ -2855,7 +2768,7 @@ SizeT nEl = N_Elements();
 #pragma omp parallel if (rEl >= CpuTPOOL_MIN_ELTS && (CpuTPOOL_MAX_ELTS == 0 || CpuTPOOL_MAX_ELTS <= rEl)) 
 		    {
 #pragma omp for
-		      for( int i=0; i<rEl; ++i)
+		      for( OMPInt i=0; i<rEl; ++i)
 			(*res)[ i] = pow( s, (*right)[ i]);
 		    }		  //C delete right;
 		  return res;
@@ -2867,7 +2780,7 @@ SizeT nEl = N_Elements();
 #pragma omp parallel if (nEl >= CpuTPOOL_MIN_ELTS && (CpuTPOOL_MAX_ELTS == 0 || CpuTPOOL_MAX_ELTS <= nEl))
 		{
 #pragma omp for
-		  for( int i=0; i<nEl; ++i)
+		  for( OMPInt i=0; i<nEl; ++i)
 		    (*res)[ i] = pow( (*this)[ i], (*right)[ i]);
 		}	      //C delete right;
 	      return res;
@@ -2880,7 +2793,7 @@ SizeT nEl = N_Elements();
 #pragma omp parallel if (rEl >= CpuTPOOL_MIN_ELTS && (CpuTPOOL_MAX_ELTS == 0 || CpuTPOOL_MAX_ELTS <= rEl)) 
 		{
 #pragma omp for
-		  for( int i=0; i<rEl; ++i)
+		  for( OMPInt i=0; i<rEl; ++i)
 		    (*res)[ i] = pow( (*this)[ i], (*right)[ i]);
 		}	      //C delete right;
 	      //C delete this;
@@ -2904,7 +2817,7 @@ SizeT nEl = N_Elements();
 #pragma omp parallel if (nEl >= CpuTPOOL_MIN_ELTS && (CpuTPOOL_MAX_ELTS == 0 || CpuTPOOL_MAX_ELTS <= nEl))
 	{
 #pragma omp for
-	  for( int i=0; i<nEl; ++i)
+	  for( OMPInt i=0; i<nEl; ++i)
 	    (*res)[ i] = pow( (*this)[ i], s);
 	}
 	return res;
@@ -2917,7 +2830,7 @@ SizeT nEl = N_Elements();
 #pragma omp parallel if (nEl >= CpuTPOOL_MIN_ELTS && (CpuTPOOL_MAX_ELTS == 0 || CpuTPOOL_MAX_ELTS <= nEl))
 	{
 #pragma omp for
-	  for( int i=0; i < nEl; ++i)
+	  for( OMPInt i=0; i < nEl; ++i)
 	    (*res)[i] = pow( (*this)[i], (*right)[i]);
 	}
 	return res;
@@ -2937,7 +2850,7 @@ Data_<SpDComplex>* Data_<SpDComplex>::PowInvNew( BaseGDL* r)
 #pragma omp parallel if (nEl >= CpuTPOOL_MIN_ELTS && (CpuTPOOL_MAX_ELTS == 0 || CpuTPOOL_MAX_ELTS <= nEl))
     {
 #pragma omp for
-      for( int i=0; i < nEl; ++i)
+      for( OMPInt i=0; i < nEl; ++i)
 	(*res)[i] = pow( (*right)[i], (*this)[i]);
     }
   return res;
@@ -2967,7 +2880,7 @@ Data_<SpDComplexDbl>* Data_<SpDComplexDbl>::PowNew( BaseGDL* r)
 #pragma omp parallel if (nEl >= CpuTPOOL_MIN_ELTS && (CpuTPOOL_MAX_ELTS == 0 || CpuTPOOL_MAX_ELTS <= nEl))
 	    {
 #pragma omp for
-	      for( int i=0; i<nEl; ++i)
+	      for( OMPInt i=0; i<nEl; ++i)
 		(*res)[ i] = pow( (*this)[ i], s);
 	    }
 	  return res;
@@ -2986,7 +2899,7 @@ Data_<SpDComplexDbl>* Data_<SpDComplexDbl>::PowNew( BaseGDL* r)
 #pragma omp parallel if (rEl >= CpuTPOOL_MIN_ELTS && (CpuTPOOL_MAX_ELTS == 0 || CpuTPOOL_MAX_ELTS <= rEl)) 
 		    {
 #pragma omp for
-		      for( int i=0; i<rEl; ++i)
+		      for( OMPInt i=0; i<rEl; ++i)
 			(*res)[ i] = pow( s, (*right)[ i]);
 		    }
 		  return res;
@@ -2998,7 +2911,7 @@ Data_<SpDComplexDbl>* Data_<SpDComplexDbl>::PowNew( BaseGDL* r)
 #pragma omp parallel if (nEl >= CpuTPOOL_MIN_ELTS && (CpuTPOOL_MAX_ELTS == 0 || CpuTPOOL_MAX_ELTS <= nEl))
 		{
 #pragma omp for
-		  for( int i=0; i<nEl; ++i)
+		  for( OMPInt i=0; i<nEl; ++i)
 		    (*res)[ i] = pow( (*this)[ i], (*right)[ i]);
 		}
 	      return res;
@@ -3011,7 +2924,7 @@ Data_<SpDComplexDbl>* Data_<SpDComplexDbl>::PowNew( BaseGDL* r)
 #pragma omp parallel if (rEl >= CpuTPOOL_MIN_ELTS && (CpuTPOOL_MAX_ELTS == 0 || CpuTPOOL_MAX_ELTS <= rEl)) 
 		{
 #pragma omp for
-		  for( int i=0; i<rEl; ++i)
+		  for( OMPInt i=0; i<rEl; ++i)
 		    (*res)[ i] = pow( (*this)[ i], (*right)[ i]);
 		}
 	      return res;
@@ -3034,7 +2947,7 @@ Data_<SpDComplexDbl>* Data_<SpDComplexDbl>::PowNew( BaseGDL* r)
 #pragma omp parallel if (nEl >= CpuTPOOL_MIN_ELTS && (CpuTPOOL_MAX_ELTS == 0 || CpuTPOOL_MAX_ELTS <= nEl))
 	    {
 #pragma omp for
-	      for( int i=0; i<nEl; ++i)
+	      for( OMPInt i=0; i<nEl; ++i)
 		(*res)[ i] = pow( (*this)[ i], s);
 	    }
 	  return res;
@@ -3053,7 +2966,7 @@ Data_<SpDComplexDbl>* Data_<SpDComplexDbl>::PowNew( BaseGDL* r)
 #pragma omp parallel if (rEl >= CpuTPOOL_MIN_ELTS && (CpuTPOOL_MAX_ELTS == 0 || CpuTPOOL_MAX_ELTS <= rEl)) 
 		    {
 #pragma omp for
-		      for( int i=0; i<rEl; ++i)
+		      for( OMPInt i=0; i<rEl; ++i)
 			(*res)[ i] = pow( s, (*right)[ i]);
 		    }
 		  return res;
@@ -3065,7 +2978,7 @@ Data_<SpDComplexDbl>* Data_<SpDComplexDbl>::PowNew( BaseGDL* r)
 #pragma omp parallel if (nEl >= CpuTPOOL_MIN_ELTS && (CpuTPOOL_MAX_ELTS == 0 || CpuTPOOL_MAX_ELTS <= nEl))
 		{
 #pragma omp for
-		  for( int i=0; i<nEl; ++i)
+		  for( OMPInt i=0; i<nEl; ++i)
 		    (*res)[ i] = pow( (*this)[ i], (*right)[ i]);
 		}	      //C delete right;
 	      return res;
@@ -3078,7 +2991,7 @@ Data_<SpDComplexDbl>* Data_<SpDComplexDbl>::PowNew( BaseGDL* r)
 #pragma omp parallel if (rEl >= CpuTPOOL_MIN_ELTS && (CpuTPOOL_MAX_ELTS == 0 || CpuTPOOL_MAX_ELTS <= rEl)) 
 		{
 #pragma omp for
-		  for( int i=0; i<rEl; ++i)
+		  for( OMPInt i=0; i<rEl; ++i)
 		    (*res)[ i] = pow( (*this)[ i], (*right)[ i]);
 		}
 	      return res;
@@ -3097,7 +3010,7 @@ Data_<SpDComplexDbl>* Data_<SpDComplexDbl>::PowNew( BaseGDL* r)
 #pragma omp parallel if (nEl >= CpuTPOOL_MIN_ELTS && (CpuTPOOL_MAX_ELTS == 0 || CpuTPOOL_MAX_ELTS <= nEl))
 	{
 #pragma omp for
-	  for( int i=0; i<nEl; ++i)
+	  for( OMPInt i=0; i<nEl; ++i)
 	    (*res)[ i] = pow( (*this)[ i], s);
 	}
 	return res;
@@ -3110,7 +3023,7 @@ Data_<SpDComplexDbl>* Data_<SpDComplexDbl>::PowNew( BaseGDL* r)
 #pragma omp parallel if (nEl >= CpuTPOOL_MIN_ELTS && (CpuTPOOL_MAX_ELTS == 0 || CpuTPOOL_MAX_ELTS <= nEl))
 	{
 #pragma omp for
-	  for( int i=0; i < nEl; ++i)
+	  for( OMPInt i=0; i < nEl; ++i)
 	    (*res)[i] = pow( (*this)[i], (*right)[i]);
 	}
 	return res;
@@ -3131,22 +3044,12 @@ Data_<SpDComplexDbl>* Data_<SpDComplexDbl>::PowInvNew( BaseGDL* r)
 #pragma omp parallel if (nEl >= CpuTPOOL_MIN_ELTS && (CpuTPOOL_MAX_ELTS == 0 || CpuTPOOL_MAX_ELTS <= nEl))
     {
 #pragma omp for
-      for( int i=0; i < nEl; ++i)
+      for( OMPInt i=0; i < nEl; ++i)
 	(*res)[i] = pow( (*right)[i], (*this)[i]);
     }
   return res;
 }
 // invalid types
-DStructGDL* DStructGDL::PowNew( BaseGDL* r)
-{
-  throw GDLException("Cannot apply operation to datatype STRUCT.",true,false);  
-  return NULL;
-}
-DStructGDL* DStructGDL::PowInvNew( BaseGDL* r)
-{
-  throw GDLException("Cannot apply operation to datatype STRUCT.",true,false);  
-  return NULL;
-}
 template<>
 Data_<SpDString>* Data_<SpDString>::PowNew( BaseGDL* r)
 {
@@ -3203,7 +3106,7 @@ Data_<Sp>* Data_<Sp>::PowSNew( BaseGDL* r)
 #pragma omp parallel if (nEl >= CpuTPOOL_MIN_ELTS && (CpuTPOOL_MAX_ELTS == 0 || CpuTPOOL_MAX_ELTS <= nEl))
     {
 #pragma omp for
-      for( int i=0; i < nEl; ++i)
+      for( OMPInt i=0; i < nEl; ++i)
 	(*res)[i] = pow( (*this)[i], s);
     }
   //C delete right;
@@ -3228,7 +3131,7 @@ Data_<Sp>* Data_<Sp>::PowInvSNew( BaseGDL* r)
 #pragma omp parallel if (nEl >= CpuTPOOL_MIN_ELTS && (CpuTPOOL_MAX_ELTS == 0 || CpuTPOOL_MAX_ELTS <= nEl))
     {
 #pragma omp for
-      for( int i=0; i < nEl; ++i)
+      for( OMPInt i=0; i < nEl; ++i)
 	(*res)[i] = pow( s, (*this)[i]);
     }  //C delete right;
   return res;
@@ -3257,7 +3160,7 @@ Data_<SpDComplex>* Data_<SpDComplex>::PowSNew( BaseGDL* r)
 #pragma omp parallel if (nEl >= CpuTPOOL_MIN_ELTS && (CpuTPOOL_MAX_ELTS == 0 || CpuTPOOL_MAX_ELTS <= nEl))
 	    {
 #pragma omp for
-	      for( int i=0; i<nEl; ++i)
+	      for( OMPInt i=0; i<nEl; ++i)
 		(*res)[i] =  pow( (*this)[ i], s);
 	    }
 	  return res;
@@ -3276,7 +3179,7 @@ Data_<SpDComplex>* Data_<SpDComplex>::PowSNew( BaseGDL* r)
 #pragma omp parallel if (rEl >= CpuTPOOL_MIN_ELTS && (CpuTPOOL_MAX_ELTS == 0 || CpuTPOOL_MAX_ELTS <= rEl)) 
 		    {
 #pragma omp for
-		      for( int i=0; i<rEl; ++i)
+		      for( OMPInt i=0; i<rEl; ++i)
 			(*res)[ i] = pow( s, (*right)[ i]);
 		    }
 		  return res;
@@ -3287,7 +3190,7 @@ Data_<SpDComplex>* Data_<SpDComplex>::PowSNew( BaseGDL* r)
 #pragma omp parallel if (nEl >= CpuTPOOL_MIN_ELTS && (CpuTPOOL_MAX_ELTS == 0 || CpuTPOOL_MAX_ELTS <= nEl))
 		{
 #pragma omp for
-		  for( int i=0; i<nEl; ++i)
+		  for( OMPInt i=0; i<nEl; ++i)
 		    (*res)[i] =  pow( (*this)[ i], (*right)[ i]);
 		}	      //C delete right;
 	      return res;
@@ -3300,7 +3203,7 @@ Data_<SpDComplex>* Data_<SpDComplex>::PowSNew( BaseGDL* r)
 #pragma omp parallel if (rEl >= CpuTPOOL_MIN_ELTS && (CpuTPOOL_MAX_ELTS == 0 || CpuTPOOL_MAX_ELTS <= rEl)) 
 		{
 #pragma omp for
-		  for( int i=0; i<rEl; ++i)
+		  for( OMPInt i=0; i<rEl; ++i)
 		    (*res)[ i] = pow( (*this)[ i], (*right)[ i]);
 		}	      //C delete right;
 	      //C delete this;
@@ -3323,7 +3226,7 @@ Data_<SpDComplex>* Data_<SpDComplex>::PowSNew( BaseGDL* r)
 #pragma omp parallel if (nEl >= CpuTPOOL_MIN_ELTS && (CpuTPOOL_MAX_ELTS == 0 || CpuTPOOL_MAX_ELTS <= nEl))
 	    {
 #pragma omp for
-	      for( int i=0; i<nEl; ++i)
+	      for( OMPInt i=0; i<nEl; ++i)
 		(*res)[i] =  pow( (*this)[ i], s);
 	    }	  //C delete right;
 	  return res;
@@ -3342,7 +3245,7 @@ Data_<SpDComplex>* Data_<SpDComplex>::PowSNew( BaseGDL* r)
 #pragma omp parallel if (rEl >= CpuTPOOL_MIN_ELTS && (CpuTPOOL_MAX_ELTS == 0 || CpuTPOOL_MAX_ELTS <= rEl)) 
 		    {
 #pragma omp for
-		      for( int i=0; i<rEl; ++i)
+		      for( OMPInt i=0; i<rEl; ++i)
 			(*res)[ i] = pow( s, (*right)[ i]);
 		    }		  //C delete right;
 		  return res;
@@ -3353,7 +3256,7 @@ Data_<SpDComplex>* Data_<SpDComplex>::PowSNew( BaseGDL* r)
 #pragma omp parallel if (nEl >= CpuTPOOL_MIN_ELTS && (CpuTPOOL_MAX_ELTS == 0 || CpuTPOOL_MAX_ELTS <= nEl))
 		{
 #pragma omp for
-		  for( int i=0; i<nEl; ++i)
+		  for( OMPInt i=0; i<nEl; ++i)
 		    (*res)[i] =  pow( (*this)[ i], (*right)[ i]);
 		}	      //C delete right;
 	      return res;
@@ -3366,7 +3269,7 @@ Data_<SpDComplex>* Data_<SpDComplex>::PowSNew( BaseGDL* r)
 #pragma omp parallel if (rEl >= CpuTPOOL_MIN_ELTS && (CpuTPOOL_MAX_ELTS == 0 || CpuTPOOL_MAX_ELTS <= rEl)) 
 		{
 #pragma omp for
-		  for( int i=0; i<rEl; ++i)
+		  for( OMPInt i=0; i<rEl; ++i)
 		    (*res)[ i] = pow( (*this)[ i], (*right)[ i]);
 		}
 	      return res;
@@ -3383,7 +3286,7 @@ Data_<SpDComplex>* Data_<SpDComplex>::PowSNew( BaseGDL* r)
 #pragma omp parallel if (nEl >= CpuTPOOL_MIN_ELTS && (CpuTPOOL_MAX_ELTS == 0 || CpuTPOOL_MAX_ELTS <= nEl))
     {
 #pragma omp for
-      for( int i=0; i<nEl; ++i)
+      for( OMPInt i=0; i<nEl; ++i)
 	(*res)[i] =  pow( (*this)[ i], s);
     }
 
@@ -3408,7 +3311,7 @@ Data_<SpDComplex>* Data_<SpDComplex>::PowInvSNew( BaseGDL* r)
 #pragma omp parallel if (nEl >= CpuTPOOL_MIN_ELTS && (CpuTPOOL_MAX_ELTS == 0 || CpuTPOOL_MAX_ELTS <= nEl))
     {
 #pragma omp for
-      for( int i=0; i<nEl; ++i)
+      for( OMPInt i=0; i<nEl; ++i)
 	(*res)[i] =  pow( s, (*this)[ i]);
     }
   return res;
@@ -3438,7 +3341,7 @@ Data_<SpDComplexDbl>* Data_<SpDComplexDbl>::PowSNew( BaseGDL* r)
 #pragma omp parallel if (nEl >= CpuTPOOL_MIN_ELTS && (CpuTPOOL_MAX_ELTS == 0 || CpuTPOOL_MAX_ELTS <= nEl))
 	    {
 #pragma omp for
-	      for( int i=0; i<nEl; ++i)
+	      for( OMPInt i=0; i<nEl; ++i)
 		(*res)[i] =  pow( (*this)[ i], s);
 	    }	  
 	  return res;
@@ -3457,7 +3360,7 @@ Data_<SpDComplexDbl>* Data_<SpDComplexDbl>::PowSNew( BaseGDL* r)
 #pragma omp parallel if (rEl >= CpuTPOOL_MIN_ELTS && (CpuTPOOL_MAX_ELTS == 0 || CpuTPOOL_MAX_ELTS <= rEl)) 
 		    {
 #pragma omp for
-		      for( int i=0; i<rEl; ++i)
+		      for( OMPInt i=0; i<rEl; ++i)
 			(*res)[ i] = pow( s, (*right)[ i]);
 		    }		
 		  return res;
@@ -3468,7 +3371,7 @@ Data_<SpDComplexDbl>* Data_<SpDComplexDbl>::PowSNew( BaseGDL* r)
 #pragma omp parallel if (nEl >= CpuTPOOL_MIN_ELTS && (CpuTPOOL_MAX_ELTS == 0 || CpuTPOOL_MAX_ELTS <= nEl))
 		{
 #pragma omp for
-		  for( int i=0; i<nEl; ++i)
+		  for( OMPInt i=0; i<nEl; ++i)
 		    (*res)[i] =  pow( (*this)[ i], (*right)[ i]);
 		}	      //C delete right;
 	      return res;
@@ -3481,7 +3384,7 @@ Data_<SpDComplexDbl>* Data_<SpDComplexDbl>::PowSNew( BaseGDL* r)
 #pragma omp parallel if (rEl >= CpuTPOOL_MIN_ELTS && (CpuTPOOL_MAX_ELTS == 0 || CpuTPOOL_MAX_ELTS <= rEl)) 
 		{
 #pragma omp for
-		  for( int i=0; i<rEl; ++i)
+		  for( OMPInt i=0; i<rEl; ++i)
 		    (*res)[ i] = pow( (*this)[ i], (*right)[ i]);
 		}	     
 	      return res;
@@ -3505,7 +3408,7 @@ Data_<SpDComplexDbl>* Data_<SpDComplexDbl>::PowSNew( BaseGDL* r)
 #pragma omp parallel if (nEl >= CpuTPOOL_MIN_ELTS && (CpuTPOOL_MAX_ELTS == 0 || CpuTPOOL_MAX_ELTS <= nEl))
 	    {
 #pragma omp for
-	      for( int i=0; i<nEl; ++i)
+	      for( OMPInt i=0; i<nEl; ++i)
 		(*res)[i] =  pow( (*this)[ i], s);
 	    }	  
 	  return res;
@@ -3524,7 +3427,7 @@ Data_<SpDComplexDbl>* Data_<SpDComplexDbl>::PowSNew( BaseGDL* r)
 #pragma omp parallel if (rEl >= CpuTPOOL_MIN_ELTS && (CpuTPOOL_MAX_ELTS == 0 || CpuTPOOL_MAX_ELTS <= rEl)) 
 		    {
 #pragma omp for
-		      for( int i=0; i<rEl; ++i)
+		      for( OMPInt i=0; i<rEl; ++i)
 			(*res)[ i] = pow( s, (*right)[ i]);
 		    }		  
 		  return res;
@@ -3535,7 +3438,7 @@ Data_<SpDComplexDbl>* Data_<SpDComplexDbl>::PowSNew( BaseGDL* r)
 #pragma omp parallel if (nEl >= CpuTPOOL_MIN_ELTS && (CpuTPOOL_MAX_ELTS == 0 || CpuTPOOL_MAX_ELTS <= nEl))
 		{
 #pragma omp for
-		  for( int i=0; i<nEl; ++i)
+		  for( OMPInt i=0; i<nEl; ++i)
 		    (*res)[i] =  pow( (*this)[ i], (*right)[ i]);
 		}	      //C delete right;
 	      return res;
@@ -3548,7 +3451,7 @@ Data_<SpDComplexDbl>* Data_<SpDComplexDbl>::PowSNew( BaseGDL* r)
 #pragma omp parallel if (rEl >= CpuTPOOL_MIN_ELTS && (CpuTPOOL_MAX_ELTS == 0 || CpuTPOOL_MAX_ELTS <= rEl)) 
 		{
 #pragma omp for
-		  for( int i=0; i<rEl; ++i)
+		  for( OMPInt i=0; i<rEl; ++i)
 		    (*res)[ i] = pow( (*this)[ i], (*right)[ i]);
 		}	      
 	      return res;
@@ -3563,7 +3466,7 @@ Data_<SpDComplexDbl>* Data_<SpDComplexDbl>::PowSNew( BaseGDL* r)
 #pragma omp parallel if (nEl >= CpuTPOOL_MIN_ELTS && (CpuTPOOL_MAX_ELTS == 0 || CpuTPOOL_MAX_ELTS <= nEl))
     {
 #pragma omp for
-      for( int i=0; i<nEl; ++i)
+      for( OMPInt i=0; i<nEl; ++i)
 	(*res)[i] =  pow( (*this)[ i], s);
     }
   return res;
@@ -3582,22 +3485,12 @@ Data_<SpDComplexDbl>* Data_<SpDComplexDbl>::PowInvSNew( BaseGDL* r)
 #pragma omp parallel if (nEl >= CpuTPOOL_MIN_ELTS && (CpuTPOOL_MAX_ELTS == 0 || CpuTPOOL_MAX_ELTS <= nEl))
     {
 #pragma omp for
-      for( int i=0; i<nEl; ++i)
+      for( OMPInt i=0; i<nEl; ++i)
 	(*res)[i] =  pow( s, (*this)[ i]);
     }
   return res;
 }
 // invalid types
-DStructGDL* DStructGDL::PowSNew( BaseGDL* r)
-{
-  throw GDLException("Cannot apply operation to datatype STRUCT.",true,false);  
-  return NULL;
-}
-DStructGDL* DStructGDL::PowInvSNew( BaseGDL* r)
-{
-  throw GDLException("Cannot apply operation to datatype STRUCT.",true,false);  
-  return NULL;
-}
 template<>
 Data_<SpDString>* Data_<SpDString>::PowSNew( BaseGDL* r)
 {

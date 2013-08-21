@@ -44,7 +44,8 @@ GDLException::GDLException(DLong eC, const string& s, bool pre, bool decorate):
   errorCode(eC),
   line( 0), col( 0), prefix( pre),
   ioException( false),
-  targetEnv( NULL)
+  targetEnv( NULL),
+  arrayexprIndexeeFailed(false)
 {
 if(decorate && interpreter!=NULL && interpreter->CallStack().size()>0) 
 {
@@ -97,7 +98,8 @@ GDLException::GDLException(const RefDNode eN, const string& s):
   errorCode(-1),
   line( 0), col( 0), prefix( true),
   ioException( false),
-  targetEnv( NULL)
+  targetEnv( NULL),
+  arrayexprIndexeeFailed(false)
 {
 if(interpreter!=NULL && interpreter->CallStack().size()>0) 
 {
@@ -121,7 +123,8 @@ GDLException::GDLException(DLong eC, const RefDNode eN, const string& s):
   errorCode(eC),
   line( 0), col( 0), prefix( true),
   ioException( false),
-  targetEnv( NULL)
+  targetEnv( NULL),
+  arrayexprIndexeeFailed(false)
 {
 if(interpreter!=NULL && interpreter->CallStack().size()>0) 
 {
@@ -146,7 +149,8 @@ GDLException::GDLException(const ProgNodeP eN, const string& s, bool decorate, b
   errorCode(-1),
   line( 0), col( 0), prefix( true),
   ioException( false),
-  targetEnv( NULL)
+  targetEnv( NULL),
+  arrayexprIndexeeFailed(false)
 {
 if( overWriteNode && interpreter!=NULL && interpreter->CallStack().size()>0) 
 {
@@ -174,7 +178,8 @@ GDLException::GDLException(DLong eC, const ProgNodeP eN, const string& s, bool d
   errorCode(eC),
   line( 0), col( 0), prefix( true),
   ioException( false),
-  targetEnv( NULL)
+  targetEnv( NULL),
+  arrayexprIndexeeFailed(false)
 {
   if( overWriteNode && interpreter!=NULL && interpreter->CallStack().size()>0) 
   {
@@ -203,7 +208,8 @@ GDLException::GDLException(SizeT l, SizeT c, const string& s):
   errorCode(-1),
   line( l), col( c), prefix( true),
   ioException( false),
-  targetEnv( NULL)
+  targetEnv( NULL),
+  arrayexprIndexeeFailed(false)
 {
   if(interpreter!=NULL && interpreter->CallStack().size()>0) 
   {
@@ -226,7 +232,8 @@ GDLException::GDLException(DLong eC, SizeT l, SizeT c, const string& s):
   errorNodeP( NULL),
   errorCode(eC),
   line( l), col( c), prefix( true),
-  targetEnv( NULL)
+  targetEnv( NULL),
+  arrayexprIndexeeFailed(false)
 {
   if(interpreter!=NULL && interpreter->CallStack().size()>0) 
   {
@@ -266,7 +273,9 @@ throw GDLException( str);
 
 void WarnAboutObsoleteRoutine(const string& name)
 {
-  static DStructGDL* warnStruct = SysVar::Warn();
+  // no static here due to .RESET_SESSION
+  DStructGDL* warnStruct = SysVar::Warn();
+  // this static is ok as it will evaluate always to the same value
   static unsigned obs_routinesTag = warnStruct->Desc()->TagIndex( "OBS_ROUTINES");
   if (((static_cast<DByteGDL*>( warnStruct->GetTag(obs_routinesTag, 0)))[0]).LogTrue())
     Message("Routine compiled from an obsolete library: " + name);
@@ -276,15 +285,17 @@ void WarnAboutObsoleteRoutine(const string& name)
 void WarnAboutObsoleteRoutine(const RefDNode eN, const string& name)
 {
 // TODO: journal?
-  static DStructGDL* warnStruct = SysVar::Warn();
+  // no static here due to .RESET_SESSION
+  DStructGDL* warnStruct = SysVar::Warn();
+  // this static is ok as it will evaluate always to the same value
   static unsigned obs_routinesTag = warnStruct->Desc()->TagIndex( "OBS_ROUTINES");
   if (((static_cast<DByteGDL*>( warnStruct->GetTag(obs_routinesTag, 0)))[0]).LogTrue())
   {
     GDLException* e = new GDLException(eN, 
       "Routine compiled from an obsolete library: " + name
-    );  
+    );
+    Guard<GDLException> eGuard(e);
     GDLInterpreter::ReportCompileError(*e, "");
-//                              TODO: file /\
-    delete e;
+// TODO: file 
   }
 }

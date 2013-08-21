@@ -26,8 +26,9 @@
 #include <string>
 
 //#include <complex>
-#include <deque>
+// #include <deque>
 
+// #include <type_traits>
 #include "typedefs.hpp"
 #include "basegdl.hpp"
 #include "typetraits.hpp"
@@ -37,11 +38,28 @@
 #pragma interface
 #endif
 
+
+// for each group we need one definition
+// usage: GDL_DEFINE_INTEGER_FUNCTION(retType) fName( arg list) { definition}
+#define GDL_DEFINE_INTEGER_FUNCTION( retType ) template<typename Sp>template< typename U> typename U::template IfInteger< retType >::type Data_<Sp>::
+#define GDL_DEFINE_FLOAT_FUNCTION( retType ) template<typename Sp>template< typename U> typename U::template IfFloat< retType >::type Data_<Sp>::
+#define GDL_DEFINE_COMPLEX_FUNCTION( retType ) template<typename Sp>template< typename U> typename U::template IfComplex< retType >::type Data_<Sp>::
+#define GDL_DEFINE_OTHER_FUNCTION( retType ) template<typename Sp>template< typename U> typename U::template IfOther< retType >::type Data_<Sp>::
+
 const size_t multiAlloc = 256;
 
 template<class Sp>
 class Data_: public Sp
 {
+
+// save some typing. Declares function "fName" for all four groups (with return type "retType")
+#define GDL_DECLARE_FUNCTION( retType, fName, ... ) \
+template< typename U = Sp > typename U::template IfInteger< retType >::type fName( __VA_ARGS__); \
+template< typename U = Sp > typename U::template IfFloat< retType >::type fName( __VA_ARGS__); \
+template< typename U = Sp > typename U::template IfComplex< retType >::type fName( __VA_ARGS__); \
+template< typename U = Sp > typename U::template IfOther< retType >::type fName( __VA_ARGS__)
+
+
 public:
   typedef typename Sp::Ty    Ty;
   typedef Sp                 Traits;
@@ -53,11 +71,44 @@ private:
 #endif
 
   typedef typename Sp::DataT DataT;
+#ifdef USE_EIGEN  
+  EIGEN_ALIGN16 DataT        dd; // the data
+#else
   DataT                      dd; // the data
+#endif
+
+public:
+
+// #define TESTTG // TEST TEMPLATE GROUPING
+
+#ifdef TESTTG
+
+void TestTemplateGrouping();
+
+// #define GDL_TEMPLATE_Integer( retType ) template< typename U = Sp > typename U::template IfInteger< retType >::type 
+// #define GDL_TEMPLATE_IntegerDef( retType ) template<typename Sp>template< typename U> typename U::template IfInteger< retType >::type Data_<Sp>::
+
+
+GDL_DECLARE_FUNCTION(bool,Test2);
+
+// template< typename U = Sp >  
+//typename U::template IfInteger<bool>::type 
+// GDL_TEMPLATE_Integer(bool) Test2();
+// template< typename U = Sp >  
+// typename U::template IfFloat<bool>::type 
+// Test2();
+// template< typename U = Sp >  
+// typename U::template IfComplex<bool>::type 
+// Test2();
+// template< typename U = Sp >  
+// typename U::template IfOther<bool>::type 
+// Test2();
+
+#endif
 
 public:
 	// memory management optimization
-static std::deque< void*> freeList;
+static FreeListT freeList;
 
 	// operator new and delete
 static 	void* operator new( size_t bytes);
@@ -138,10 +189,12 @@ static	void operator delete( void *ptr);
   SizeT ToTransfer() const; // IO transfer count
   SizeT Sizeof() const;
 
+  int HashCompare( BaseGDL* p2) const;
+
   void Clear();
   void Construct();     // construction (for DStructGDL)
   void ConstructTo0();  // construction (for DStructGDL)
-  void Destruct(); // destruction (for DStructGDL)
+  void Destruct();      // destruction (for DStructGDL)
 
   BaseGDL* SetBuffer( const void* b);
   void SetBufferSize( SizeT s);
@@ -153,9 +206,10 @@ static	void operator delete( void *ptr);
   std::istream& FromStream(std::istream& i);
  
   // used by the interpreter
-  int Scalar2index( SizeT& st) const;
+  int Scalar2Index( SizeT& st) const;
   int Scalar2RangeT( RangeT& st) const;
   RangeT LoopIndex() const;
+  DDouble HashValue() const;
 
   // used for indexing of arrays
   SizeT GetAsIndex( SizeT i) const;
@@ -235,8 +289,8 @@ static	void operator delete( void *ptr);
 
   BaseGDL* Abs() const;  
 
-  BaseGDL* Convol( BaseGDL* kIn, BaseGDL* scaleIn, 
-		   bool center, int edgeMode);
+  BaseGDL* Convol( BaseGDL* kIn, BaseGDL* scaleIn, BaseGDL* bias, 
+		   bool center, bool normalize, int edgeMode);
   BaseGDL* Rebin( const dimension& newDim, bool sample);
 
   void Assign( BaseGDL* src, SizeT nEl);
@@ -255,13 +309,23 @@ static	void operator delete( void *ptr);
   // operators
   BaseGDL* UMinus(); // UMinus for SpDString returns float
   Data_*   NotOp();
+// GDL_DECLARE_FUNCTION( Data_*, AndOp, BaseGDL* r);
   Data_*   AndOp( BaseGDL* r);
   Data_*   AndOpInv( BaseGDL* r);
   Data_*   OrOp( BaseGDL* r);
   Data_*   OrOpInv( BaseGDL* r);
   Data_*   XorOp( BaseGDL* r);
+
   BaseGDL* Add( BaseGDL* r);
   BaseGDL* AddInv( BaseGDL* r);
+  BaseGDL* AddS( BaseGDL* r);
+  BaseGDL* AddInvS( BaseGDL* r);
+
+  BaseGDL* AddNew( BaseGDL* r);      // implemented
+  BaseGDL* AddInvNew( BaseGDL* r);      // implemented
+  BaseGDL* AddSNew( BaseGDL* r);         // implemented
+  BaseGDL* AddInvSNew( BaseGDL* r);    // implemented
+
 //   Data_*   AddNew( BaseGDL* r);
 //   Data_*   AddInvNew( BaseGDL* r);
   BaseGDL*   Sub( BaseGDL* r);
@@ -278,7 +342,8 @@ static	void operator delete( void *ptr);
   Data_*   PowInv( BaseGDL* r);
   Data_*   PowInt( BaseGDL* r);      
 //   Data_*   PowIntNew( BaseGDL* r);   
-  Data_*   MatrixOp( BaseGDL* r, bool transpose, bool transposeResult, bool strassen);
+  
+  Data_*   MatrixOp( BaseGDL* r, bool atranspose, bool btranspose);
 
   // operators with scalar
   Data_*   AndOpS( BaseGDL* r);
@@ -286,8 +351,6 @@ static	void operator delete( void *ptr);
   Data_*   OrOpS( BaseGDL* r);
   Data_*   OrOpInvS( BaseGDL* r);
   Data_*   XorOpS( BaseGDL* r);
-  BaseGDL*   AddS( BaseGDL* r);
-  BaseGDL*   AddInvS( BaseGDL* r);
 //   Data_*   AddSNew( BaseGDL* r);
 //   Data_*   AddInvSNew( BaseGDL* r);
   Data_*   SubS( BaseGDL* r);
@@ -315,8 +378,6 @@ static	void operator delete( void *ptr);
 //   Data_* GeOpNew( BaseGDL* r);
 //   Data_* LtOpNew( BaseGDL* r);
 //   Data_* GtOpNew( BaseGDL* r);
-  BaseGDL* AddNew( BaseGDL* r);      // implemented
-  BaseGDL* AddInvNew( BaseGDL* r);      // implemented
   BaseGDL* SubNew( BaseGDL* r);
   BaseGDL* SubInvNew( BaseGDL* r);
   Data_* LtMarkNew( BaseGDL* r);
@@ -336,8 +397,6 @@ static	void operator delete( void *ptr);
   Data_* OrOpSNew( BaseGDL* r);
   Data_* OrOpInvSNew( BaseGDL* r);
   Data_* XorOpSNew( BaseGDL* r);
-  BaseGDL* AddSNew( BaseGDL* r);         // implemented
-  BaseGDL* AddInvSNew( BaseGDL* r);    // implemented
   BaseGDL* SubSNew( BaseGDL* r);
   BaseGDL* SubInvSNew( BaseGDL* r);
   Data_* LtMarkSNew( BaseGDL* r);
@@ -384,7 +443,7 @@ static	void operator delete( void *ptr);
   Data_* Index( ArrayIndexListT* ixList);
 
   // return a new type of itself
-  Data_* NewIx( SizeT ix);
+  BaseGDL* NewIx( SizeT ix);
   Data_* NewIx( BaseGDL* ix, bool strict);
   Data_* NewIx( AllIxBaseT* ix, const dimension* dIn);
   Data_* NewIxFrom( SizeT s);
@@ -403,7 +462,8 @@ static	void operator delete( void *ptr);
 		int prec, char fill, BaseGDL::IOMode oM = BaseGDL::FIXED);
   SizeT OFmtI( std::ostream* os, SizeT offs, SizeT num, int width, 
 		int minN, char fill, BaseGDL::IOMode oM = BaseGDL::DEC);
-
+  SizeT OFmtCal( std::ostream* os, SizeT offs, SizeT num, int width, 
+			int minN, char fill, BaseGDL::Cal_IOMode oM = BaseGDL::DEFAULT);
   // formatting input functions
   SizeT IFmtA( std::istream* is, SizeT offset, SizeT num, int width); 
   SizeT IFmtF( std::istream* is, SizeT offs, SizeT num, int width); 
@@ -425,6 +485,10 @@ private:
   // used for concatenation, called from CatArray
   // assumes that everything is checked (see CatInfo)
   void CatInsert( const Data_* srcArr, const SizeT atDim, SizeT& at);
+
+  // only to be used here
+#undef GDL_DECLARE_FUNCTION
+
 };
 
 // template<> Data_<SpDPtr>::Data_(const Ty& d_);

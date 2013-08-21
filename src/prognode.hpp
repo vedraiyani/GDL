@@ -30,6 +30,11 @@ enum RetCode {
   RC_ABORT, // checked as retCode >= RC_RETURN
 };
 
+class EnvT;
+typedef void     (*LibPro)(EnvT*);
+typedef BaseGDL* (*LibFun)(EnvT*);
+typedef BaseGDL* (*LibFunDirect)(BaseGDL* param,bool canGrab);
+
 class ProgNode;
 typedef ProgNode* ProgNodeP;
 
@@ -86,17 +91,19 @@ protected:
   ProgNodeP down;
   ProgNodeP right;
 
-  static void AdjustTypes(std::auto_ptr<BaseGDL>& a, 
-			  std::auto_ptr<BaseGDL>& b);
+  static void AdjustTypes(Guard<BaseGDL>& a, 
+			  Guard<BaseGDL>& b);
   // for overloaded operators
-  static void AdjustTypesObj(std::auto_ptr<BaseGDL>& a, 
-			  std::auto_ptr<BaseGDL>& b);
+  static void AdjustTypesObj(Guard<BaseGDL>& a, 
+			  Guard<BaseGDL>& b);
 
   BaseGDL*   cData;           // constant data
   DVar*      var;             // ptr to variable 
 
-  DLibFun*   libFun;
-  DLibPro*   libPro;
+  DLibFun*     libFun;
+  DLibPro*     libPro;
+  LibFun       libFunFun;
+  LibPro       libProPro;
 
   union {
     int        initInt;    // for c-i not actually used
@@ -114,8 +121,11 @@ protected:
   };
 
   void SetType( int tt, const std::string& txt) { ttype = tt; text = txt;} 
-
+  
   static ProgNodeP GetNULLProgNodeP(); 
+
+public:
+  int GetVarIx() const { return varIx;}
 
 private:
   // from DNode (see there)
@@ -318,6 +328,7 @@ public:
   friend class ARRAYEXPR_FCALLNode;
   friend class EXPRNode;
   friend class SYSVARNode;
+  friend class DOTNode;
 };
 
 

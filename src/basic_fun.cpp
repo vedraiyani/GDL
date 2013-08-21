@@ -83,9 +83,12 @@ int strncasecmp(const char *s1, const char *s2, size_t n)
 
 namespace lib {
 
-  using namespace std;
+//  using namespace std;
+  using std::isnan;
   using namespace antlr;
 
+  
+ 
   // assumes all parameters from pOffs till end are dim
   void arr( EnvT* e, dimension& dim, SizeT pOffs=0)
   {
@@ -103,7 +106,7 @@ namespace lib {
       BaseGDL* par = e->GetParDefined( pOffs); 
  	
       SizeT newDim;
-      int ret = par->Scalar2index( newDim);
+      int ret = par->Scalar2Index( newDim);
 
       if (ret < 0) throw GDLException(BadDims);
 
@@ -115,7 +118,7 @@ namespace lib {
       if( ret == 0) { //  array argument
 	DLongGDL* ind = 
 	  static_cast<DLongGDL*>(par->Convert2(GDL_LONG, BaseGDL::COPY)); 	 
-	auto_ptr<DLongGDL> ind_guard( ind);
+	Guard<DLongGDL> ind_guard( ind);
 		    //e->Guard( ind);
 
 	for(SizeT i =0; i < par->N_Elements(); ++i){
@@ -135,7 +138,7 @@ namespace lib {
 	BaseGDL* par=e->GetParDefined( i);
 
 	SizeT newDim;
-	int ret=par->Scalar2index( newDim);
+	int ret=par->Scalar2Index( newDim);
 	if( ret < 1 || newDim == 0) throw GDLException(BadDims);
 	dim << newDim;
       }
@@ -455,16 +458,21 @@ namespace lib {
 	return new DByteGDL( 0);
       } 
 
+    DType pType = p->Type();
     if( e->KeywordSet( 0)) // CAST
       {
-	DLongGDL* pL = dynamic_cast<DLongGDL*>( p);
-	auto_ptr<DLongGDL> pL_guard;
-	if( pL == NULL)
-	  {
-	    pL = static_cast<DLongGDL*>(p->Convert2(GDL_LONG,BaseGDL::COPY)); 
-	    pL_guard.reset( pL);
-	  }
-	
+	DLongGDL* pL;// = dynamic_cast<DLongGDL*>( p);
+	Guard<DLongGDL> pL_guard;
+// 	if( pL == NULL)
+	if( pType != GDL_LONG)
+	{
+	  pL = static_cast<DLongGDL*>(p->Convert2(GDL_LONG,BaseGDL::COPY)); 
+	  pL_guard.Init( pL);
+	}
+	else
+	{
+	  pL = static_cast<DLongGDL*>(p);
+	}
 	SizeT nEl = pL->N_Elements();
 	DPtrGDL* ret = new DPtrGDL( pL->Dim()); // zero
 	GDLInterpreter* interpreter = e->Interpreter();
@@ -476,11 +484,14 @@ namespace lib {
 	return ret;
       }
 
-    DPtrGDL* pPtr = dynamic_cast<DPtrGDL*>( p);
-    if( pPtr == NULL)
+//     DPtrGDL* pPtr = dynamic_cast<DPtrGDL*>( p);
+//     if( pPtr == NULL)
+    if( pType != GDL_PTR)
       {
 	return new DByteGDL( p->Dim()); // zero
       }
+
+      DPtrGDL* pPtr = static_cast<DPtrGDL*>( p);
 
     SizeT nEl = pPtr->N_Elements();
     DByteGDL* ret = new DByteGDL( pPtr->Dim()); // zero
@@ -513,17 +524,22 @@ namespace lib {
 	return new DByteGDL( 0);
       } 
 
+    DType pType = p->Type();
     if( e->KeywordSet( 0)) // CAST
       {
-	DLongGDL* pL = dynamic_cast<DLongGDL*>( p);
-	auto_ptr<DLongGDL> pL_guard;
-	if( pL == NULL)
-	  {
-	    pL = static_cast<DLongGDL*>(p->Convert2(GDL_LONG,BaseGDL::COPY));
-	    pL_guard.reset( pL);
-	    //	    e->Guard( pL);
-	  }
-	
+	DLongGDL* pL;// = dynamic_cast<DLongGDL*>( p);
+	Guard<DLongGDL> pL_guard;
+// 	if( pL == NULL)
+	if( pType != GDL_LONG)
+	{
+	  pL = static_cast<DLongGDL*>(p->Convert2(GDL_LONG,BaseGDL::COPY));
+	  pL_guard.Init( pL);
+	  //	    e->Guard( pL);
+	}
+	else
+	{
+	  pL = static_cast<DLongGDL*>( p);
+	}
 	SizeT nEl = pL->N_Elements();
 	DObjGDL* ret = new DObjGDL( pL->Dim()); // zero
 	GDLInterpreter* interpreter = e->Interpreter();
@@ -535,11 +551,13 @@ namespace lib {
 	return ret;
       }
 
-    DObjGDL* pObj = dynamic_cast<DObjGDL*>( p);
-    if( pObj == NULL)
+//     DObjGDL* pObj = dynamic_cast<DObjGDL*>( p);
+//     if( pObj == NULL)
+    if( pType != GDL_OBJ)
       {
 	return new DByteGDL( p->Dim()); // zero
       }
+    DObjGDL* pObj = static_cast<DObjGDL*>( p);
 
     SizeT nEl = pObj->N_Elements();
     DByteGDL* ret = new DByteGDL( pObj->Dim()); // zero
@@ -577,7 +595,7 @@ namespace lib {
 
     DObj objID= e->NewObjHeap( 1, objStruct); // owns objStruct
 
-    BaseGDL* newObj = new DObjGDL( objID); // the object
+    DObjGDL* newObj = new DObjGDL( objID); // the object
 
     try {
       // call INIT function
@@ -881,10 +899,13 @@ namespace lib {
 	  {
 	    BaseGDL* p0=e->GetParDefined( 0);
 	    BaseGDL* p1=e->GetParDefined( 1);
-	    auto_ptr<Float> p0Float( static_cast<Float*>
-				     (p0->Convert2( Float::t,BaseGDL::COPY)));
-	    auto_ptr<Float> p1Float( static_cast<Float*>
-				     (p1->Convert2( Float::t,BaseGDL::COPY)));
+
+	    Float* p0Float = static_cast<Float*>
+				     (p0->Convert2( Float::t,BaseGDL::COPY));
+	    Guard<Float> p0FloatGuard(p0Float);
+	    Float* p1Float = static_cast<Float*>
+				     (p1->Convert2( Float::t,BaseGDL::COPY));
+	    Guard<Float> p1FloatGuard(p1Float);
 	    if( p0Float->Rank() == 0)
 	      {
 		ComplexGDL* res = new ComplexGDL( p1Float->Dim(), 
@@ -958,13 +979,13 @@ namespace lib {
 	    return p0->Convert2( ComplexGDL::t, BaseGDL::COPY);
 	  }
       }
-    else // GDL_COMPLEX( expr, offs, dim1,..,dim8)
+    else // COMPLEX( expr, offs, dim1,..,dim8)
       {
 	BaseGDL* p0 = e->GetParDefined( 0);
 	// *** WRONG: with offs data is converted bytewise
-	auto_ptr<Float> p0Float(static_cast<Float*>
-				(p0->Convert2( Float::t,
-					       BaseGDL::COPY)));
+	Float* p0Float = static_cast<Float*>(p0->Convert2( Float::t,BaseGDL::COPY));
+	Guard<Float> p0FloatGuard(p0Float);
+
 	DLong offs;
 	e->AssureLongScalarPar( 1, offs);
       
@@ -1156,7 +1177,7 @@ BaseGDL* dcomplex_fun( EnvT* e)
           e->ShiftParNumbering(-1);
 	}
 
-	deque<DString> buf;
+	vector<DString> buf;
 	while( os.good())
 	  {
 	    string line;
@@ -1242,7 +1263,7 @@ BaseGDL* dcomplex_fun( EnvT* e)
 		
         EnvT* newEnv= new EnvT(e, libFunList[stringIx], NULL);
 
-		auto_ptr<EnvT> guard( newEnv);
+		Guard<EnvT> guard( newEnv);
 
 		newEnv->SetNextPar(&e->GetPar(0)); // pass as global
         if (e->KeywordSet(1) && e->GetPar(0)->Type() == GDL_BYTE)
@@ -1286,7 +1307,7 @@ BaseGDL* dcomplex_fun( EnvT* e)
 	else
 	{
 	EnvT* newEnv = e->NewEnv( libFunList[ funIx], 1);
-	auto_ptr<EnvT> guard( newEnv);
+	Guard<EnvT> guard( newEnv);
 	return static_cast<DLibFun*>(newEnv->GetPro())->Fun()(newEnv);
 	}
       }
@@ -1328,7 +1349,7 @@ BaseGDL* dcomplex_fun( EnvT* e)
     if( method == NULL)
       e->Throw( "Method not found: "+callP);
 // // // /**/
-    e->PushNewEnvUD( method, 2, &e->GetPar( 1));
+    e->PushNewEnvUD( method, 2, (DObjGDL**) &e->GetPar( 1));
     
     // make the call
     return e->Interpreter()->call_fun( method->GetTree());
@@ -1419,7 +1440,7 @@ BaseGDL* dcomplex_fun( EnvT* e)
     try
       {
 		ProgNodeP progAST = ProgNode::NewProgNode( trAST);
-		auto_ptr< ProgNode> progAST_guard( progAST);
+		Guard< ProgNode> progAST_guard( progAST);
 
 		int nForLoops = ProgNode::NumberForLoops( progAST, nForLoopsIn);
 		caller->ResizeForLoops( nForLoops);
@@ -1729,7 +1750,7 @@ TRACEOMP( __FILE__, __LINE__)
 #pragma omp parallel if ((nEl*10) >= CpuTPOOL_MIN_ELTS && (CpuTPOOL_MAX_ELTS == 0 || CpuTPOOL_MAX_ELTS <= (nEl*10)))
 {
 #pragma omp for
-      for( int i=0; i<nEl; ++i)
+      for( OMPInt i=0; i<nEl; ++i)
 	{
 	  unsigned long first= (*p0S)[ i].find_first_not_of(" \t");
 	  if( first == (*p0S)[ i].npos)
@@ -1750,7 +1771,7 @@ TRACEOMP( __FILE__, __LINE__)
 #pragma omp parallel if ((nEl*10) >= CpuTPOOL_MIN_ELTS && (CpuTPOOL_MAX_ELTS == 0 || CpuTPOOL_MAX_ELTS <= (nEl*10)))
 {
 #pragma omp for
-	for( int i=0; i<nEl; ++i)
+	for( OMPInt i=0; i<nEl; ++i)
 	{
 	  unsigned long first= (*p0S)[ i].find_first_not_of(" \t");
 	  if( first == (*p0S)[ i].npos)
@@ -1770,7 +1791,7 @@ TRACEOMP( __FILE__, __LINE__)
 #pragma omp parallel if ((nEl*10) >= CpuTPOOL_MIN_ELTS && (CpuTPOOL_MAX_ELTS == 0 || CpuTPOOL_MAX_ELTS <= (nEl*10)))
 {
 #pragma omp for
-	for( int i=0; i<nEl; ++i)
+	for( OMPInt i=0; i<nEl; ++i)
 	{
 	  unsigned long last = (*p0S)[ i].find_last_not_of(" \t");
 	  if( last == (*p0S)[ i].npos)
@@ -1802,7 +1823,7 @@ TRACEOMP( __FILE__, __LINE__)
 #pragma omp parallel if ((nEl*10) >= CpuTPOOL_MIN_ELTS && (CpuTPOOL_MAX_ELTS == 0 || CpuTPOOL_MAX_ELTS <= (nEl*10)))
 {
 #pragma omp for
-    for( int i=0; i<nEl; ++i)
+    for( OMPInt i=0; i<nEl; ++i)
       {
 	(*res)[ i] = StrCompress((*p0S)[ i], removeAll);
       }
@@ -1835,7 +1856,7 @@ TRACEOMP( __FILE__, __LINE__)
 	const SizeT pIx = 2;
 	BaseGDL* p = e->GetParDefined( pIx);
 	DLongGDL* lp = static_cast<DLongGDL*>(p->Convert2( GDL_LONG, BaseGDL::COPY));
-	auto_ptr<DLongGDL> guard_lp( lp);
+	Guard<DLongGDL> guard_lp( lp);
 	DLong scalar;
 	if( !lp->Scalar( scalar))
 	  throw GDLException("Parameter must be a scalar in this context: "+
@@ -1850,7 +1871,7 @@ TRACEOMP( __FILE__, __LINE__)
 #pragma omp parallel if ((nSrcStr*10) >= CpuTPOOL_MIN_ELTS && (CpuTPOOL_MAX_ELTS == 0 || CpuTPOOL_MAX_ELTS <= (nSrcStr*10)))
 {
 #pragma omp for
-    for( long i=0; i<nSrcStr; ++i)
+    for( OMPInt i=0; i<nSrcStr; ++i)
       {
 	(*res)[ i] = StrPos((*p0S)[ i], searchString, pos, 
 			    reverseOffset, reverseSearch);
@@ -1861,16 +1882,16 @@ TRACEOMP( __FILE__, __LINE__)
 
   BaseGDL* strmid( EnvT* e)
   {
-    e->NParam( 2);//, "STRMID");
+    SizeT nParam = e->NParam( 2);//, "STRMID");
 
     bool reverse =  e->KeywordSet(0);
 
     DStringGDL* p0S = e->GetParAs<DStringGDL>( 0);
     DLongGDL*   p1L = e->GetParAs<DLongGDL>( 1);
 
-    BaseGDL*  p2  = e->GetPar( 2);
+//     BaseGDL*  p2  = e->GetPar( 2);
     DLongGDL* p2L = NULL;
-    if( p2 != NULL) p2L = e->GetParAs<DLongGDL>( 2);
+    if( nParam > 2) p2L = e->GetParAs<DLongGDL>( 2);
 
     DLong scVal1;
     bool sc1 = p1L->Scalar( scVal1);
@@ -1889,9 +1910,8 @@ TRACEOMP( __FILE__, __LINE__)
       {
 	stride = p1L->Dim( 0);
 	if( stride != p2L->Dim( 0))
-	  e->Throw(
-			      "Starting offset and length arguments "
-			      "have incompatible first dimension.");	  
+	  e->Throw( "Starting offset and length arguments "
+		    "have incompatible first dimension.");	  
       }
     else
       {
@@ -1914,11 +1934,27 @@ TRACEOMP( __FILE__, __LINE__)
     SizeT nEl2 = (sc2)? 1 : p2L->N_Elements();
 
     SizeT nSrcStr = p0S->N_Elements();
+    if( nSrcStr == 1)
+    {
+	// possibly this optimization is not worth the longer code (as the gain can only be a small fraction
+	// of the overall time), but then this is a very common use
+	for( long ii=0; ii<stride; ++ii)
+	{
+		SizeT destIx = ii;
+		DLong actFirst = (sc1)? scVal1 : (*p1L)[ destIx % nEl1];
+		DLong actLen   = (sc2)? scVal2 : (*p2L)[ destIx % nEl2];
+		if( actLen <= 0)
+			(*res)[ destIx] = "";//StrMid((*p0S)[ i], actFirst, actLen, reverse);
+		else	
+			(*res)[ destIx] = StrMid((*p0S)[ 0], actFirst, actLen, reverse);
+	}
+	return res;
+    }
 TRACEOMP( __FILE__, __LINE__)
 #pragma omp parallel if ((nSrcStr*10) >= CpuTPOOL_MIN_ELTS && (CpuTPOOL_MAX_ELTS == 0 || CpuTPOOL_MAX_ELTS <= (nSrcStr*10))) default( shared)
 {
 #pragma omp for
-    for( long i=0; i<nSrcStr; ++i)
+    for( OMPInt i=0; i<nSrcStr; ++i)
       {
 		for( long ii=0; ii<stride; ++ii)
 		{
@@ -1945,7 +1981,7 @@ TRACEOMP( __FILE__, __LINE__)
 //     DStringGDL* p0S = e->GetParAs<DStringGDL>( 0);
     DStringGDL* p0S;
     DStringGDL* res;
-// 	auto_ptr<DStringGDL> guard;
+// 	Guard<DStringGDL> guard;
 
 	if( p0->Type() == GDL_STRING)
 	{
@@ -1959,7 +1995,7 @@ TRACEOMP( __FILE__, __LINE__)
 	{
 		p0S = static_cast<DStringGDL*>( p0->Convert2( GDL_STRING, BaseGDL::COPY));
 		res = p0S;
-// 	    guard.reset( p0S);
+// 	    guard.Reset( p0S);
 	}
 
 //     DStringGDL* res = new DStringGDL( p0S->Dim(), BaseGDL::NOZERO);
@@ -1972,7 +2008,7 @@ TRACEOMP( __FILE__, __LINE__)
 #pragma omp parallel if ((nEl*10) >= CpuTPOOL_MIN_ELTS && (CpuTPOOL_MAX_ELTS == 0 || CpuTPOOL_MAX_ELTS <= (nEl*10)))
 {
 #pragma omp for
-    for( int i=0; i<nEl; ++i)
+    for( OMPInt i=0; i<nEl; ++i)
       {
 		StrLowCaseInplace((*p0S)[ i]);
       }
@@ -1984,7 +2020,7 @@ TRACEOMP( __FILE__, __LINE__)
 #pragma omp parallel if ((nEl*10) >= CpuTPOOL_MIN_ELTS && (CpuTPOOL_MAX_ELTS == 0 || CpuTPOOL_MAX_ELTS <= (nEl*10)))
 {
 #pragma omp for
-    for( int i=0; i<nEl; ++i)
+    for( OMPInt i=0; i<nEl; ++i)
       {
 		(*res)[ i] = StrLowCase((*p0S)[ i]);
       }
@@ -2003,7 +2039,7 @@ TRACEOMP( __FILE__, __LINE__)
 //     DStringGDL* p0S = e->GetParAs<DStringGDL>( 0);
     DStringGDL* p0S;
     DStringGDL* res;
-// 	auto_ptr<DStringGDL> guard;
+// 	Guard<DStringGDL> guard;
 
 	if( p0->Type() == GDL_STRING)
 	{
@@ -2017,7 +2053,7 @@ TRACEOMP( __FILE__, __LINE__)
 	{
 		p0S = static_cast<DStringGDL*>( p0->Convert2( GDL_STRING, BaseGDL::COPY));
 		res = p0S;
-// 	    guard.reset( p0S);
+// 	    guard.Reset( p0S);
 	}
 
 //     DStringGDL* res = new DStringGDL( p0S->Dim(), BaseGDL::NOZERO);
@@ -2030,7 +2066,7 @@ TRACEOMP( __FILE__, __LINE__)
 #pragma omp parallel if ((nEl*10) >= CpuTPOOL_MIN_ELTS && (CpuTPOOL_MAX_ELTS == 0 || CpuTPOOL_MAX_ELTS <= (nEl*10)))
 {
 #pragma omp for
-    for( int i=0; i<nEl; ++i)
+    for( OMPInt i=0; i<nEl; ++i)
       {
 		StrUpCaseInplace((*p0S)[ i]);
       }
@@ -2042,7 +2078,7 @@ TRACEOMP( __FILE__, __LINE__)
 #pragma omp parallel if ((nEl*10) >= CpuTPOOL_MIN_ELTS && (CpuTPOOL_MAX_ELTS == 0 || CpuTPOOL_MAX_ELTS <= (nEl*10)))
 {
 #pragma omp for
-    for( int i=0; i<nEl; ++i)
+    for( OMPInt i=0; i<nEl; ++i)
       {
 		(*res)[ i] = StrUpCase((*p0S)[ i]);
       }
@@ -2059,14 +2095,14 @@ TRACEOMP( __FILE__, __LINE__)
 //     e->NParam( 1);//, "STRLEN");
 
     DStringGDL* p0S;
-	auto_ptr<DStringGDL> guard;
+	Guard<DStringGDL> guard;
 	
 	if( p0->Type() == GDL_STRING)
 		p0S = static_cast<DStringGDL*>( p0);
 	else
 	{
 		p0S = static_cast<DStringGDL*>( p0->Convert2( GDL_STRING, BaseGDL::COPY));
-	    guard.reset( p0S);
+	    guard.Reset( p0S);
 	}
 
     DLongGDL* res = new DLongGDL( p0S->Dim(), BaseGDL::NOZERO);
@@ -2261,7 +2297,7 @@ TRACEOMP( __FILE__, __LINE__)
 #pragma omp parallel if (nEl >= CpuTPOOL_MIN_ELTS && (CpuTPOOL_MAX_ELTS == 0 || CpuTPOOL_MAX_ELTS <= nEl)) shared(sum)
 {
 #pragma omp for
-    for ( int i=0; i<nEl; ++i)
+    for ( OMPInt i=0; i<nEl; ++i)
       {
 	AddOmitNaN(sum, (*src)[ i]);
       }
@@ -2425,7 +2461,7 @@ TRACEOMP( __FILE__, __LINE__)
 		// Conver to Long64
 		DLong64GDL* p0L64 = static_cast<DLong64GDL*>
 		  (p0->Convert2( GDL_LONG64, BaseGDL::COPY));
-		auto_ptr<DLong64GDL> guard( p0L64);
+		Guard<DLong64GDL> guard( p0L64);
 		return total_template<DLong64GDL>( p0L64, nan);
 
 	      } // integer results
@@ -2456,20 +2492,20 @@ TRACEOMP( __FILE__, __LINE__)
 		  }
  		DFloatGDL* p0F = static_cast<DFloatGDL*>
  		  (p0->Convert2( GDL_FLOAT,BaseGDL::COPY));
- 		auto_ptr<DFloatGDL> guard( p0F);
+ 		Guard<DFloatGDL> guard( p0F);
 		return total_template<DFloatGDL>( p0F, false);
 	      }
 	    if( p0->Type() == GDL_COMPLEX)
 	      {
 		DComplexDblGDL* p0D = static_cast<DComplexDblGDL*>
 		  (p0->Convert2( GDL_COMPLEXDBL,BaseGDL::COPY));
-		auto_ptr<DComplexDblGDL> p0D_guard( p0D);
+		Guard<DComplexDblGDL> p0D_guard( p0D);
 		return total_template<DComplexDblGDL>( p0D, nan); 
 	      }
 	    
 	    DDoubleGDL* p0D = static_cast<DDoubleGDL*>
 	      (p0->Convert2( GDL_DOUBLE, BaseGDL::COPY));
-	    auto_ptr<DDoubleGDL> p0D_guard( p0D);
+	    Guard<DDoubleGDL> p0D_guard( p0D);
 	    return total_template<DDoubleGDL>( p0D, nan);
 	  }
 	else // cumulative
@@ -2603,7 +2639,7 @@ TRACEOMP( __FILE__, __LINE__)
 	    DLong64GDL* p0L64 = static_cast<DLong64GDL*>
 	      (p0->Convert2( GDL_LONG64, BaseGDL::COPY));
 
-	    auto_ptr<DLong64GDL> p0L64_guard( p0L64);
+	    Guard<DLong64GDL> p0L64_guard( p0L64);
 	    return total_over_dim_template<DLong64GDL>
 	      ( p0L64, srcDim, sumDim-1, nan);
 	    
@@ -2635,8 +2671,8 @@ TRACEOMP( __FILE__, __LINE__)
 	    // default for NOT /GDL_DOUBLE
 	    DFloatGDL* p0F = static_cast<DFloatGDL*>
 	      (p0->Convert2( GDL_FLOAT,BaseGDL::COPY));
-	    auto_ptr<DFloatGDL> p0F_guard( p0F);
-	    //	    p0F_guard.reset( p0F);
+	    Guard<DFloatGDL> p0F_guard( p0F);
+	    //	    p0F_guard.Reset( p0F);
 	    return total_over_dim_template< DFloatGDL>
 	      ( p0F, srcDim, sumDim-1, false);
 	  }
@@ -2644,16 +2680,16 @@ TRACEOMP( __FILE__, __LINE__)
 	  {
 	    DComplexDblGDL* p0D = static_cast<DComplexDblGDL*>
 	      (p0->Convert2( GDL_COMPLEXDBL,BaseGDL::COPY));
-	    auto_ptr<DComplexDblGDL> p0D_guard( p0D);
-	    // 	    p0D_guard.reset( p0D);
+	    Guard<DComplexDblGDL> p0D_guard( p0D);
+	    // 	    p0D_guard.Reset( p0D);
 	    return total_over_dim_template< DComplexDblGDL>
 	      ( p0D, srcDim, sumDim-1, nan);
 	  }
 	// default for /GDL_DOUBLE
 	DDoubleGDL* p0D = static_cast<DDoubleGDL*>
 	  (p0->Convert2( GDL_DOUBLE,BaseGDL::COPY));
-	auto_ptr<DDoubleGDL> p0D_guard( p0D);
-	//p0D_guard.reset( p0D);
+	Guard<DDoubleGDL> p0D_guard( p0D);
+	//p0D_guard.Reset( p0D);
 	return total_over_dim_template< DDoubleGDL>( p0D, srcDim, sumDim-1,nan);
       }
     else // cumulative
@@ -2781,7 +2817,7 @@ TRACEOMP( __FILE__, __LINE__)
 #pragma omp parallel if (nEl >= CpuTPOOL_MIN_ELTS && (CpuTPOOL_MAX_ELTS == 0 || CpuTPOOL_MAX_ELTS <= nEl)) shared(sum)
 {
 #pragma omp for reduction(*:sum)
-	for ( int i=0; i<nEl; ++i)
+	for ( OMPInt i=0; i<nEl; ++i)
 		{
 		sum *= (*src)[ i];
 		}
@@ -2793,7 +2829,7 @@ TRACEOMP( __FILE__, __LINE__)
 #pragma omp parallel if (nEl >= CpuTPOOL_MIN_ELTS && (CpuTPOOL_MAX_ELTS == 0 || CpuTPOOL_MAX_ELTS <= nEl)) shared(sum)
 {
 #pragma omp for reduction(*:sum)
-	for ( int i=0; i<nEl; ++i)
+	for ( OMPInt i=0; i<nEl; ++i)
 		{
 		MultOmitNaN( sum, (*src)[ i]);
 		}
@@ -2991,11 +3027,11 @@ TRACEOMP( __FILE__, __LINE__)
 	    // Convert to Long64
 	    DLong64GDL* p0L64 = static_cast<DLong64GDL*>
 	      (p0->Convert2( GDL_LONG64, BaseGDL::COPY));
-	    auto_ptr<DLong64GDL> guard( p0L64);
+	    Guard<DLong64GDL> guard( p0L64);
 	    if (KwNaN) {
 	      DFloatGDL* p0f = static_cast<DFloatGDL*>
 		(p0->Convert2( GDL_FLOAT, BaseGDL::COPY));
-	      auto_ptr<DFloatGDL> guard( p0f);
+	      Guard<DFloatGDL> guard( p0f);
 	      for( SizeT i=0; i<nEl; ++i) {
 		if (!isfinite((*p0f)[i])) (*p0L64)[i]=1;
 	      }
@@ -3014,15 +3050,15 @@ TRACEOMP( __FILE__, __LINE__)
 	  if( p0->Type() == GDL_COMPLEX) {
 	    DComplexDblGDL* p0D = static_cast<DComplexDblGDL*>
 	      (p0->Convert2( GDL_COMPLEXDBL,BaseGDL::COPY));
-	    auto_ptr<DComplexDblGDL> p0D_guard( p0D);
-	    //p0D_guard.reset( p0D);
+	    Guard<DComplexDblGDL> p0D_guard( p0D);
+	    //p0D_guard.Reset( p0D);
 	    return product_template<DComplexDblGDL>( p0D, KwNaN); 
 	  }
 	  
 	  DDoubleGDL* p0D = static_cast<DDoubleGDL*>
 	    (p0->Convert2( GDL_DOUBLE, BaseGDL::COPY));
-	  auto_ptr<DDoubleGDL> p0D_guard( p0D);
-	  //	    p0D_guard.reset( p0D);
+	  Guard<DDoubleGDL> p0D_guard( p0D);
+	  //	    p0D_guard.Reset( p0D);
 	  return product_template<DDoubleGDL>( p0D, KwNaN);
 	} 
 	else
@@ -3062,11 +3098,11 @@ TRACEOMP( __FILE__, __LINE__)
 	      // Convert to Long64
 	      DLong64GDL* p0L64 = static_cast<DLong64GDL*>
 		(p0->Convert2( GDL_LONG64, BaseGDL::COPY));
-	      auto_ptr<DLong64GDL> guard( p0L64);
+	      Guard<DLong64GDL> guard( p0L64);
 	      if (KwNaN) {
 		DFloatGDL* p0f = static_cast<DFloatGDL*>
 		  (p0->Convert2( GDL_FLOAT, BaseGDL::COPY));
-		auto_ptr<DFloatGDL> guard( p0f);
+		Guard<DFloatGDL> guard( p0f);
 		for( SizeT i=0; i<nEl; ++i) {
 		  if (!isfinite((*p0f)[i])) (*p0L64)[i]=1;
 		}
@@ -3140,11 +3176,11 @@ TRACEOMP( __FILE__, __LINE__)
 	// Conver to Long64
 	DLong64GDL* p0L64 = static_cast<DLong64GDL*>
 	  (p0->Convert2( GDL_LONG64, BaseGDL::COPY));
-	auto_ptr<DLong64GDL> guard( p0L64);
+	Guard<DLong64GDL> guard( p0L64);
 	if (KwNaN) {
 	  DFloatGDL* p0f = static_cast<DFloatGDL*>
 	    (p0->Convert2( GDL_FLOAT, BaseGDL::COPY));
-	  auto_ptr<DFloatGDL> guard( p0f);
+	  Guard<DFloatGDL> guard( p0f);
 	  for( SizeT i=0; i<nEl; ++i) {
 	    if (!isfinite((*p0f)[i])) (*p0L64)[i]=1;
 	  }
@@ -3164,16 +3200,16 @@ TRACEOMP( __FILE__, __LINE__)
       if( p0->Type() == GDL_COMPLEX) {
 	DComplexDblGDL* p0D = static_cast<DComplexDblGDL*>
 	  (p0->Convert2( GDL_COMPLEXDBL,BaseGDL::COPY));
-	auto_ptr<DComplexDblGDL> p0D_guard( p0D);
-	//	    p0D_guard.reset( p0D);
+	Guard<DComplexDblGDL> p0D_guard( p0D);
+	//	    p0D_guard.Reset( p0D);
 	return product_over_dim_template< DComplexDblGDL>
 	  ( p0D, srcDim, sumDim-1, KwNaN);
       }
 	
       DDoubleGDL* p0D = static_cast<DDoubleGDL*>
 	(p0->Convert2( GDL_DOUBLE,BaseGDL::COPY));
-      auto_ptr<DDoubleGDL> p0D_guard( p0D);
-      //p0D_guard.reset( p0D);
+      Guard<DDoubleGDL> p0D_guard( p0D);
+      //p0D_guard.Reset( p0D);
       return product_over_dim_template< DDoubleGDL>
 	( p0D, srcDim, sumDim-1,KwNaN);
     } 
@@ -3216,7 +3252,7 @@ TRACEOMP( __FILE__, __LINE__)
 	if (KwNaN) {
 	  DFloatGDL* p0f = static_cast<DFloatGDL*>
 	    (p0->Convert2( GDL_FLOAT, BaseGDL::COPY));
-	  auto_ptr<DFloatGDL> guard( p0f);
+	  Guard<DFloatGDL> guard( p0f);
 	  for( SizeT i=0; i<nEl; ++i) {
 	    if (!isfinite((*p0f)[i])) (*p0f)[i]=1;
 	  }
@@ -3264,8 +3300,8 @@ TRACEOMP( __FILE__, __LINE__)
     if( nEl0 != nEl1 && nEl0 != 1 && nEl1 != 1)
       return new DByteGDL( 0);
     
-    auto_ptr<BaseGDL> p0_guard;
-    auto_ptr<BaseGDL> p1_guard;
+    Guard<BaseGDL> p0_guard;
+    Guard<BaseGDL> p1_guard;
     if( p0->Type() != p1->Type())
       {
 	if( e->KeywordSet( 0)) // NO_TYPECONV
@@ -3277,12 +3313,12 @@ TRACEOMP( __FILE__, __LINE__)
 	    if( DTypeOrder[aTy] >= DTypeOrder[bTy])
 	      {
 		p1 = p1->Convert2( aTy, BaseGDL::COPY);
-		p1_guard.reset( p1);
+		p1_guard.Reset( p1);
 	      }
 	    else
 	      {
 		p0 = p0->Convert2( bTy, BaseGDL::COPY);
-		p0_guard.reset( p0);
+		p0_guard.Reset( p0);
 	      }
 	  }
       }
@@ -3531,7 +3567,7 @@ BaseGDL* transpose( EnvT* e)
 	  e->Throw("Incorrect number of elements in permutation.");
 
 	DUInt* perm = new DUInt[rank];
-	auto_ptr<DUInt> perm_guard( perm);
+	ArrayGuard<DUInt> perm_guard( perm);
 
 	DUIntGDL* p1L = static_cast<DUIntGDL*>
 	  (p1->Convert2( GDL_UINT, BaseGDL::COPY));
@@ -3573,7 +3609,7 @@ BaseGDL* transpose( EnvT* e)
 // 	  e->Throw("Incorrect number of elements in permutation.");
 // 
 // 	DUInt* perm = new DUInt[rank];
-// 	auto_ptr<DUInt> perm_guard( perm);
+// 	Guard<DUInt> perm_guard( perm);
 // 
 // 	DUIntGDL* p1L = static_cast<DUIntGDL*>
 // 	  (p1->Convert2( GDL_UINT, BaseGDL::COPY));
@@ -4071,7 +4107,7 @@ BaseGDL* transpose( EnvT* e)
 	    if ( (*p0)[ii] > max ) max = ((*p0)[ii]);
 	  }	
 		
-   	//---------------------------- END d'acquisistion des paramÃ¨tres -------------------------------------	
+   	//---------------------------- END d'acquisistion des paramÃ?tres -------------------------------------	
 
 	
 	static int evenIx = e->KeywordIx( "EVEN");
@@ -4619,6 +4655,7 @@ BaseGDL* transpose( EnvT* e)
     return new DIntGDL( 0);
   }
 
+  /*
   BaseGDL* convol( EnvT* e)
   {
     SizeT nParam=e->NParam( 2); 
@@ -4633,7 +4670,7 @@ BaseGDL* transpose( EnvT* e)
       e->Throw( "Expression must be an array in this context: "+
 		e->GetParString(1));
     
-    if( p0->N_Elements() <= p1->N_Elements())
+    if( p0->N_Elements() < p1->N_Elements())
       e->Throw( "Incompatible dimensions for Array and Kernel.");
 
     // rank 1 for kernel works always
@@ -4644,28 +4681,28 @@ BaseGDL* transpose( EnvT* e)
 	  e->Throw( "Incompatible dimensions for Array and Kernel.");
 
 	for( SizeT r=0; r<rank; ++r)
-	  if( p0->Dim( r) <= p1->Dim( r))
+	  if( p0->Dim( r) < p1->Dim( r))
 	    e->Throw( "Incompatible dimensions for Array and Kernel.");
       }
 
     // convert kernel to array type
-    auto_ptr<BaseGDL> p1Guard;
+    Guard<BaseGDL> p1Guard;
     if( p0->Type() == GDL_BYTE)
       {
 	if( p1->Type() != GDL_INT)
 	  {
 	    p1 = p1->Convert2( GDL_INT, BaseGDL::COPY); 
-	    p1Guard.reset( p1);
+	    p1Guard.Reset( p1);
 	  }
       }
     else if( p0->Type() != p1->Type())
       {
 	p1 = p1->Convert2( p0->Type(), BaseGDL::COPY); 
-	p1Guard.reset( p1);
+	p1Guard.Reset( p1);
       }
 
     BaseGDL* scale;
-    auto_ptr<BaseGDL> scaleGuard;
+    Guard<BaseGDL> scaleGuard;
     if( nParam > 2)
       {
 	scale = e->GetParDefined( 2);
@@ -4677,7 +4714,7 @@ BaseGDL* transpose( EnvT* e)
 	if( p1->Type() != scale->Type())
 	  {
 	    scale = scale->Convert2( p1->Type(),BaseGDL::COPY); 
-	    scaleGuard.reset( scale);
+	    scaleGuard.Reset( scale);
 	  }
       }
     else
@@ -4709,9 +4746,21 @@ BaseGDL* transpose( EnvT* e)
     // p0, p1 and scale have same type
     // p1 has rank of 1 or same rank as p0 with each dimension smaller than p0
     // scale is a scalar
-    return p0->Convol( p1, scale, center, edgeMode);
-  }
 
+    static int biasIx = e->KeywordIx("BIAS");
+    bool statusBias = e->KeywordPresent( biasIx );
+    DLong bias=0;
+    if(statusBias)
+      e->AssureLongScalarKW( biasIx, bias);
+
+
+    if(statusBias)cout<<"bias is present: "<<bias<<endl;
+
+    // TODO: for now to be able to compile
+    return p0->Convol( p1, scale, NULL, center, false, edgeMode);
+        
+  }
+  */
   BaseGDL* rebin_fun( EnvT* e)
   {
     SizeT nParam = e->NParam( 2);
@@ -4826,7 +4875,7 @@ BaseGDL* transpose( EnvT* e)
 	    try {
 	      oStruct = e->GetObjHeap( objRef);
 	    }
-	    catch ( GDLInterpreter::HeapException)
+	    catch ( GDLInterpreter::HeapException )
 	      { // non valid object
 		if( count)
 		  e->SetKW( countIx, new DLongGDL( 0));
@@ -4843,7 +4892,7 @@ BaseGDL* transpose( EnvT* e)
 	    return new DStringGDL( objDesc->Name());
 	  }
 	
-	deque< string> pNames;
+	vector< string> pNames;
 	objDesc->GetParentNames( pNames);
 
 	SizeT nNames = pNames.size();
@@ -4956,6 +5005,7 @@ BaseGDL* transpose( EnvT* e)
     DLong topL=255;
     if( e->GetKW( topIx) != NULL)
       e->AssureLongScalarKW( topIx, topL);
+    if (topL > 255) topL=255; // Bug corrected!
     DByte top = static_cast<DByte>(topL);
     DDouble dTop = static_cast<DDouble>(top);
 
@@ -5012,7 +5062,7 @@ BaseGDL* transpose( EnvT* e)
           // SA (?): here floor is used (instead of round) to simulate IDL behaviour
           else (*dRes)[ i] = floor((d - min) / (max-min) * (dTop + .9999));
         }
-      }
+    }
 
     return dRes->Convert2( GDL_BYTE);
   } 
@@ -5042,18 +5092,18 @@ BaseGDL* transpose( EnvT* e)
     bool pre0 = e->KeywordSet( pre0Ix);
 
     static int regexIx = e->KeywordIx( "REGEX");
-    bool regex = e->KeywordPresent( regexIx);
+    bool regex = e->KeywordSet( regexIx);
     char err_msg[MAX_REGEXPERR_LENGTH];
     regex_t regexp;
     
-    deque<long> tokenStart;
-    deque<long> tokenLen;
+    vector<long> tokenStart;
+    vector<long> tokenLen;
  
     int strLen = stringIn.length();
 
     DString escape = "";
     e->AssureStringScalarKWIfPresent( "ESCAPE", escape);
-    deque<long> escList;
+    vector<long> escList;
     long pos = 0;
     while(pos != string::npos)
       {
@@ -5064,8 +5114,8 @@ BaseGDL* transpose( EnvT* e)
 	    pos += 2; // skip escaped char
 	  }
       }
-    deque<long>::iterator escBeg = escList.begin();
-    deque<long>::iterator escEnd = escList.end();
+    vector<long>::iterator escBeg = escList.begin();
+    vector<long>::iterator escEnd = escList.end();
 
     long tokB = 0;
     long tokE;
@@ -5431,6 +5481,7 @@ BaseGDL* transpose( EnvT* e)
   BaseGDL* routine_info( EnvT* e)
   {
     SizeT nParam=e->NParam();
+    if (nParam > 1) e->Throw("Incorrect number of arguments.");
 
     static int functionsIx = e->KeywordIx( "FUNCTIONS" );
     bool functionsKW = e->KeywordSet( functionsIx );
@@ -5440,12 +5491,79 @@ BaseGDL* transpose( EnvT* e)
     bool disabledKW = e->KeywordSet( disabledIx );
     static int parametersIx = e->KeywordIx( "PARAMETERS" );
     bool parametersKW = e->KeywordSet( parametersIx );
+    static int sourceIx = e->KeywordIx( "SOURCE" );
+    bool sourceKW = e->KeywordSet(sourceIx );
+
+    if (sourceKW) {
+
+      // sanity checks
+      if (systemKW) e->Throw("Conflicting keywords.");
+
+      // we are not ready to manage the case when no param is provide (routine name)
+      if (nParam == 0) e->Throw("This case is not ready");
+
+      // it seems that the code inside "CREATE_STRUCTURE()" (see here below)
+      // shall be a base to do it (notes by AC, May 16, 2013)
+      
+      /*if (functionsKW) {
+	if (funList.size() == 0) {
+	return new DStringGDL("");
+	} else {
+      */
+
+      // getting the routine name from the first parameter (must be a singleton)
+      DString raw_name, name;
+      e->AssureScalarPar<DStringGDL>(0, raw_name);
+      name = StrUpCase(raw_name);
+      
+      string FullFileName;
+      bool found=false;
+
+      //      SizeT n = funList.size();
+      //cout << funList.size() << endl;
+      //cout << proList.size() << endl;
+
+      // looking in the compiled functions (if /function keyword provided)
+      // or in the compiled procedures
+      if (functionsKW) {
+	for(FunListT::iterator i=funList.begin(); i != funList.end(); ++i) {
+	  if ((*i)->ObjectName() == name) {
+	    found=true;
+	    FullFileName=(*i)->GetFilename();
+	    break;
+	  }
+	}
+	if (!found) e->Throw("% Attempt to call undefined/not compiled function: '"+raw_name+"'");	
+      } else {
+	for(ProListT::iterator i=proList.begin(); i != proList.end(); ++i) {
+	  if ((*i)->ObjectName() == name) {
+	    found=true;
+	    FullFileName=(*i)->GetFilename();
+	    break;
+	  }
+	}
+	if (!found) e->Throw("% Attempt to call undefined/not compiled procedure: '"+raw_name+"'");
+      }
+      
+      // creating the output anonymous structure
+      DStructDesc* stru_desc = new DStructDesc("$truct");
+      SpDString aString;
+      stru_desc->AddTag("NAME", &aString);
+      stru_desc->AddTag("PATH", &aString);
+      
+      DStructGDL* stru = new DStructGDL(stru_desc, dimension());
+      // filling the structure with information about the routine 
+      stru->InitTag("NAME", DStringGDL(name));
+      stru->InitTag("PATH", DStringGDL(FullFileName));
+
+      return stru;
+
+    }
 
     if (parametersKW)
     {
       // sanity checks
       if (systemKW || disabledKW) e->Throw("Conflicting keywords.");
-      if (nParam != 1) e->Throw("Incorrect number of arguments.");
 
       // getting the routine name from the first parameter
       DString name;
@@ -5501,7 +5619,7 @@ BaseGDL* transpose( EnvT* e)
 
     //    if( functionsKW || systemKW || nParam == 0)
     //      {
-    deque<DString> subList;
+    vector<DString> subList;
 	    
     if( functionsKW)
       {
@@ -5991,7 +6109,7 @@ BaseGDL* transpose( EnvT* e)
 	  }
 
 	DStructDesc*          nStructDesc;
-	auto_ptr<DStructDesc> nStructDescGuard;
+	Guard<DStructDesc> nStructDescGuard;
 	
 	DStructDesc* oStructDesc=
 	  FindInStructList( structList, name);
@@ -6003,7 +6121,7 @@ BaseGDL* transpose( EnvT* e)
 	    nStructDesc= new DStructDesc( name);
                     
 	    // guard it
-	    nStructDescGuard.reset( nStructDesc); 
+	    nStructDescGuard.Reset( nStructDesc); 
 	  }
 	else
 	  {   
@@ -6016,14 +6134,14 @@ BaseGDL* transpose( EnvT* e)
 	// 	dimension dim( 1);
 	// 	DStructGDL* instance = new DStructGDL( nStructDesc, dim);
 	DStructGDL* instance = new DStructGDL( nStructDesc);
-	auto_ptr<DStructGDL> instance_guard(instance);
+	Guard<DStructGDL> instance_guard(instance);
 
 	for( SizeT p=0; p<nParam; ++p)
 	  {
 	    BaseGDL* par = e->GetParDefined( p);
-	    DStructGDL* parStruct = dynamic_cast<DStructGDL*>( par);
-	    if( parStruct != NULL)
+	    if( par->Type() == GDL_STRUCT)
 	      {
+		DStructGDL* parStruct = static_cast<DStructGDL*>( par);
 		// add struct
 		if( !parStruct->Scalar())
 		  e->Throw("Expression must be a scalar in this context: "+
@@ -6086,8 +6204,8 @@ BaseGDL* transpose( EnvT* e)
 	SizeT nParam;
 	nParam = e->NParam(1);
 	BaseGDL* par = e->GetParDefined( 0);
-	DStructGDL* parStruct = dynamic_cast<DStructGDL*>( par);
-	if (nParam != 1 || parStruct == NULL)
+// 	DStructGDL* parStruct = dynamic_cast<DStructGDL*>( par);
+	if (nParam != 1 || par->Type() != GDL_STRUCT)// == NULL)
 	  nParam=e->NParam(2);
 
 	DStructDesc*          nStructDesc = new DStructDesc( "$truct");
@@ -6095,15 +6213,17 @@ BaseGDL* transpose( EnvT* e)
 	// 	dimension dim( 1);
 	// 	DStructGDL* instance = new DStructGDL( nStructDesc, dim);
 	DStructGDL* instance = new DStructGDL( nStructDesc);
-	auto_ptr<DStructGDL> instance_guard(instance);
+	Guard<DStructGDL> instance_guard(instance);
 
 	for( SizeT p=0; p<nParam;)
 	  {
 	    BaseGDL* par = e->GetParDefined( p);
-	    DStructGDL* parStruct = dynamic_cast<DStructGDL*>( par);
-	    if( parStruct != NULL)
+// 	    DStructGDL* parStruct = dynamic_cast<DStructGDL*>( par);
+// 	    if( parStruct != NULL)
+	    if( par->Type() == GDL_STRUCT)
 	      {
 		// add struct
+		DStructGDL* parStruct = static_cast<DStructGDL*>( par);
 		if( !parStruct->Scalar())
 		  e->Throw("Expression must be a scalar in this context: "+
 			   e->GetParString( p));
@@ -6239,7 +6359,7 @@ BaseGDL* transpose( EnvT* e)
     urlstru_desc->AddTag("PATH",     &aString);
     urlstru_desc->AddTag("QUERY",    &aString);
     DStructGDL* urlstru = new DStructGDL(urlstru_desc, dimension());
-    auto_ptr<DStructGDL> urlstru_guard(urlstru);
+    Guard<DStructGDL> urlstru_guard(urlstru);
           
     // parsing the URL
     char const *str = url.c_str();

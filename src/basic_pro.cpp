@@ -19,6 +19,9 @@
 
 #include "includefirst.hpp"
 
+#include <sys/types.h>
+#include <dirent.h>
+
 #include <string>
 #include <fstream>
 #include <memory>
@@ -80,57 +83,70 @@ namespace lib {
     static int vectorEableIx = e->KeywordIx( "VECTOR_ENABLE");
 
     bool reset = e->KeywordSet( resetIx);
+    bool restore = e->KeywordSet( restoreIx);
+    if ((reset) && (restore)) e->Throw("Conflicting keywords.");
+
     bool vectorEnable = e->KeywordSet( vectorEableIx);
+
+    DLong NbCOREs=1;
+#ifdef _OPENMP
+    NbCOREs=omp_get_num_procs();
+#endif
 
     DLong locCpuTPOOL_NTHREADS=CpuTPOOL_NTHREADS;
     DLong locCpuTPOOL_MIN_ELTS=CpuTPOOL_MIN_ELTS;
     DLong locCpuTPOOL_MAX_ELTS=CpuTPOOL_MAX_ELTS;
 
+    // reading the Tag Index of the variable parts in !CPU
     DStructGDL* cpu = SysVar::Cpu();
-
     static unsigned NTHREADSTag = cpu->Desc()->TagIndex( "TPOOL_NTHREADS");
     static unsigned TPOOL_MIN_ELTSTag = cpu->Desc()->TagIndex( "TPOOL_MIN_ELTS");
     static unsigned TPOOL_MAX_ELTSTag = cpu->Desc()->TagIndex( "TPOOL_MAX_ELTS");
 
     if( reset)
-	{
-#ifdef _OPENMP
-        locCpuTPOOL_NTHREADS = omp_get_num_procs();
-#endif
+      {
+	locCpuTPOOL_NTHREADS = NbCOREs;
         locCpuTPOOL_MIN_ELTS = DefaultTPOOL_MIN_ELTS;
         locCpuTPOOL_MAX_ELTS = DefaultTPOOL_MAX_ELTS;
-	}
+      }
     else if( e->KeywordPresent( restoreIx))
-	{
+      {
 	DStructGDL* restoreCpu = e->GetKWAs<DStructGDL>( restoreIx);
-
+	
 	if( restoreCpu->Desc() != cpu->Desc())
-		e->Throw("RESTORE must be set to an instance with the same struct layout as {!CPU}");
-
+	  e->Throw("RESTORE must be set to an instance with the same struct layout as {!CPU}");
+	
         locCpuTPOOL_NTHREADS = (*(static_cast<DLongGDL*>( restoreCpu->GetTag( NTHREADSTag, 0))))[0];
         locCpuTPOOL_MIN_ELTS = (*(static_cast<DLongGDL*>( restoreCpu->GetTag( TPOOL_MIN_ELTSTag, 0))))[0];
         locCpuTPOOL_MAX_ELTS= (*(static_cast<DLongGDL*>( restoreCpu->GetTag( TPOOL_MAX_ELTSTag, 0))))[0];
-	}
+      }
     else
-	{
-		if( e->KeywordPresent(nThreadsIx))
-		{
-		e->AssureLongScalarKW(nThreadsIx, locCpuTPOOL_NTHREADS);
-		}
-		if( e->KeywordPresent(min_eltsIx))
-		{
-		e->AssureLongScalarKW(min_eltsIx, locCpuTPOOL_MIN_ELTS);
-		}
-		if( e->KeywordPresent(max_eltsIx))
-		{
-		e->AssureLongScalarKW(max_eltsIx, locCpuTPOOL_MAX_ELTS);
-		}
-	}
+      {
+	if( e->KeywordPresent(nThreadsIx))
+	  {
+	    e->AssureLongScalarKW(nThreadsIx, locCpuTPOOL_NTHREADS);
+	  }
+	if( e->KeywordPresent(min_eltsIx))
+	  {
+	    e->AssureLongScalarKW(min_eltsIx, locCpuTPOOL_MIN_ELTS);
+	  }
+	if( e->KeywordPresent(max_eltsIx))
+	  {
+	    e->AssureLongScalarKW(max_eltsIx, locCpuTPOOL_MAX_ELTS);
+	  }
+      }
 
-	// update here all together in case of error
-
+    // update here all together in case of error
+    
 #ifdef _OPENMP
-    CpuTPOOL_NTHREADS=locCpuTPOOL_NTHREADS;
+    //cout <<locCpuTPOOL_NTHREADS << " " << CpuTPOOL_NTHREADS << endl;
+    if (locCpuTPOOL_NTHREADS > 0) {
+      CpuTPOOL_NTHREADS=locCpuTPOOL_NTHREADS;
+    } else {
+      CpuTPOOL_NTHREADS=NbCOREs;
+    }
+    if (CpuTPOOL_NTHREADS > NbCOREs)
+      Warning("CPU : Warning: Using more threads ("+i2s(CpuTPOOL_NTHREADS)+") than the number of CPUs in the system ("+i2s(NbCOREs)+") will degrade performance.");
 #else
     CpuTPOOL_NTHREADS=1;
 #endif
@@ -170,32 +186,86 @@ namespace lib {
         return;
       }
     os.width(10);
-    os << par->TypeStr() << right;
-
-    if( !doIndentation) os << "= ";
-
+    bool doTypeString = true;
+    
     // Data display
     if( par->Type() == GDL_STRUCT)
       {
-        DStructGDL* s = static_cast<DStructGDL*>( par);
+	os << par->TypeStr() << right;
+	if( !doIndentation) os << "= ";
+	doTypeString = false;
+	
+	DStructGDL* s = static_cast<DStructGDL*>( par);
         os << "-> ";
         os << (s->Desc()->IsUnnamed()? "<Anonymous>" : s->Desc()->Name());
 	os << " ";
       }
     else if( par->Dim( 0) == 0)
+    {
+      if (par->Type() == GDL_STRING)
       {
-        if (par->Type() == GDL_STRING)
-	  {
-            // trim string larger than 45 characters
-            DString dataString = (*static_cast<DStringGDL*>(par))[0];
-            os << "'" << StrMid( dataString,0,45,0) << "'";
-	    if( dataString.length() > 45) os << "...";
-	  }
-	else
-	  {
-            par->ToStream( os);
-	  }
+	os << par->TypeStr() << right;
+	if( !doIndentation) os << "= ";
+	doTypeString = false;
+
+	// trim string larger than 45 characters
+	DString dataString = (*static_cast<DStringGDL*>(par))[0];
+	os << "'" << StrMid( dataString,0,45,0) << "'";
+	if( dataString.length() > 45) os << "...";
       }
+      else if (par->Type() == GDL_OBJ && par->StrictScalar())
+      {
+	DObj s = (*static_cast<DObjGDL*>(par))[0]; // is StrictScalar()
+	if( s != 0)  // no overloads for null object
+	{
+	  DStructGDL* oStructGDL= GDLInterpreter::GetObjHeapNoThrow( s);
+	  if( oStructGDL != NULL) // if object not valid -> default behaviour
+	  {  
+	    DStructDesc* desc = oStructGDL->Desc();
+	    static DString listName("LIST");
+	    if( desc->IsParent(listName))
+	    {
+	      os << desc->Name();
+
+	      unsigned nListTag = desc->TagIndex( "NLIST");
+	      DLong nList = (*static_cast<DLongGDL*>(oStructGDL->GetTag( nListTag, 0)))[0];
+	      os << left;
+	      os << "<ID=";
+	      os << i2s(s) <<"  N_ELEMENTS=" << i2s(nList) << ">";      
+	       
+	      doTypeString = false;
+	    }
+	    static DString hashName("HASH");
+	    if( desc->IsParent(hashName))
+	    {
+	      os << desc->Name();
+
+	      unsigned nListTag = desc->TagIndex( "TABLE_COUNT");
+	      DLong nList = (*static_cast<DLongGDL*>(oStructGDL->GetTag( nListTag, 0)))[0];
+	      os << left;
+	      os << "<ID=";
+	      os << i2s(s) <<"  N_ELEMENTS=" << i2s(nList) << ">";      
+	       
+	      doTypeString = false;
+	    }
+	  }
+	}
+      }
+      if( doTypeString)
+      {	
+	os << par->TypeStr() << right;
+	if( !doIndentation) os << "= ";
+	doTypeString = false;
+	
+	par->ToStream( os);
+      }
+    }
+
+    if( doTypeString)
+    {
+	os << par->TypeStr() << right;
+	if( !doIndentation) os << "= ";
+    }
 
     // Dimension display
     if( par->Dim( 0) != 0) os << par->Dim();
@@ -237,22 +307,80 @@ namespace lib {
     return recall_commands_internal();
   }
 
-  void help( EnvT* e)
+  void help_path_cached()  // showing HELP, /path_cache
   {
-    bool kw = false;
+    DIR *dirp;
+    struct dirent *dp;
+    const char *ProSuffix=".pro";
+    int ProSuffixLen = strlen(ProSuffix);
+    int NbProFilesInCurrentDir;
+    string tmp_fname;
+    size_t found;
 
+    StrArr path=SysVar::GDLPath();
+
+    cout << "!PATH (no cache managment in GDL, "<< path.size()  << " directories)" << endl;
+
+    for( StrArr::iterator CurrentDir=path.begin(); CurrentDir != path.end(); CurrentDir++)
+      {
+	NbProFilesInCurrentDir=0;
+	dirp = opendir((*CurrentDir).c_str());
+	while ((dp = readdir(dirp)) != NULL){
+	  tmp_fname=dp->d_name;
+	  found = tmp_fname.rfind(ProSuffix);
+	  if (found!=std::string::npos) {
+	    if ((found+ProSuffixLen) == tmp_fname.length()) NbProFilesInCurrentDir++;
+	  }
+	}
+	cout << *CurrentDir << " (" << NbProFilesInCurrentDir << " files)" << endl;
+      }
+  }
+
+  void help( EnvT* e)
+  {    
+    bool kw = false;
+    //if LAST_MESSAGE is present, it is the only otput. All other kw are ignored.
+    static int lastmKWIx = e->KeywordIx("LAST_MESSAGE");
+    bool lastmKW = e->KeywordPresent( lastmKWIx);
+    if( lastmKW)
+    {
+      DStructGDL* errorState = SysVar::Error_State();
+      static unsigned msgTag = errorState->Desc()->TagIndex( "MSG");
+      cout << (*static_cast<DStringGDL*>( errorState->GetTag( msgTag)))[0]<< endl;
+      return;
+    }
+
+    static int helpKWIx = e->KeywordIx("HELP");
+    bool helpKW= e->KeywordPresent(helpKWIx);
+    if( helpKW) {
+      string inline_help[]={"Usage: "+e->GetProName()+", expr1, ..., exprN,", 
+			    "          /BRIEF, /CALLS, /FUNCTIONS, /HELP, /INFO,",
+			    "          /INTERNAL_LIB_GDL, /LAST_MESSAGE, /LIB, /MEMORY,",
+			    "          /OUTPUT, /PATH_CACHE, /PREFERENCES, /PROCEDURES,",
+			    "          /RECALL_COMMANDS, /ROUTINES, /SOURCE_FILES, /STRUCTURES,"};
+      int size_of_s = sizeof(inline_help) / sizeof(inline_help[0]);	
+      e->Help(inline_help, size_of_s);
+    }
+    
+    static int pathKWIx = e->KeywordIx("PATH_CACHE");
+    bool pathKW= e->KeywordPresent(pathKWIx);
+    if( pathKW) {
+      help_path_cached();
+      return;
+    }
+    
     static int sourceFilesKWIx = e->KeywordIx("SOURCE_FILES");
     bool sourceFilesKW = e->KeywordPresent( sourceFilesKWIx);
     if( sourceFilesKW)
-    {
-	deque<string> sourceFiles;
-
+      {
+	vector<string> sourceFiles;
+	
 	for(FunListT::iterator i=funList.begin(); i != funList.end(); ++i)
-	{
+	  {
 	    string funFile = (*i)->GetFilename();
 	    bool alreadyInList = false;
-	    for(deque<string>::iterator i2=sourceFiles.begin(); i2 != sourceFiles.end(); ++i2)
-	    {
+	    for(vector<string>::iterator i2=sourceFiles.begin(); i2 != sourceFiles.end(); ++i2)
+	      {
 		if( funFile == *i2)
 		{
 		  alreadyInList = true;
@@ -266,7 +394,7 @@ namespace lib {
 	{
 	    string proFile = (*i)->GetFilename();
 	    bool alreadyInList = false;
-	    for(deque<string>::iterator i2=sourceFiles.begin(); i2 != sourceFiles.end(); ++i2)
+	    for(vector<string>::iterator i2=sourceFiles.begin(); i2 != sourceFiles.end(); ++i2)
 	    {
 		if( proFile == *i2)
 		{
@@ -298,18 +426,22 @@ namespace lib {
 
 	DStringGDL* retVal = new DStringGDL( dimension( level-1), BaseGDL::NOZERO);
 	SizeT rIx = 0;
-	for( EnvStackT::reverse_iterator r = cS.rbegin()+1; r != cS.rend(); ++r)
+// 	for( EnvStackT::reverse_iterator r = cS.rbegin()+1; r != cS.rend(); ++r)
+	for( long ix = cS.size()-2; ix >= 0; --ix)
 	  {
+	    EnvUDT** r = &cS[ ix];
 	    EnvBaseT* actEnv = *r;
 	    assert( actEnv != NULL);
 
 	    DString actString = actEnv->GetProName();
 	    DSubUD* actSub = dynamic_cast<DSubUD*>(actEnv->GetPro());
-	    if( (r+1) != cS.rend() && actSub != NULL)
+// 	    if( (r+1) != cS.rend() && actSub != NULL)
+	    if( (ix-1) >= 0 && actSub != NULL)
 	      {
 		actString += " <"+actSub->GetFilename() + "(";
-		if( (*(r-1))->CallingNode() != NULL)
-		  actString += i2s( (*(r-1))->CallingNode()->getLine(), 4);
+		EnvUDT** r_1 = &cS[ ix+1];
+		if( (*(r_1))->CallingNode() != NULL)
+		  actString += i2s( (*(r_1))->CallingNode()->getLine(), 4);
 		else
 		  actString += "   ?";
 		actString += ")>";
@@ -339,7 +471,7 @@ namespace lib {
       {
 	kw = true;
 
-	deque<DString> subList;
+	vector<DString> subList;
 	SizeT nPro = libProList.size();
 	for( SizeT i = 0; i<nPro; ++i)
 	{
@@ -375,7 +507,7 @@ namespace lib {
       {
 	kw = true;
 
-	deque<DString> subList;
+	vector<DString> subList;
 	SizeT nPro = libProList.size();
 	for( SizeT i = 0; i<nPro; ++i)
 	{
@@ -445,8 +577,8 @@ namespace lib {
     // Compiled Procedures & Functions
     DLong np = proList.size() + 1;
     DLong nf = funList.size();
-    deque<DString> pList;
-    deque<DString> fList;
+    vector<DString> pList;
+    vector<DString> fList;
 
     // If OUTPUT keyword set then set up output string array (outputKW)
     BaseGDL** outputKW = NULL;
@@ -1043,11 +1175,11 @@ namespace lib {
     
     BaseGDL* p= e->GetParDefined( 0);
 
-    DObjGDL* op= dynamic_cast<DObjGDL*>(p);
-    if( op == NULL)
+    if( p->Type() != GDL_OBJ)
       e->Throw( "Parameter must be an object in"
 		" this context: "+
 		e->GetParString(0));
+    DObjGDL* op= static_cast<DObjGDL*>(p);
 
     SizeT nEl=op->N_Elements();
     for( SizeT i=0; i<nEl; i++)
@@ -1077,7 +1209,7 @@ namespace lib {
 	// make the call
 // 	EnvT* newEnv = static_cast<EnvT*>(e->Interpreter()->CallStack().back());
 	EnvT* newEnv = e->NewEnv( libProList[ proIx], 1);
-	auto_ptr<EnvT> guard( newEnv);
+	Guard<EnvT> guard( newEnv);
 	static_cast<DLibPro*>(newEnv->GetPro())->Pro()(newEnv);
       }
     else
@@ -1116,7 +1248,7 @@ namespace lib {
     if( method == NULL)
       e->Throw( "Method not found: "+callP);
 
-    e->PushNewEnvUD( method, 2, &e->GetPar( 1));
+    e->PushNewEnvUD( method, 2,(DObjGDL**) &e->GetPar( 1));
     
     // the call
     e->Interpreter()->call_pro( method->GetTree());
@@ -1555,6 +1687,17 @@ namespace lib {
 			p->Write( *os, swapEndian, compress, xdrs);
 			}
 	}
+
+    BaseGDL* p = e->GetParDefined( nParam-1);
+    SizeT cc=p->Dim(0);
+    BaseGDL** tcKW=NULL;
+    static int tcIx = e->KeywordIx( "TRANSFER_COUNT");
+    if( e->KeywordPresent( tcIx)) {
+      BaseGDL* p = e->GetParDefined( nParam-1);
+      tcKW = &e->GetKW( tcIx);
+      GDLDelete((*tcKW));
+      *tcKW= new DLongGDL(p->N_Elements());
+    }
 }
 
   void readu( EnvT* e)
@@ -1713,6 +1856,17 @@ namespace lib {
 	    recvBuf->erase(0, pos);
 	  }
 	}
+
+    BaseGDL* p = e->GetParDefined( nParam-1);
+    SizeT cc=p->Dim(0);
+    BaseGDL** tcKW=NULL;
+    static int tcIx = e->KeywordIx( "TRANSFER_COUNT");
+    if( e->KeywordPresent( tcIx)) {
+      BaseGDL* p = e->GetParDefined( nParam-1);
+      tcKW = &e->GetKW( tcIx);
+      GDLDelete((*tcKW));
+      *tcKW= new DLongGDL(p->N_Elements());
+    }
   }
 
   void on_error( EnvT* e)
@@ -1734,11 +1888,12 @@ namespace lib {
   {
     SizeT nParam = e->NParam( 2);
     
-    DStringGDL* dest = dynamic_cast<DStringGDL*>( e->GetParGlobal( 0));
-    if( dest == NULL)
+    BaseGDL* p0 = e->GetParGlobal( 0);
+    if( p0->Type() != GDL_STRING)
       e->Throw( "String expression required in this context: "+
 		e->GetParString(0));
-    
+    DStringGDL* dest = static_cast<DStringGDL*>( p0);
+      
     DString source;
     e->AssureStringScalarPar( 1, source);
     
@@ -1754,7 +1909,7 @@ TRACEOMP( __FILE__, __LINE__)
 #pragma omp parallel if (nEl >= CpuTPOOL_MIN_ELTS && (CpuTPOOL_MAX_ELTS == 0 || CpuTPOOL_MAX_ELTS <= nEl))
 {
 #pragma omp for
-    for( int i=0; i<nEl; ++i)
+    for( OMPInt i=0; i<nEl; ++i)
 	StrPut((*dest)[ i], source, pos);
 }
   }
@@ -1833,9 +1988,9 @@ TRACEOMP( __FILE__, __LINE__)
       e->Throw( "Conflicting definition for "+sysVarNameFull+".");
 
     // if struct -> assure equal descriptors
-    DStructGDL *oldStruct =  dynamic_cast<DStructGDL*>( oldVar);
-    if( oldStruct != NULL)
+    if( oldVar->Type() == GDL_STRUCT)
       {
+	DStructGDL *oldStruct =  static_cast<DStructGDL*>( oldVar);
 	// types are same -> static cast
 	DStructGDL *newStruct =  static_cast<DStructGDL*>( newVar);
 
@@ -1879,6 +2034,7 @@ TRACEOMP( __FILE__, __LINE__)
     static int noprefixIx = e->KeywordIx( "NOPREFIX");
     static int noprintIx = e->KeywordIx( "NOPRINT");
     static int resetIx = e->KeywordIx( "RESET");
+    static int reissueIx = e->KeywordIx( "REISSUE_LAST");
 
     bool continueKW = e->KeywordSet( continueIx);
     bool info = e->KeywordSet( infoIx);
@@ -1887,6 +2043,7 @@ TRACEOMP( __FILE__, __LINE__)
     bool noprefix = e->KeywordSet( noprefixIx);
     bool noprint = e->KeywordSet( noprintIx);
     bool reset = e->KeywordSet( resetIx);
+    bool reissue = e->KeywordSet( reissueIx);
 
     if( reset)
     {
@@ -1914,6 +2071,14 @@ TRACEOMP( __FILE__, __LINE__)
       SysVar::SetErrError( 0);
     }
     
+    if( reissue )
+    {
+      DStructGDL* errorState = SysVar::Error_State();
+      static unsigned msgTag = errorState->Desc()->TagIndex( "MSG");
+      if( !info || (SysVar::Quiet() == 0)) cout << (*static_cast<DStringGDL*>( errorState->GetTag( msgTag)))[0]<< endl;
+      return;
+    }
+
     if( nParam == 0) return;
 
     DString msg;
@@ -1923,17 +2088,17 @@ TRACEOMP( __FILE__, __LINE__)
       msg = e->Caller()->GetProName() + ": " + msg;
 
     if( !info)
-      {
-	DStructGDL* errorState = SysVar::Error_State();
-	static unsigned codeTag = errorState->Desc()->TagIndex( "CODE");
-	(*static_cast<DLongGDL*>( errorState->GetTag( codeTag)))[0] = 0;
-	static unsigned msgTag = errorState->Desc()->TagIndex( "MSG");
-	(*static_cast<DStringGDL*>( errorState->GetTag( msgTag)))[0] = msg;
-	
-	SysVar::SetErr_String( msg);
-	SysVar::SetErrError( -1);
-      }
-	
+    {
+      DStructGDL* errorState = SysVar::Error_State();
+      static unsigned codeTag = errorState->Desc()->TagIndex( "CODE");
+      (*static_cast<DLongGDL*>( errorState->GetTag( codeTag)))[0] = 0;
+      static unsigned msgTag = errorState->Desc()->TagIndex( "MSG");
+      (*static_cast<DStringGDL*>( errorState->GetTag( msgTag)))[0] = msg;
+
+      SysVar::SetErr_String( msg);
+      SysVar::SetErrError( -1);
+    }
+
     if( noprint)
       msg = "";
     
@@ -2473,7 +2638,7 @@ TRACEOMP( __FILE__, __LINE__)
 		    e->GetParString(2));
 	
 	SizeT d1;
-	int ret = p2->Scalar2index( d1);
+	int ret = p2->Scalar2Index( d1);
 	if( d1 < 1 || d1 > p0->Rank())
 	  e->Throw( "D1 (3rd) argument is out of range: "+
 		    e->GetParString(2));
@@ -2494,7 +2659,7 @@ TRACEOMP( __FILE__, __LINE__)
 	    if( !p4->StrictScalar())
 	      e->Throw( "Expression must be a scalar in this context: "+
 		        e->GetParString(4));
-	    ret = p4->Scalar2index( d2);
+	    ret = p4->Scalar2Index( d2);
 	    if( d2 < 1 || d2 > p0->Rank())
 	      e->Throw( "D5 (5th) argument is out of range: "+
 		        e->GetParString(4));
@@ -2503,7 +2668,7 @@ TRACEOMP( __FILE__, __LINE__)
 	  }
 
 // 	ArrayIndexVectorT* ixList = new ArrayIndexVectorT();
-// 	auto_ptr< ArrayIndexVectorT> ixList_guard( ixList);
+// 	Guard< ArrayIndexVectorT> ixList_guard( ixList);
 	ArrayIndexVectorT ixList; 
 // 	BaseGDL* loc1 = p3->Dup();
 // 	loc1->SetDim (dimension( loc1->N_Elements()));
@@ -2517,7 +2682,7 @@ TRACEOMP( __FILE__, __LINE__)
 	    ixList.push_back( new CArrayIndexScalar( (*p3)[ i]));//p3->NewIx(i)));
 	ArrayIndexListT* ixL;
 	MakeArrayIndex( &ixList, &ixL);
-	auto_ptr< ArrayIndexListT> ixL_guard( ixL);
+	Guard< ArrayIndexListT> ixL_guard( ixL);
 	ixL->AssignAt( p0, p1);
 	return;
       }
@@ -2532,10 +2697,10 @@ TRACEOMP( __FILE__, __LINE__)
 //     static int no_recompileIx = e->KeywordIx( "NO_RECOMPILE");
 
 	BaseGDL* p0 = e->GetParDefined( 0);
-	DStringGDL* p0S = dynamic_cast<DStringGDL*>( p0);
-	if( p0S == NULL)
+	if( p0->Type() != GDL_STRING)
 	      e->Throw( "Expression must be a string in this context: "+
 		        e->GetParString(0));
+	DStringGDL* p0S = static_cast<DStringGDL*>( p0);
 
 	static StrArr openFiles;
 	
@@ -2610,6 +2775,8 @@ TRACEOMP( __FILE__, __LINE__)
     //BaseGDL** ret[nParam - 1];
     BaseGDL*** ret;
     ret = (BaseGDL***)malloc((nParam-1)*sizeof(BaseGDL**));
+    GDLGuard<BaseGDL**,void,void> retGuard( ret, free);
+    
     for (int i = nParam - 2; i >= 0; i--) if (global[i]) 
     {
       ret[i] = &e->GetPar(i + 1);
@@ -2689,7 +2856,138 @@ TRACEOMP( __FILE__, __LINE__)
       if (global[6 - 1]) 
         (*static_cast<DDoubleGDL*>(*ret[6 - 1]))[i] = F * 86400;
     }
-    free((void *)ret);
+    // now guarded. s. a.
+//     free((void *)ret);
+  }
+
+  bool dateToJD(DDouble &jd, DLong &day, DLong &month, DLong &year, DLong &hour, DLong &minute, DDouble &second)
+  {   
+    if (year < -4716 || year > 5000000 || year==0 ) return false;
+    if (month < 1 || month > 12) return false;
+    if (day < 0 || day > 31) return false;
+
+    // the following tests seem to be NOT active ...
+
+    // if (hour < 0 || hour > 24) return false;
+    // if (minute < 0 || minute > 60) return false;
+    // if (second < 0 || second > 60) return false;
+
+//    fprintf(stderr,"Day %d, Month %d Year %d, Hour %d Minute %d Second %f\n",
+//            day, month, year, hour, minute, second);
+    DDouble a,y,b,c;
+    DLong m;
+    y=(year>0)?year:year+1; //formula below is for *astronomical calendar* where year 0 exists.
+    // but it appears that we use here a calendar with no year 0
+    m=month;
+    b=0.0;
+    c=0.0;
+    if (month <= 2)
+    {
+      y=y-1.0;
+      m=m+12;
+    }
+    if (y < 0)
+    {
+      c=-0.75;
+    } else {
+       if (year > 1582  ||  (year == 1582 &&  (month > 10  ||
+               (month == 10 && day > 14)))) {
+          a=floor(y/100.0);
+          b=2.0-a+floor(a/4.0);
+       } else if (year == 1582 && month == 10 && day >= 5 && day <= 14) {
+          jd= 2299161; //date does not move 
+          return true;
+       }
+    }
+    jd=ceil(365.25*y+c)+floor(30.6001*(m+1))+day+(hour*1.0)/24.0+(minute*1.0)/1440.0+
+    (second*1.0)/86400.0+1720994.50+b;
+
+    //    cout << "jd :" << jd << endl;
+    return true;
   }
   
+  BaseGDL* julday(EnvT* e)
+  {
+    if ((e->NParam() < 3 || e->NParam() > 6)) {e->Throw("Incorrect number of arguments.");}
+
+    DLongGDL *Month, *Day, *Year, *Hour, *Minute;
+    DDoubleGDL* Second;
+    DDouble jd;
+    DLong h=12;
+    DLong m=0;
+    DDouble s=0.0;
+    SizeT nM,nD,nY,nH,nMi,nS,finalN=1,minsizePar;
+    dimension finalDim;
+    //behaviour: minimum set of dimensions of arrays. singletons expanded to dimension,
+    //keep array trace.
+    SizeT nEl,maxEl=1,minEl;
+    for (int i=0; i<e->NParam() ; ++i) {
+      nEl = e->GetPar(i)->N_Elements() ;
+      if (nEl > 1 && nEl > maxEl) {
+        maxEl=nEl;
+        finalN = maxEl;
+        finalDim = e->GetPar(i)->Dim();
+      }
+    } //first max - but we need first min:
+    minEl=maxEl;
+    for (int i=0; i<e->NParam() ; ++i) {
+      nEl = e->GetPar(i)->N_Elements() ;
+      if ( (nEl > 1) && (nEl < minEl)) {
+        minEl=nEl; 
+        finalN = minEl;
+        finalDim = e->GetPar(i)->Dim();
+      }
+    } //min not singleton
+    Month = e->GetParAs<DLongGDL>(0);
+    nM = Month->N_Elements();
+    Day = e->GetParAs<DLongGDL>(1);
+    nD = Day->N_Elements();
+    Year = e->GetParAs<DLongGDL>(2);
+    nY = Year->N_Elements();
+
+    if (e->NParam() == 3 ) {
+      DLongGDL *ret = new DLongGDL(finalDim, BaseGDL::NOZERO);
+      for (SizeT i=0; i< finalN; ++i) {
+        if (dateToJD(jd,(*Day)[i%nD],(*Month)[i%nM],(*Year)[i%nY],h,m,s)) { (*ret)[i]=(long)jd;}
+	else e->Throw("Invalid Calendar Date input.");
+      }
+      return ret;
+    }
+    
+    DDoubleGDL *ret = new DDoubleGDL(finalDim, BaseGDL::NOZERO);
+    
+    if (e->NParam() >= 4) {
+      Hour = e->GetParAs<DLongGDL>(3);
+      nH = Hour->N_Elements();
+    }
+    if (e->NParam() == 4) {
+      for (SizeT i=0; i< finalN; ++i) {
+        if (dateToJD(jd,(*Day)[i%nD],(*Month)[i%nM],(*Year)[i%nY],(*Hour)[i%nH], m, s)) {(*ret)[i]=jd;}
+	else e->Throw("Invalid Calendar Date input.");	
+	return ret;
+      }
+    }
+
+    if (e->NParam() >= 5) {
+      Minute = e->GetParAs<DLongGDL>(4);
+      nMi = Minute->N_Elements();
+    }
+    if (e->NParam() == 5) {
+      for (SizeT i=0; i< finalN; ++i) {
+        if (dateToJD(jd,(*Day)[i%nD],(*Month)[i%nM],(*Year)[i%nY],(*Hour)[i%nH], (*Minute)[i%nMi], s)) (*ret)[i]=jd;
+	else e->Throw("Invalid Calendar Date input.");
+	return ret;
+      }
+    }
+    
+    if (e->NParam() == 6) {
+      Second = e->GetParAs<DDoubleGDL>(5);
+      nS = Second->N_Elements();
+      for (SizeT i=0; i< finalN; ++i) {
+        if (dateToJD(jd,(*Day)[i%nD],(*Month)[i%nM],(*Year)[i%nY],(*Hour)[i%nH],(*Minute)[i%nMi],(*Second)[i%nS])) {(*ret)[i]=jd;}
+        else e->Throw("Invalid Calendar Date input.");
+      }
+      return ret;
+    }
+  }
 } // namespace

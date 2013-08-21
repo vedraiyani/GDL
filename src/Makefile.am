@@ -2,7 +2,7 @@
 INCLUDES = $(EXT_INCLUDES) $(all_includes)
 SUBDIRS = antlr pro
 
-cpp_hpp_files = overload.hpp overload.cpp nullgdl.hpp nullgdl.cpp allix.hpp allix.cpp prognode.hpp \
+cpp_hpp_files = hash.cpp hash.hpp overload.hpp overload.cpp nullgdl.hpp nullgdl.cpp allix.hpp allix.cpp prognode.hpp \
 		prognodeexpr.hpp accessdesc.hpp arrayindex.hpp assocdata.cpp assocdata.hpp \
 		basegdl.hpp basic_fun_cl.cpp basic_fun_cl.hpp basic_fun.cpp basic_fun.hpp \
 		basic_fun_jmg.cpp basic_fun_jmg.hpp basic_op.cpp basic_op_new.cpp basic_pro.cpp basic_pro.hpp \
@@ -29,13 +29,14 @@ cpp_hpp_files = overload.hpp overload.cpp nullgdl.hpp nullgdl.cpp allix.hpp alli
 		gstream.hpp ifmt.cpp \
 		initct.cpp initsysvar.cpp initsysvar.hpp io.cpp io.hpp libinit_cl.cpp libinit.cpp \
 		libinit_jmg.cpp \
+		matrix_cholesky.hpp matrix_cholesky.cpp \
 		math_fun.cpp math_fun.hpp math_fun_jmg.cpp \
 		math_fun_jmg.hpp math_utl.cpp math_utl.hpp ncdf_att_cl.cpp ncdf_cl.cpp ncdf_cl.hpp \
 		ncdf_dim_cl.cpp ncdf_var_cl.cpp new.cpp new.hpp objects.cpp objects.hpp ofmt.cpp \
 		math_fun_ac.hpp math_fun_ac.cpp libinit_ac.cpp \
                 math_fun_gm.hpp math_fun_gm.cpp libinit_gm.cpp \
 		math_fun_ng.hpp math_fun_ng.cpp libinit_ng.cpp \
-		ofmt.hpp \
+		list.hpp list.cpp ofmt.hpp overload.hpp  overload.cpp\
 		preferences.hpp preferences.cpp \
 		plotting.cpp plotting.hpp print.cpp print_tree.cpp print_tree.hpp \
 		read.cpp real2int.hpp str.cpp str.hpp terminfo.cpp terminfo.hpp topython.cpp \
@@ -52,7 +53,7 @@ cpp_hpp_files = overload.hpp overload.cpp nullgdl.hpp nullgdl.cpp allix.hpp alli
                 plotting_device.cpp plotting_cursor.cpp plotting_contour.cpp plotting_surface.cpp \
                 plotting_axis.cpp plotting_plots.cpp plotting_xyouts.cpp plotting_polyfill.cpp \
                 plotting_windows.cpp plotting_convert_coord.cpp plotting_map_proj.cpp plotting_misc.cpp \
-                plotting_erase.cpp semshm.cpp
+                plotting_erase.cpp plotting_shade_surf.cpp semshm.cpp
 # Makefile.am Makefile.in 
 
 

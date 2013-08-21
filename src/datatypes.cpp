@@ -41,11 +41,20 @@
 #ifdef __cplusplus
 extern "C" {
 #endif
-#define      isnan( x )         ( ( sizeof ( x ) == sizeof(double) ) ?  \
-				  __isnand ( x ) :			\
-				  ( sizeof ( x ) == sizeof( float) ) ?	\
-				  __isnanf ( x ) :			\
-				  __isnan  ( x ) )
+// #define      isnan( x )         ( ( sizeof ( x ) == sizeof(double) ) ?  \
+// 				  __isnand ( x ) :			\
+// 				  ( sizeof ( x ) == sizeof( float) ) ?	\
+// 				  __isnanf ( x ) :			\
+// 				  __isnan  ( x ) )
+namespace std {
+
+  template <typename T>
+  bool isnan( T x) { return ( ( sizeof ( x ) == sizeof(double) ) ?  
+				  __isnand ( x ) :			
+				  ( sizeof ( x ) == sizeof( float) ) ?	
+				  __isnanf ( x ) :			
+				  __isnan  ( x ) );}
+}
 #ifdef __cplusplus
 }
 #endif
@@ -53,9 +62,13 @@ extern "C" {
 
 #ifdef _MSC_VER
 #define isfinite _finite
+#define std__isnan isnan
+#else
+#define std__isnan std::isnan
 #endif
 
-using namespace std;
+//using namespace std;
+//using std::isnan;
 
 // this (ugly) including of other sourcefiles has to be done, because
 // on Mac OS X a template instantiation request (see bottom of file)
@@ -98,8 +111,21 @@ using namespace std;
 #define isinfinite _isinfinite
 #endif
 
+
+#ifdef TESTTG
+
+#include "test_template_grouping.cpp"
 template<class Sp>
-deque< void*> Data_<Sp>::freeList;
+void Data_<Sp>::TestTemplateGrouping()              
+{ 
+//   Ty ty = Test1();
+  bool b = Test2();
+}
+
+#endif
+
+template<class Sp>
+FreeListT Data_<Sp>::freeList;
 
 #ifdef GDLARRAY_CACHE
 
@@ -241,20 +267,46 @@ template<class Sp> void* Data_<Sp>::operator new( size_t bytes)
 
   if( freeList.size() > 0)
     {
-      void* res = freeList.back();
-      freeList.pop_back();
-      return res;	
+      return freeList.pop_back();
+//       void* res = freeList.back();
+//       freeList.pop_back();
+//       return res;	
     }
 
   const size_t newSize = multiAlloc - 1;
 
-  freeList.resize( newSize);
-  char* res = static_cast< char*>( malloc( sizeof( Data_) * multiAlloc)); // one more than newSize
-  for( size_t i=0; i<newSize; ++i)
-    {
-      freeList[ i] = res;
-      res += sizeof( Data_);
-    } 
+  static long callCount = 0;
+  ++callCount;
+  
+  // reserve space for all instances
+  // note that reserve must do an allocation
+  // this hack divides the number of those allocation
+  // (for the cost of initially larger allocation - but only for pointers)
+  const long allocDivider = 4;
+  freeList.reserve( ((callCount/allocDivider+1)*allocDivider-1)*multiAlloc);
+
+  // resize to what is needed now
+//   freeList.resize( newSize);
+
+#ifdef USE_EIGEN  
+  // we need this allocation here as well (as in typedefs.hpp), because GDLArray needs to be aligned
+  const int alignmentInBytes = 16; // set to multiple of 16 >= sizeof( char*)
+  const size_t realSizeOfType = sizeof( Data_);
+  const SizeT exceed = realSizeOfType % alignmentInBytes;
+  const size_t sizeOfType = realSizeOfType + (alignmentInBytes - exceed);
+  char* res = static_cast< char*>( Eigen::internal::aligned_malloc( sizeOfType * multiAlloc)); // one more than newSize
+#else
+  const size_t sizeOfType = sizeof( Data_);
+  char* res = static_cast< char*>( malloc( sizeOfType * multiAlloc)); // one more than newSize
+#endif
+  
+  res = freeList.Init( newSize, res, sizeOfType);
+//   freeList[0] = NULL;
+//   for( size_t i=1; i<=newSize; ++i)
+//     {
+//       freeList[ i] = res;
+//       res += sizeOfType;
+//     } 
 
   // the one more
   return res;
@@ -488,6 +540,7 @@ Data_<Sp>* Data_<Sp>::Dup() const { return new Data_(*this);}
 //   }
 
 
+  
 template<class Sp>
 BaseGDL* Data_<Sp>::Log()              
 { 
@@ -1384,7 +1437,7 @@ void Data_<Sp>::Reverse( DLong dim)
 {
   // SA: based on total_over_dim_template()
   //   static Data_* tmp = new Data_(dimension(1), BaseGDL::NOZERO);
-  //auto_ptr<Data_> tmp_guard(tmp);
+  //Guard<Data_> tmp_guard(tmp);
   SizeT nEl = N_Elements();
   SizeT revStride = this->dim.Stride(dim); 
   SizeT outerStride = this->dim.Stride(dim + 1);
@@ -1411,7 +1464,7 @@ BaseGDL* Data_<Sp>::DupReverse( DLong dim)
 {
   // SA: based on total_over_dim_template()
   Data_* res = new Data_(this->dim, BaseGDL::NOZERO);
-  auto_ptr<Data_> res_guard(res);
+  Guard<Data_> res_guard(res);
   SizeT nEl = N_Elements();
   SizeT revStride = this->dim.Stride(dim); 
   SizeT outerStride = this->dim.Stride(dim + 1);
@@ -1439,7 +1492,7 @@ BaseGDL* Data_<SpDPtr>::DupReverse( DLong dim)
 {
   // SA: based on total_over_dim_template()
   Data_* res = new Data_(this->dim, BaseGDL::NOZERO);
-  auto_ptr<Data_> res_guard(res);
+  Guard<Data_> res_guard(res);
   SizeT nEl = N_Elements();
   SizeT revStride = this->dim.Stride(dim); 
   SizeT outerStride = this->dim.Stride(dim + 1);
@@ -1467,7 +1520,7 @@ BaseGDL* Data_<SpDObj>::DupReverse( DLong dim)
 {
   // SA: based on total_over_dim_template()
   Data_* res = new Data_(this->dim, BaseGDL::NOZERO);
-  auto_ptr<Data_> res_guard(res);
+  Guard<Data_> res_guard(res);
   SizeT nEl = N_Elements();
   SizeT revStride = this->dim.Stride(dim); 
   SizeT outerStride = this->dim.Stride(dim + 1);
@@ -1732,7 +1785,7 @@ void Data_<SpDObj>::InitFrom(const BaseGDL& r)
 
 template< class Sp>
 bool Data_<Sp>::EqType( const BaseGDL* r) const 
-{ return (Sp::t == r->Type());}
+{ return (this->Type() == r->Type());}
 
 template< class Sp>
 void* Data_<Sp>::DataAddr()// SizeT elem)
@@ -1760,6 +1813,42 @@ void* Data_<Sp>::DataAddr()// SizeT elem)
 template< class Sp>
 SizeT Data_<Sp>::N_Elements() const 
 { return dd.size();}
+
+template<>
+SizeT Data_<SpDObj>::N_Elements() const 
+{ 
+  if( !this->StrictScalar())
+    return dd.size();
+  
+  DObj s = dd[0]; // is StrictScalar()
+  if( s == 0)  // no overloads for null object
+    return 1;
+  
+  DStructGDL* oStructGDL= GDLInterpreter::GetObjHeapNoThrow( s);
+  if( oStructGDL == NULL) // if object not valid -> default behaviour
+    return 1;
+  
+  DStructDesc* desc = oStructGDL->Desc();
+
+  if( desc->IsParent("LIST"))
+  {
+      // no static here, might vary in derived object
+      unsigned nListTag = desc->TagIndex( "NLIST");
+      SizeT listSize = (*static_cast<DLongGDL*>(oStructGDL->GetTag( nListTag, 0)))[0];
+      return listSize;
+  }
+  if( desc->IsParent("HASH"))
+  {
+      // no static here, might vary in derived object
+      unsigned nListTag = desc->TagIndex( "TABLE_COUNT");
+      SizeT listSize = (*static_cast<DLongGDL*>(oStructGDL->GetTag( nListTag, 0)))[0];
+      return listSize;
+  }
+
+  return 1;
+}
+
+
 template< class Sp>
 SizeT Data_<Sp>::Size() const 
 { return dd.size();}
@@ -1774,13 +1863,28 @@ void Data_<Sp>::Clear()
   /*#pragma omp parallel if (nEl >= CpuTPOOL_MIN_ELTS && (CpuTPOOL_MAX_ELTS == 0 || CpuTPOOL_MAX_ELTS <= nEl))
     {
     #pragma omp for*/
-  for( int i = 0; i<nEl; ++i) (*this)[ i] = Sp::zero;
+  for( SizeT i = 0; i<nEl; ++i) (*this)[ i] = Sp::zero;
 }//}
 
 // first time initialization (construction)
 template< class Sp>
 void Data_<Sp>::Construct() 
-{}
+{
+  // note that this is not possible in cases where an operation 
+  // (here: 'new' which is ok) isn't defined for any POD
+  // (although this code never executes and should be optimized away anyway)
+  const bool isPOD = Sp::IS_POD;   
+  // do nothing for POD
+  if( !isPOD)
+  {
+  SizeT nEl = dd.size(); 
+  //  for( SizeT i = 0; i<nEl; ++i) new (&(*this)[ i]) Ty;
+  /*#pragma omp parallel if (nEl >= CpuTPOOL_MIN_ELTS && (CpuTPOOL_MAX_ELTS == 0 || CpuTPOOL_MAX_ELTS <= nEl))
+    {
+    #pragma omp for*/
+  for( SizeT i = 0; i<nEl; ++i) new (&(dd[ i])) Ty;
+  }
+}
 template<>
 void Data_<SpDPtr>::Construct() 
 {
@@ -1789,7 +1893,7 @@ void Data_<SpDPtr>::Construct()
   /*#pragma omp parallel if (nEl >= CpuTPOOL_MIN_ELTS && (CpuTPOOL_MAX_ELTS == 0 || CpuTPOOL_MAX_ELTS <= nEl))
     {
     #pragma omp for*/
-  for( int i = 0; i<nEl; ++i) dd[ i] = 0;
+  for( SizeT i = 0; i<nEl; ++i) dd[ i] = 0;
 }//}
 template<>
 void Data_<SpDObj>::Construct()
@@ -1799,81 +1903,101 @@ void Data_<SpDObj>::Construct()
   /*#pragma omp parallel if (nEl >= CpuTPOOL_MIN_ELTS && (CpuTPOOL_MAX_ELTS == 0 || CpuTPOOL_MAX_ELTS <= nEl))
     {
     #pragma omp for*/
-  for( int i = 0; i<nEl; ++i) dd[ i] = 0;
+  for( SizeT i = 0; i<nEl; ++i) dd[ i] = 0;
 }//}
-// non POD - use placement new
-template<>
-void Data_< SpDString>::Construct() 
-{ 
-  SizeT nEl = dd.size(); 
-  //  for( SizeT i = 0; i<nEl; ++i) new (&(*this)[ i]) Ty;
-  /*#pragma omp parallel if (nEl >= CpuTPOOL_MIN_ELTS && (CpuTPOOL_MAX_ELTS == 0 || CpuTPOOL_MAX_ELTS <= nEl))
-    {
-    #pragma omp for*/
-  for( int i = 0; i<nEl; ++i) new (&(dd[ i])) Ty;
-}//}
-template<>
-void Data_< SpDComplex>::Construct() 
-{ 
-  SizeT nEl = dd.size(); 
-  /*#pragma omp parallel if (nEl >= CpuTPOOL_MIN_ELTS && (CpuTPOOL_MAX_ELTS == 0 || CpuTPOOL_MAX_ELTS <= nEl))
-    {
-    #pragma omp for*/
-  for( int i = 0; i<nEl; ++i) new (&(*this)[ i]) Ty;
-}//}
-template<>
-void Data_< SpDComplexDbl>::Construct() 
-{ 
-  SizeT nEl = dd.size(); 
-  /*#pragma omp parallel if (nEl >= CpuTPOOL_MIN_ELTS && (CpuTPOOL_MAX_ELTS == 0 || CpuTPOOL_MAX_ELTS <= nEl))
-    {
-    #pragma omp for*/
-  for( int i = 0; i<nEl; ++i) new (&(*this)[ i]) Ty;
-}//}
+// // non POD - use placement new
+// template<>
+// void Data_< SpDString>::Construct() 
+// { 
+//   SizeT nEl = dd.size(); 
+//   //  for( SizeT i = 0; i<nEl; ++i) new (&(*this)[ i]) Ty;
+//   /*#pragma omp parallel if (nEl >= CpuTPOOL_MIN_ELTS && (CpuTPOOL_MAX_ELTS == 0 || CpuTPOOL_MAX_ELTS <= nEl))
+//     {
+//     #pragma omp for*/
+//   for( SizeT i = 0; i<nEl; ++i) new (&(dd[ i])) Ty;
+// }//}
+// template<>
+// void Data_< SpDComplex>::Construct() 
+// { 
+//   SizeT nEl = dd.size(); 
+//   /*#pragma omp parallel if (nEl >= CpuTPOOL_MIN_ELTS && (CpuTPOOL_MAX_ELTS == 0 || CpuTPOOL_MAX_ELTS <= nEl))
+//     {
+//     #pragma omp for*/
+//   for( SizeT i = 0; i<nEl; ++i) new (&(*this)[ i]) Ty;
+// }//}
+// template<>
+// void Data_< SpDComplexDbl>::Construct() 
+// { 
+//   SizeT nEl = dd.size(); 
+//   /*#pragma omp parallel if (nEl >= CpuTPOOL_MIN_ELTS && (CpuTPOOL_MAX_ELTS == 0 || CpuTPOOL_MAX_ELTS <= nEl))
+//     {
+//     #pragma omp for*/
+//   for( SizeT i = 0; i<nEl; ++i) new (&(*this)[ i]) Ty;
+// }//}
 
 // construction and initalization to zero
 template< class Sp>
 void Data_<Sp>::ConstructTo0() 
 { 
+  if( Sp::IS_POD)
+  {
   SizeT nEl = dd.size(); 
   /*#pragma omp parallel if (nEl >= CpuTPOOL_MIN_ELTS && (CpuTPOOL_MAX_ELTS == 0 || CpuTPOOL_MAX_ELTS <= nEl))
     {
     #pragma omp for*/
-  for( int i = 0; i<nEl; ++i) (*this)[ i] = Sp::zero;
-}//}
-// non POD - use placement new
-template<>
-void Data_< SpDString>::ConstructTo0() 
-{ 
+  for( SizeT i = 0; i<nEl; ++i) (*this)[ i] = Sp::zero;
+  }
+  else
+  {
   SizeT nEl = dd.size(); 
   /*#pragma omp parallel if (nEl >= CpuTPOOL_MIN_ELTS && (CpuTPOOL_MAX_ELTS == 0 || CpuTPOOL_MAX_ELTS <= nEl))
     {
     #pragma omp for*/
-  for( int i = 0; i<nEl; ++i) new (&(*this)[ i]) Ty( zero);
+  for( SizeT i = 0; i<nEl; ++i) new (&(*this)[ i]) Ty( Sp::zero);
+  }
 }//}
-template<>
-void Data_< SpDComplex>::ConstructTo0() 
-{ 
-  SizeT nEl = dd.size(); 
-  /*#pragma omp parallel if (nEl >= CpuTPOOL_MIN_ELTS && (CpuTPOOL_MAX_ELTS == 0 || CpuTPOOL_MAX_ELTS <= nEl))
-    {
-    #pragma omp for*/
-  for( int i = 0; i<nEl; ++i) new (&(*this)[ i]) Ty( zero);
-}//}
-template<>
-void Data_< SpDComplexDbl>::ConstructTo0() 
-{ 
-  SizeT nEl = dd.size(); 
-  /*#pragma omp parallel if (nEl >= CpuTPOOL_MIN_ELTS && (CpuTPOOL_MAX_ELTS == 0 || CpuTPOOL_MAX_ELTS <= nEl))
-    {
-    #pragma omp for*/
-  for( int i = 0; i<nEl; ++i) new (&(*this)[ i]) Ty( zero);
-}//}
+// // non POD - use placement new
+// template<>
+// void Data_< SpDString>::ConstructTo0() 
+// { 
+//   SizeT nEl = dd.size(); 
+//   /*#pragma omp parallel if (nEl >= CpuTPOOL_MIN_ELTS && (CpuTPOOL_MAX_ELTS == 0 || CpuTPOOL_MAX_ELTS <= nEl))
+//     {
+//     #pragma omp for*/
+//   for( int i = 0; i<nEl; ++i) new (&(*this)[ i]) Ty( zero);
+// }//}
+// template<>
+// void Data_< SpDComplex>::ConstructTo0() 
+// { 
+//   SizeT nEl = dd.size(); 
+//   /*#pragma omp parallel if (nEl >= CpuTPOOL_MIN_ELTS && (CpuTPOOL_MAX_ELTS == 0 || CpuTPOOL_MAX_ELTS <= nEl))
+//     {
+//     #pragma omp for*/
+//   for( int i = 0; i<nEl; ++i) new (&(*this)[ i]) Ty( zero);
+// }//}
+// template<>
+// void Data_< SpDComplexDbl>::ConstructTo0() 
+// { 
+//   SizeT nEl = dd.size(); 
+//   /*#pragma omp parallel if (nEl >= CpuTPOOL_MIN_ELTS && (CpuTPOOL_MAX_ELTS == 0 || CpuTPOOL_MAX_ELTS <= nEl))
+//     {
+//     #pragma omp for*/
+//   for( int i = 0; i<nEl; ++i) new (&(*this)[ i]) Ty( zero);
+// }//}
 
 template< class Sp>
 void Data_<Sp>::Destruct() 
 { 
   // no destruction for POD
+  if( !Sp::IS_POD)
+  {
+  SizeT nEl = dd.size(); 
+  /*#pragma omp parallel if (nEl >= CpuTPOOL_MIN_ELTS && (CpuTPOOL_MAX_ELTS == 0 || CpuTPOOL_MAX_ELTS <= nEl))
+    {
+    #pragma omp for*/
+  for( SizeT i = 0; i<nEl; ++i) 
+    (*this)[ i].~Ty();    
+  }
 }
 template<>
 void Data_< SpDPtr>::Destruct()
@@ -1885,36 +2009,36 @@ void Data_< SpDObj>::Destruct()
 {
   GDLInterpreter::DecRefObj( this);
 }
-template<>
-void Data_< SpDString>::Destruct() 
-{
-  SizeT nEl = dd.size(); 
-  /*#pragma omp parallel if (nEl >= CpuTPOOL_MIN_ELTS && (CpuTPOOL_MAX_ELTS == 0 || CpuTPOOL_MAX_ELTS <= nEl))
-    {
-    #pragma omp for*/
-  for( int i = 0; i<nEl; ++i) 
-    (*this)[ i].~DString();
-}//}
-template<>
-void Data_< SpDComplex>::Destruct() 
-{
-  SizeT nEl = dd.size(); 
-  /*#pragma omp parallel if (nEl >= CpuTPOOL_MIN_ELTS && (CpuTPOOL_MAX_ELTS == 0 || CpuTPOOL_MAX_ELTS <= nEl))
-    {
-    #pragma omp for*/
-  for( int i = 0; i<nEl; ++i) 
-    (*this)[ i].~DComplex();
-}//}
-template<>
-void Data_< SpDComplexDbl>::Destruct() 
-{
-  SizeT nEl = dd.size(); 
-  /*#pragma omp parallel if (nEl >= CpuTPOOL_MIN_ELTS && (CpuTPOOL_MAX_ELTS == 0 || CpuTPOOL_MAX_ELTS <= nEl))
-    {
-    #pragma omp for*/
-  for( int i = 0; i<nEl; ++i) 
-    (*this)[ i].~DComplexDbl();
-}//}
+// template<>
+// void Data_< SpDString>::Destruct() 
+// {
+//   SizeT nEl = dd.size(); 
+//   /*#pragma omp parallel if (nEl >= CpuTPOOL_MIN_ELTS && (CpuTPOOL_MAX_ELTS == 0 || CpuTPOOL_MAX_ELTS <= nEl))
+//     {
+//     #pragma omp for*/
+//   for( SizeT i = 0; i<nEl; ++i) 
+//     (*this)[ i].~DString();
+// }//}
+// template<>
+// void Data_< SpDComplex>::Destruct() 
+// {
+//   SizeT nEl = dd.size(); 
+//   /*#pragma omp parallel if (nEl >= CpuTPOOL_MIN_ELTS && (CpuTPOOL_MAX_ELTS == 0 || CpuTPOOL_MAX_ELTS <= nEl))
+//     {
+//     #pragma omp for*/
+//   for( SizeT i = 0; i<nEl; ++i) 
+//     (*this)[ i].~DComplex();
+// }//}
+// template<>
+// void Data_< SpDComplexDbl>::Destruct() 
+// {
+//   SizeT nEl = dd.size(); 
+//   /*#pragma omp parallel if (nEl >= CpuTPOOL_MIN_ELTS && (CpuTPOOL_MAX_ELTS == 0 || CpuTPOOL_MAX_ELTS <= nEl))
+//     {
+//     #pragma omp for*/
+//   for( SizeT i = 0; i<nEl; ++i) 
+//     (*this)[ i].~DComplexDbl();
+// }//}
 
 template< class Sp>
 BaseGDL* Data_<Sp>::SetBuffer( const void* b)
@@ -1944,7 +2068,7 @@ Data_<Sp>* Data_<Sp>::New( const dimension& dim_, BaseGDL::InitType noZero) cons
       /*#pragma omp parallel if (nEl >= CpuTPOOL_MIN_ELTS && (CpuTPOOL_MAX_ELTS == 0 || CpuTPOOL_MAX_ELTS <= nEl))
 	{
 	#pragma omp for*/
-      for( int i=0; i<nEl; ++i) (*res)[ i] = (*this)[ 0]; // set all to scalar
+      for( SizeT i=0; i<nEl; ++i) (*res)[ i] = (*this)[ 0]; // set all to scalar
       //}
       return res;
     }
@@ -2044,7 +2168,107 @@ template<> SizeT Data_<SpDComplexDbl>::ToTransfer() const
 // }
 
 
-// Scalar2index
+// for HASH objects
+template<class Sp> 
+DDouble Data_<Sp>::HashValue() const
+{
+  return static_cast<DDouble>((*this)[0]);
+}
+template<> 
+DDouble Data_<SpDComplex>::HashValue() const
+{
+  return real((*this)[0]);
+}
+template<> 
+DDouble Data_<SpDComplexDbl>::HashValue() const
+{
+  return real((*this)[0]);
+}
+template<> 
+DDouble Data_<SpDString>::HashValue() const
+{
+  throw GDLException("STRING expression not allowed as index. Please report.");
+  return 0; // get rid of warning
+}
+template<> 
+DDouble Data_<SpDPtr>::HashValue() const
+{
+  throw GDLException("PTR expression not allowed as index. Please report.");
+  return 0; // get rid of warning
+}
+
+template<> 
+DDouble Data_<SpDObj>::HashValue() const
+{
+  throw GDLException("Object expression not allowed as index. Please report.");
+  return 0; // get rid of warning
+}
+
+
+// -1 -> p2 is greater
+// 0  -> equal
+// 1  -> this is greater
+
+// note: this is for internal use only (for HASH objects)
+// this should not be called on non-numeric types (also for p2)
+template<class Sp> 
+int Data_<Sp>::HashCompare( BaseGDL* p2) const
+{
+  assert( dd.size() == 1);
+  assert( p2->N_Elements() == 1);
+  if( p2->Type() == GDL_STRING)
+    return 1; // strings 1st (smallest)
+  
+  assert( NumericType(p2->Type()));
+
+  if( this->IS_INTEGER)
+  {
+    if( IntType( p2->Type())) // make full use of data type
+    {
+      RangeT thisValue = this->LoopIndex();
+      RangeT p2Value = p2->LoopIndex();
+      if( thisValue == p2Value)
+	return 0;
+      if( thisValue < p2Value)
+	return -1;
+      return 1;
+    }
+  }  
+  DDouble thisValue = this->HashValue();
+  DDouble p2Value = p2->HashValue();
+  if( thisValue == p2Value)
+    return 0;
+  if( thisValue < p2Value)
+    return -1;
+  return 1;
+}
+
+template<> 
+int Data_<SpDString>::HashCompare( BaseGDL* p2) const
+{
+  assert( dd.size() == 1);
+  assert( p2->N_Elements() == 1);
+  if( p2->Type() != this->Type())
+    return -1; // strings 1st (smallest)
+  
+  Data_* p2String = static_cast<Data_*>(p2);
+  if( dd[0].length() == (*p2String)[0].length())
+  {
+    if( dd[0] == (*p2String)[0])
+      return 0;
+    if( dd[0] < (*p2String)[0])
+      return -1;
+    return 1;
+  }
+  else if( dd[0].length() < (*p2String)[0].length())
+  {
+    return -1;
+  }
+  return 1;
+}
+
+
+// Scalar2Index
 // used by the interpreter
 // -2  < 0 array
 // -1  < 0 scalar
@@ -2052,7 +2276,7 @@ template<> SizeT Data_<SpDComplexDbl>::ToTransfer() const
 // 1   scalar
 // 2   one-element array
 template<class Sp> 
-int Data_<Sp>::Scalar2index( SizeT& st) const
+int Data_<Sp>::Scalar2Index( SizeT& st) const
 {
   if( dd.size() != 1) return 0;
 
@@ -2086,7 +2310,7 @@ int Data_<Sp>::Scalar2RangeT( RangeT& st) const
 }
 
 template<> 
-int Data_<SpDComplex>::Scalar2index( SizeT& st) const
+int Data_<SpDComplex>::Scalar2Index( SizeT& st) const
 {
   if( dd.size() != 1) return 0;
   float r=real((*this)[0]);
@@ -2107,7 +2331,7 @@ int Data_<SpDComplex>::Scalar2RangeT( RangeT& st) const
 }
 
 template<>
-int Data_<SpDComplexDbl>::Scalar2index( SizeT& st) const
+int Data_<SpDComplexDbl>::Scalar2Index( SizeT& st) const
 {
   if( dd.size() != 1) return 0;
   double r=real((*this)[0]);
@@ -2129,7 +2353,7 @@ int Data_<SpDComplexDbl>::Scalar2RangeT( RangeT& st) const
 
 
 template<> 
-int Data_<SpDString>::Scalar2index( SizeT& st) const
+int Data_<SpDString>::Scalar2Index( SizeT& st) const
 {
   if( dd.size() != 1) return 0;
 
@@ -2169,19 +2393,9 @@ int Data_<SpDString>::Scalar2RangeT( RangeT& st) const
   return 1;
 }
 
-int DStructGDL::Scalar2index( SizeT& st) const
-{
-  throw GDLException("STRUCT expression not allowed in this context.");
-  return 0; // get rid of warning
-}
-int DStructGDL::Scalar2RangeT( RangeT& st) const
-{
-  throw GDLException("STRUCT expression not allowed in this context.");
-  return 0; // get rid of warning
-}
 
 template<> 
-int Data_<SpDPtr>::Scalar2index( SizeT& st) const
+int Data_<SpDPtr>::Scalar2Index( SizeT& st) const
 {
   throw GDLException("PTR expression not allowed in this context.");
   return 0; // get rid of warning
@@ -2194,7 +2408,7 @@ int Data_<SpDPtr>::Scalar2RangeT( RangeT& st) const
 }
 
 template<> 
-int Data_<SpDObj>::Scalar2index( SizeT& st) const
+int Data_<SpDObj>::Scalar2Index( SizeT& st) const
 {
   throw GDLException("Object expression not allowed in this context.");
   return 0; // get rid of warning
@@ -2205,6 +2419,11 @@ int Data_<SpDObj>::Scalar2RangeT( RangeT& st) const
   throw GDLException("Object expression not allowed in this context.");
   return 0; // get rid of warning
 }
+
+
+
+
+
 
 // for FOR loop *indices*
 template<class Sp> 
@@ -2276,11 +2495,6 @@ RangeT Data_<SpDString>::LoopIndex() const
       return 0;
     }
   return ix;
-}
-RangeT DStructGDL::LoopIndex() const
-{
-  throw GDLException("STRUCT expression not allowed in this context.");
-  return 0; // get rid of warning
 }
 
 template<> 
@@ -2378,16 +2592,34 @@ bool Data_<SpDObj>::True()
 //   
 //   DFun* isTrueOverload = static_cast<DFun*>(desc->GetOperator( OOIsTrue));
 
-  DFun* isTrueOverload = static_cast<DFun*>(GDLInterpreter::GetObjHeapOperator( s, OOIsTrue));
+  DSubUD* isTrueOverload = static_cast<DSubUD*>(GDLInterpreter::GetObjHeapOperator( s, OOIsTrue));
   if( isTrueOverload == NULL) 
     return true; // not overloaded, false case for default already returned (s. a.)
   
   ProgNodeP callingNode = interpreter->GetRetTree();
     
-  BaseGDL* self = this->Dup();
-  Guard<BaseGDL> selfGuard( self);
-  EnvUDT* newEnv= new EnvUDT( callingNode, isTrueOverload, &self);
+//   BaseGDL* self = this->Dup();
+//   Guard<BaseGDL> selfGuard( self);
+//   EnvUDT* newEnv= new EnvUDT( callingNode, isTrueOverload, &self);
   // no parameters
+  
+  EnvUDT* newEnv;
+  DObjGDL* self;
+  Guard<BaseGDL> selfGuard;
+  // Dup() here is not optimal
+  // avoid at least for internal overload routines (which do/must not change SELF or r)
+  bool internalDSubUD = isTrueOverload->GetTree()->IsWrappedNode();  
+  if( internalDSubUD)  
+  {
+    self = this;
+    newEnv= new EnvUDT( callingNode, isTrueOverload, &self);
+  }
+  else
+  {
+    self = this->Dup();
+    selfGuard.Init( self);
+    newEnv= new EnvUDT( callingNode, isTrueOverload, &self);
+  }
   
   StackGuard<EnvStackT> guard(interpreter->CallStack());
 
@@ -2396,7 +2628,7 @@ bool Data_<SpDObj>::True()
   // make the call
   BaseGDL* res=interpreter->call_fun(static_cast<DSubUD*>(newEnv->GetPro())->GetTree());
 
-  if( self != selfGuard.Get())
+  if( !internalDSubUD && self != selfGuard.Get())
   {
     // always put out warning first, in case of a later crash
     Warning( "WARNING: " + isTrueOverload->ObjectName() + 
@@ -2404,24 +2636,24 @@ bool Data_<SpDObj>::True()
     // assignment to SELF -> self was deleted and points to new variable
     // which it owns
     selfGuard.Release();
-    if( self != NullGDL::GetSingleInstance())
+    if( (BaseGDL*)self != NullGDL::GetSingleInstance())
       selfGuard.Reset(self);
   }
   if( NullGDL::IsNULLorNullGDL( res))
-    {
-      throw GDLException( isTrueOverload->ObjectName() + " returned an undefined value.",true,false);
-    }
+  {
+    throw GDLException( isTrueOverload->ObjectName() + " returned an undefined value.",true,false);
+  }
   
   Guard<BaseGDL> resGuard( res);
   
   // prevent recursion
   if( res->Type() == GDL_OBJ)
-    {
-      ostringstream os;
-      res->ToStream(os);
-      throw GDLException( isTrueOverload->ObjectName() + ": Object reference expression not allowed in this context: " +
-			  os.str(),true,false);
-    }
+  {
+    ostringstream os;
+    res->ToStream(os);
+    throw GDLException( isTrueOverload->ObjectName() + ": Object reference expression not allowed in this context: " +
+			 os.str(),true,false);
+  }
   
   return res->LogTrue();
 }
@@ -2461,12 +2693,6 @@ template<>
 int Data_<SpDComplexDbl>::Sgn() // -1,0,1
 {
   throw GDLException("Complex expression not allowed in this context.");
-  return 0;
-} 
-
-int DStructGDL::Sgn() // -1,0,1
-{
-  throw GDLException("Struct expression not allowed in this context.");
   return 0;
 } 
 
@@ -2560,12 +2786,6 @@ bool Data_<Sp>::EqualNoDelete( const BaseGDL* r) const
 bool DStructGDL::Equal( BaseGDL* r) const
 {
   GDLDelete(r);
-  throw GDLException("Struct expression not allowed in this context.");
-  return false;
-}
-
-bool DStructGDL::EqualNoDelete( const BaseGDL* r) const
-{
   throw GDLException("Struct expression not allowed in this context.");
   return false;
 }
@@ -2833,7 +3053,7 @@ void Data_<Sp>::AssignAtIx( RangeT ixR, BaseGDL* srcIn)
 	{
 	  Data_* rConv = static_cast<Data_*>(srcIn->Convert2( this->Type(), BaseGDL::COPY_BYTE_AS_INT));
 	  //      Data_* rConv = static_cast<Data_*>(srcIn->Convert2( this->Type(), BaseGDL::COPY));
-	  auto_ptr<Data_> conv_guard( rConv);
+	  Guard<Data_> conv_guard( rConv);
 	  (*this)[ix] = (*rConv)[0];
 	}
       else
@@ -2845,7 +3065,7 @@ void Data_<Sp>::AssignAtIx( RangeT ixR, BaseGDL* srcIn)
     {
       Data_* rConv = static_cast<Data_*>(srcIn->Convert2( this->Type(), BaseGDL::COPY_BYTE_AS_INT));
       //       Data_* rConv = static_cast<Data_*>(srcIn->Convert2( this->Type(), BaseGDL::COPY));
-      auto_ptr<Data_> conv_guard( rConv);
+      Guard<Data_> conv_guard( rConv);
       (*this)[ixR] = (*rConv)[0];
     }
   else
@@ -3725,6 +3945,8 @@ bool Data_<SpDPtr>::LogTrue()
 template<>
 bool Data_<SpDObj>::LogTrue()
 {
+  // ::_overloadIsTrue is handled in True()
+  
   return this->True();
 }
 // structs are not allowed
@@ -4050,7 +4272,7 @@ void Data_<SpDFloat>::MinMax( DLong* minE, DLong* maxE,
 	i = start;
 	int flag = 1;
 	while (flag == 1) {
-	  if (!isnan((*this)[i]) && isfinite((*this)[i])) flag = 0;
+	  if (!std__isnan((*this)[i]) && isfinite((*this)[i])) flag = 0;
 	  if (i + step >= stop) flag = 0;
 	  i += step;
 	}
@@ -4060,7 +4282,7 @@ void Data_<SpDFloat>::MinMax( DLong* minE, DLong* maxE,
         
       for (i = i_min; i < stop; i += step) {
 	if (omitNaN) {
-	  if (isnan((*this)[i]) || !isfinite((*this)[i])) continue;
+	  if (std__isnan((*this)[i]) || !isfinite((*this)[i])) continue;
 	}
         if ((*this)[i] > maxV) maxV = (*this)[maxEl = i];
       }
@@ -4082,7 +4304,7 @@ void Data_<SpDFloat>::MinMax( DLong* minE, DLong* maxE,
 	i = start;
 	int flag = 1;
 	while (flag == 1) {
-	  if (!isnan((*this)[i]) && isfinite((*this)[i])) flag = 0;
+	  if (!std__isnan((*this)[i]) && isfinite((*this)[i])) flag = 0;
 	  if (i + step >= stop) flag = 0;
 	  i += step;
 	}
@@ -4092,7 +4314,7 @@ void Data_<SpDFloat>::MinMax( DLong* minE, DLong* maxE,
    
       for (i = i_min; i < stop; i+= step) {
 	if (omitNaN) {
-	  if (isnan((*this)[i]) || !isfinite((*this)[i])) continue;
+	  if (std__isnan((*this)[i]) || !isfinite((*this)[i])) continue;
 	} 
 	if ((*this)[i] < minV) minV = (*this)[minEl = i];
       }
@@ -4114,7 +4336,7 @@ void Data_<SpDFloat>::MinMax( DLong* minE, DLong* maxE,
     i = start;
     int flag = 1;
     while (flag == 1) {
-      if (!isnan((*this)[i]) && isfinite((*this)[i])) flag = 0;
+      if (!std__isnan((*this)[i]) && isfinite((*this)[i])) flag = 0;
       if (i + step >= stop) flag = 0;
       i += step;
     }
@@ -4124,7 +4346,7 @@ void Data_<SpDFloat>::MinMax( DLong* minE, DLong* maxE,
 
   for (i = i_min; i < stop; i+= step) {
     if (omitNaN){
-      if (isnan((*this)[i]) || !isfinite((*this)[i])) continue;
+      if (std__isnan((*this)[i]) || !isfinite((*this)[i])) continue;
     }
     if ((*this)[i] > maxV) maxV = (*this)[maxEl = i];
     else if( (*this)[i] < minV) minV = (*this)[minEl = i];
@@ -4163,7 +4385,7 @@ void Data_<SpDDouble>::MinMax( DLong* minE, DLong* maxE,
 	i = start;
 	int flag = 1;
 	while (flag == 1) {
-	  if (!isnan((*this)[i]) && isfinite((*this)[i])) flag = 0;
+	  if (!std__isnan((*this)[i]) && isfinite((*this)[i])) flag = 0;
 	  if (i + step >= stop) flag = 0;
 	  i += step;
 	}
@@ -4173,7 +4395,7 @@ void Data_<SpDDouble>::MinMax( DLong* minE, DLong* maxE,
         
       for (i = i_min; i < stop; i += step) {
 	if (omitNaN) {
-	  if (isnan((*this)[i]) || !isfinite((*this)[i])) continue;
+	  if (std__isnan((*this)[i]) || !isfinite((*this)[i])) continue;
 	}
 	if ((*this)[i] > maxV) maxV = (*this)[maxEl = i];
       }
@@ -4195,7 +4417,7 @@ void Data_<SpDDouble>::MinMax( DLong* minE, DLong* maxE,
 	i = start;
 	int flag = 1;
 	while (flag == 1) {
-	  if (!isnan((*this)[i]) && isfinite((*this)[i])) flag = 0;
+	  if (!std__isnan((*this)[i]) && isfinite((*this)[i])) flag = 0;
 	  if (i + step >= stop) flag = 0;
 	  i += step;
 	}
@@ -4205,7 +4427,7 @@ void Data_<SpDDouble>::MinMax( DLong* minE, DLong* maxE,
    
       for (i = i_min; i < stop; i += step) {
 	if (omitNaN) {
-	  if (isnan((*this)[i]) || !isfinite((*this)[i])) continue;
+	  if (std__isnan((*this)[i]) || !isfinite((*this)[i])) continue;
 	} 
 	if ((*this)[i] < minV) minV = (*this)[minEl = i];
       }
@@ -4227,7 +4449,7 @@ void Data_<SpDDouble>::MinMax( DLong* minE, DLong* maxE,
     i = start;
     int flag = 1;
     while (flag == 1) {
-      if (!isnan((*this)[i]) && isfinite((*this)[i])) flag = 0;
+      if (!std__isnan((*this)[i]) && isfinite((*this)[i])) flag = 0;
       if (i + step >= stop) flag = 0;
       i += step;
     }
@@ -4237,7 +4459,7 @@ void Data_<SpDDouble>::MinMax( DLong* minE, DLong* maxE,
 
   for (i = i_min; i < stop; i+= step) {
     if (omitNaN){
-      if (isnan((*this)[i]) || !isfinite((*this)[i])) continue;
+      if (std__isnan((*this)[i]) || !isfinite((*this)[i])) continue;
     }
     if ((*this)[i] > maxV) maxV = (*this)[maxEl = i];
     else if( (*this)[i] < minV) minV = (*this)[minEl = i];
@@ -4449,7 +4671,7 @@ void Data_<SpDComplexDbl>::MinMax( DLong* minE, DLong* maxE,
 	i = start;
 	int flag = 1;
 	while (flag == 1) {
-	  if (!isnan((*this)[i].real()) && isfinite((*this)[i].real())) flag = 0;
+	  if (!std__isnan((*this)[i].real()) && isfinite((*this)[i].real())) flag = 0;
 	  if (i + step >= stop) flag = 0;
 	  i += step;
 	}
@@ -4459,7 +4681,7 @@ void Data_<SpDComplexDbl>::MinMax( DLong* minE, DLong* maxE,
         
       for (i = i_min; i < stop; i += step) {
 	if (omitNaN) {
-	  if (isnan((*this)[i].real()) || !isfinite((*this)[i].real())) continue;
+	  if (std__isnan((*this)[i].real()) || !isfinite((*this)[i].real())) continue;
 	}
 	if ((*this)[i].real() > maxV) maxV = (*this)[maxEl = i].real();
       }
@@ -4481,7 +4703,7 @@ void Data_<SpDComplexDbl>::MinMax( DLong* minE, DLong* maxE,
 	i = start;
 	int flag = 1;
 	while (flag == 1) {
-	  if (!isnan((*this)[i].real()) && isfinite((*this)[i].real())) flag = 0;
+	  if (!std__isnan((*this)[i].real()) && isfinite((*this)[i].real())) flag = 0;
 	  if (i + step >= stop) flag = 0;
 	  i += step;
 	}
@@ -4491,7 +4713,7 @@ void Data_<SpDComplexDbl>::MinMax( DLong* minE, DLong* maxE,
    
       for (i = i_min; i < stop; i += step) {
 	if (omitNaN) {
-	  if (isnan((*this)[i].real()) || !isfinite((*this)[i].real())) continue;
+	  if (std__isnan((*this)[i].real()) || !isfinite((*this)[i].real())) continue;
 	} 
 	if ((*this)[i].real() < minV) minV = (*this)[minEl = i].real();
       }
@@ -4513,7 +4735,7 @@ void Data_<SpDComplexDbl>::MinMax( DLong* minE, DLong* maxE,
     i = start;
     int flag = 1;
     while (flag == 1) {
-      if (!isnan((*this)[i].real()) && isfinite((*this)[i].real())) flag = 0;
+      if (!std__isnan((*this)[i].real()) && isfinite((*this)[i].real())) flag = 0;
       if (i + step >= stop) flag = 0;
       i += step;
     }
@@ -4523,7 +4745,7 @@ void Data_<SpDComplexDbl>::MinMax( DLong* minE, DLong* maxE,
 
   for (i = i_min; i < stop; i += step) {
     if (omitNaN){
-      if (isnan((*this)[i].real()) || !isfinite((*this)[i].real())) continue;
+      if (std__isnan((*this)[i].real()) || !isfinite((*this)[i].real())) continue;
     }
     if ((*this)[i].real() > maxV) maxV = (*this)[maxEl = i].real();
     else if( (*this)[i].real() < minV) minV = (*this)[minEl = i].real();
@@ -4544,19 +4766,45 @@ void Data_<SpDComplexDbl>::MinMax( DLong* minE, DLong* maxE,
 
 }
 
-void DStructGDL::MinMax( DLong* minE, DLong* maxE, 
-			 BaseGDL** minVal, BaseGDL** maxVal, bool omitNaN,
-			 SizeT start, SizeT stop, SizeT step, DLong valIx)
-{
-  throw GDLException("Struct expression not allowed in this context.");
-}
 
 template<>
 BaseGDL* Data_<SpDString>::Convol( BaseGDL* kIn, BaseGDL* scaleIn, 
-				   bool center, int edgeMode)
+				   BaseGDL* bias,
+ 				   bool center, bool normalize, int edgeMode)
 {
   throw GDLException("String expression not allowed in this context.");
 }
+template<>
+BaseGDL* Data_<SpDObj>::Convol( BaseGDL* kIn, BaseGDL* scaleIn, 
+				   BaseGDL* bias,
+ 				   bool center, bool normalize, int edgeMode)
+{
+  throw GDLException("Object expression not allowed in this context.");
+}
+template<>
+BaseGDL* Data_<SpDPtr>::Convol( BaseGDL* kIn, BaseGDL* scaleIn, 
+				   BaseGDL* bias,
+ 				   bool center, bool normalize, int edgeMode)
+{
+  throw GDLException("Pointer expression not allowed in this context.");
+}
+/*
+template<>
+BaseGDL* Data_<SpDULong>::Convol( BaseGDL* kIn, BaseGDL* scaleIn, 
+				   BaseGDL* bias,
+ 				   bool center, bool normalize, int edgeMode)
+{
+  throw GDLException("ULONG expression not allowed in this context.");
+}
+
+template<>
+BaseGDL* Data_<SpDULong64>::Convol( BaseGDL* kIn, BaseGDL* scaleIn, 
+				   BaseGDL* bias,
+ 				   bool center, bool normalize, int edgeMode)
+{
+  throw GDLException("ULONG64 expression not allowed in this context.");
+}
+*/
 
 #define INCLUDE_CONVOL_CPP 1
 #define CONVOL_BYTE__
@@ -4564,6 +4812,12 @@ BaseGDL* Data_<SpDString>::Convol( BaseGDL* kIn, BaseGDL* scaleIn,
 #include "convol.cpp"
 
 #undef CONVOL_BYTE__
+
+#define CONVOL_UINT__
+
+#include "convol.cpp"
+
+#undef CONVOL_UINT__
 
 #include "convol.cpp"
 
@@ -5127,15 +5381,18 @@ BaseGDL* Data_<SpDULong>::Rebin( const dimension& newDim, bool sample)
 template<class Sp>
 void Data_<Sp>::Assign( BaseGDL* src, SizeT nEl)
 {
-  Data_* srcT = dynamic_cast<Data_*>( src);
+  Data_* srcT; // = dynamic_cast<Data_*>( src);
 
-  auto_ptr< Data_> srcTGuard;
-  if( srcT == NULL) 
+  Guard< Data_> srcTGuard;
+  if( src->Type() != Data_::t) 
     {
       srcT = static_cast<Data_*>( src->Convert2( Data_::t, BaseGDL::COPY));
-      srcTGuard.reset( srcT);
+      srcTGuard.Init( srcT);
     }
-
+  else
+  {
+    srcT = static_cast<Data_*>( src);
+  }
   /*#pragma omp parallel if (nEl >= CpuTPOOL_MIN_ELTS && (CpuTPOOL_MAX_ELTS == 0 || CpuTPOOL_MAX_ELTS <= nEl))
     {
     #pragma omp for*/
@@ -5151,7 +5408,7 @@ void Data_<Sp>::Assign( BaseGDL* src, SizeT nEl)
 
 // return a new type of itself (only for one dimensional case)
 template<class Sp>
-Data_<Sp>* Data_<Sp>::NewIx( SizeT ix)
+BaseGDL* Data_<Sp>::NewIx( SizeT ix)
 {
   return new Data_( (*this)[ ix]);
 }
@@ -5228,7 +5485,7 @@ Data_<Sp>* Data_<Sp>::NewIx( BaseGDL* ix, bool strict)
   SizeT nElem = ix->N_Elements();
 
   Data_* res = New( ix->Dim(), BaseGDL::NOZERO);
-  auto_ptr<Data_> guard( res);
+  Guard<Data_> guard( res);
 
   SizeT upper = dd.size() - 1;
   Ty    upperVal = (*this)[ upper];

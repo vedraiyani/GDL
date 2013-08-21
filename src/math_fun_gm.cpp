@@ -194,10 +194,11 @@
 #define isfinite _finite
 #endif
 
-using namespace std;
-
 namespace lib
 {
+using namespace std;
+using std::isnan;
+
   double gm_expint(int n, double x);
   double gm_lentz(double a[], double b[], double tiny, int n, double eps);
 

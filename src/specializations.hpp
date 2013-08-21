@@ -18,6 +18,9 @@
 
 // basic_op.cpp
 
+template<>
+SizeT Data_<SpDObj>::N_Elements() const; 
+
 template<> 
 BaseGDL* Data_<SpDObj>::EqOp( BaseGDL*);
 template<> 
@@ -67,22 +70,24 @@ template<>
 void Data_<SpDPtr>::Inc();
 template<> 
 void Data_<SpDObj>::Inc();
-template<> 
-Data_<SpDFloat>* Data_<SpDFloat>::AndOp( BaseGDL* r);
+// template<> 
+// Data_<SpDFloat>* Data_<SpDFloat>::AndOp( BaseGDL* r);
 template<> 
 Data_<SpDFloat>* Data_<SpDFloat>::AndOpInv( BaseGDL* r);
-template<> 
-Data_<SpDDouble>* Data_<SpDDouble>::AndOp( BaseGDL* r);
+// template<> 
+// Data_<SpDDouble>* Data_<SpDDouble>::AndOp( BaseGDL* r);
 template<> 
 Data_<SpDDouble>* Data_<SpDDouble>::AndOpInv( BaseGDL* r);
-template<> 
-Data_<SpDString>* Data_<SpDString>::AndOp( BaseGDL* r);
-template<> 
-Data_<SpDComplex>* Data_<SpDComplex>::AndOp( BaseGDL* r);
-template<> 
-Data_<SpDComplexDbl>* Data_<SpDComplexDbl>::AndOp( BaseGDL* r);
-template<> 
-Data_<SpDPtr>* Data_<SpDPtr>::AndOp( BaseGDL* r);
+// template<> 
+// Data_<SpDString>* Data_<SpDString>::AndOp( BaseGDL* r);
+// template<> 
+// Data_<SpDComplex>* Data_<SpDComplex>::AndOp( BaseGDL* r);
+// template<> 
+// Data_<SpDComplexDbl>* Data_<SpDComplexDbl>::AndOp( BaseGDL* r);
+// template<> 
+// Data_<SpDPtr>* Data_<SpDPtr>::AndOp( BaseGDL* r);
+// template<> 
+// Data_<SpDObj>* Data_<SpDObj>::AndOp( BaseGDL* r);
 template<> 
 Data_<SpDFloat>* Data_<SpDFloat>::OrOp( BaseGDL* r);
 template<> 
@@ -339,9 +344,9 @@ Data_<SpDObj>* Data_<SpDObj>::Pow( BaseGDL* r);
 template<> 
 Data_<SpDObj>* Data_<SpDObj>::PowInv( BaseGDL* r);
 template<>
-Data_<SpDString>* Data_<SpDString>::MatrixOp( BaseGDL* r,bool t,bool tr, bool s);
+Data_<SpDString>* Data_<SpDString>::MatrixOp( BaseGDL* r, bool atranspose, bool btranspose);
 template<>
-Data_<SpDPtr>* Data_<SpDPtr>::MatrixOp( BaseGDL* ,bool t,bool tr,bool s);
+Data_<SpDPtr>* Data_<SpDPtr>::MatrixOp( BaseGDL* r, bool atranspose, bool btranspose);
 template<> 
 Data_<SpDByte>* Data_<SpDFloat>::LogNeg();
 template<> 
@@ -393,15 +398,15 @@ Data_<SpDComplexDbl>::Ty Data_<SpDComplexDbl>::min() const;
 template<> 
 Data_<SpDComplexDbl>::Ty Data_<SpDComplexDbl>::max() const;*/
 template<> 
-int Data_<SpDComplex>::Scalar2index( SizeT& st) const;
+int Data_<SpDComplex>::Scalar2Index( SizeT& st) const;
 template<>  
-int Data_<SpDComplexDbl>::Scalar2index( SizeT& st) const;
+int Data_<SpDComplexDbl>::Scalar2Index( SizeT& st) const;
 template<>  
-int Data_<SpDString>::Scalar2index( SizeT& st) const;
+int Data_<SpDString>::Scalar2Index( SizeT& st) const;
 template<>  
-int Data_<SpDPtr>::Scalar2index( SizeT& st) const;
+int Data_<SpDPtr>::Scalar2Index( SizeT& st) const;
 template<>  
-int Data_<SpDObj>::Scalar2index( SizeT& st) const;
+int Data_<SpDObj>::Scalar2Index( SizeT& st) const;
 template<> 
 bool Data_<SpDFloat>::True();
 template<> 
@@ -642,29 +647,38 @@ OFmtI( std::ostream* os, SizeT offs, SizeT r, int w, int d, char f,
 template<>  SizeT Data_<SpDComplexDbl>::
 OFmtI( std::ostream* os, SizeT offs, SizeT r, int w, int d, char f,
        BaseGDL::IOMode oMode); 
-
-
+template<> SizeT Data_<SpDDouble>::
+OFmtCal( std::ostream* os, SizeT offs, SizeT r, int w, int d, char f,
+       BaseGDL::Cal_IOMode cMode);
+// template<>
+// void Data_< SpDString>::Construct(); 
+// template<>
+// void Data_< SpDComplex>::Construct(); 
+// template<>
+// void Data_< SpDComplexDbl>::Construct(); 
 template<>
-void Data_< SpDString>::Construct(); 
+void Data_< SpDPtr>::Construct(); 
 template<>
-void Data_< SpDComplex>::Construct(); 
+void Data_< SpDObj>::Construct(); 
+// template<>
+// void Data_< SpDString>::ConstructTo0(); 
+// template<>
+// void Data_< SpDComplex>::ConstructTo0(); 
+// template<>
+// void Data_< SpDComplexDbl>::ConstructTo0(); 
+// template<>
+// void Data_< SpDString>::Destruct(); 
+// template<>
+// void Data_< SpDComplex>::Destruct(); 
+// template<>
+// void Data_< SpDComplexDbl>::Destruct(); 
 template<>
-void Data_< SpDComplexDbl>::Construct(); 
+void Data_< SpDPtr>::Destruct(); 
 template<>
-void Data_< SpDString>::ConstructTo0(); 
-template<>
-void Data_< SpDComplex>::ConstructTo0(); 
-template<>
-void Data_< SpDComplexDbl>::ConstructTo0(); 
-template<>
-void Data_< SpDString>::Destruct(); 
-template<>
-void Data_< SpDComplex>::Destruct(); 
-template<>
-void Data_< SpDComplexDbl>::Destruct(); 
+void Data_< SpDObj>::Destruct(); 
 
 // GetAsIndex/GetAsIndexStrict
-template<>
+  template<>
 SizeT Data_<SpDInt>::GetAsIndex( SizeT i) const;
 template<>
 SizeT Data_<SpDInt>::GetAsIndexStrict( SizeT i) const;

@@ -151,7 +151,7 @@ namespace lib {
 		{
 			BaseGDL* v=e->GetParDefined(2);
 			DIntGDL* dim_in=static_cast<DIntGDL*>(v->Convert2(GDL_INT, BaseGDL::COPY));
-			auto_ptr<DIntGDL> dim_in_guard( dim_in);
+			Guard<DIntGDL> dim_in_guard( dim_in);
 			int var_ndims=dim_in->N_Elements();
 			if(var_ndims > NC_MAX_VAR_DIMS)
                           e->Throw("NCDF internal error in error handler (too many dimension IDs).");
@@ -260,17 +260,8 @@ namespace lib {
 	else 
 	  {
 	  /*unknown error*/
-	    int mema=3;
-	    char *n=new char(mema);
-	    while (snprintf(n, sizeof n, "%d", status) >= sizeof n)
-	      {			delete n;mema++; n=new char(mema);   }
-
 	    error+=nc_strerror(status);
-	    error+=" (NC_ERROR=";
-	    error+=n;
-	    delete n;
-	    error+=")";
-	    
+	    error+=" (NC_ERROR="+i2s(status)+")";
 	  }
 
 	e->Throw(error);

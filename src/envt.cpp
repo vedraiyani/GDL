@@ -19,12 +19,12 @@
 
 #include <iomanip>
 
+#include "envt.hpp"
 #include "objects.hpp"
 #include "dinterpreter.hpp"
-#include "envt.hpp"
 #include "basic_pro.hpp"
 
-#include <assert.h> // always as last
+#include <cassert> // always as last
 
 using namespace std;
 
@@ -34,7 +34,7 @@ DInterpreter* EnvBaseT::interpreter;
 // EnvBaseT::ContainerT EnvBaseT::toDestroy;
 
 // EnvT::new & delete 
-deque< void*> EnvT::freeList;
+vector< void*> EnvT::freeList;
 const int multiAllocEnvT = 4;
 void* EnvT::operator new( size_t bytes)
 {
@@ -63,32 +63,42 @@ freeList.push_back( ptr);
 }
 
 // EnvUDT::new & delete 
-deque< void*> EnvUDT::freeList;
+// deque< void*> EnvUDT::freeList;
+FreeListT EnvUDT::freeList;
 const int multiAllocEnvUDT = 16;
 void* EnvUDT::operator new( size_t bytes)
 {
   assert( bytes == sizeof( EnvUDT));
   if( freeList.size() > 0)
   {
-    void* res = freeList.back();
-    freeList.pop_back();
-    return res;	
+    return freeList.pop_back();  
+//     void* res = freeList.back();
+//     freeList.pop_back();
+//     return res;	
   }
 //   cout << "*** Resize EnvUDT " << endl;
   const size_t newSize = multiAllocEnvUDT - 1;
-  freeList.resize( newSize);
-  char* res = static_cast< char*>( malloc( sizeof( EnvUDT) * multiAllocEnvUDT)); // one more than newSize
-  for( size_t i=0; i<newSize; ++i)
-  {
-    freeList[ i] = res;
-    res += sizeof( EnvUDT);
-  } 
-  // the one more
+
+  static long callCount = 0;
+  ++callCount;
+  
+  freeList.reserve( multiAllocEnvUDT * callCount);
+//   char* res = static_cast< char*>( malloc( sizeof( EnvUDT) * multiAllocEnvUDT)); // one more than newSize
+//   for( size_t i=0; i<newSize; ++i)
+//   {
+//     freeList[ i] = res;
+//     res += sizeof( EnvUDT);
+//   } 
+  const size_t sizeOfType = sizeof( EnvUDT);
+  char* res = static_cast< char*>( malloc( sizeOfType * multiAllocEnvUDT)); // one more than newSize
+  
+  res = freeList.Init( newSize, res, sizeOfType);
+ // the one more
   return res;
 }
 void EnvUDT::operator delete( void *ptr)
 {
-freeList.push_back( ptr);
+  freeList.push_back( ptr);
 }
 
 
@@ -268,7 +278,7 @@ EnvUDT::EnvUDT( BaseGDL* self, //DStructGDL* oStructGDL,
 
 
 // for obj_new, obj_destroy, call_procedure and call_function
-EnvT::EnvT( EnvT* pEnv, DSub* newPro, BaseGDL** self):
+EnvT::EnvT( EnvT* pEnv, DSub* newPro, DObjGDL** self):
   EnvBaseT( pEnv->callingNode, newPro)
 {
   obj = (self != NULL);
@@ -287,13 +297,13 @@ EnvT::EnvT( EnvT* pEnv, DSub* newPro, BaseGDL** self):
 //   parIx=keySize; // set to first parameter
   // pass by reference (self must not be deleted)
   if( self != NULL)
-    env.Set( parIx++, self); //static_cast<BaseGDL*>(oStructGDL));
+    env.Set( parIx++, (BaseGDL**)self); //static_cast<BaseGDL*>(oStructGDL));
 }
 
 
 
 //EnvUDT::EnvUDT( EnvBaseT* pEnv, DSub* newPro, BaseGDL** self):
-EnvUDT::EnvUDT( ProgNodeP callingNode_, DSub* newPro, BaseGDL** self):
+EnvUDT::EnvUDT( ProgNodeP callingNode_, DSubUD* newPro, DObjGDL** self):
 //   EnvBaseT( pEnv->CallingNode(), newPro),
   EnvBaseT( callingNode_, newPro),
   ioError(NULL), 
@@ -306,7 +316,7 @@ EnvUDT::EnvUDT( ProgNodeP callingNode_, DSub* newPro, BaseGDL** self):
 {
   obj = (self != NULL);
 
-  DSubUD* proUD=static_cast<DSubUD*>(pro);
+  DSubUD* proUD= newPro; //static_cast<DSubUD*>(pro);
   
   forLoopInfo.InitSize( proUD->NForLoops());
 
@@ -318,7 +328,7 @@ EnvUDT::EnvUDT( ProgNodeP callingNode_, DSub* newPro, BaseGDL** self):
 //   parIx=keySize; // set to first parameter
   // pass by reference (self must not be deleted)
   if( self != NULL)
-    env.Set( parIx++, self); //static_cast<BaseGDL*>(oStructGDL));
+    env.Set( parIx++, (BaseGDL**)self); //static_cast<BaseGDL*>(oStructGDL));
 }
 
 
@@ -403,12 +413,15 @@ void EnvBaseT::AddObj( DPtrListT& ptrAccessible, DPtrListT& objAccessible,
 void EnvBaseT::Add( DPtrListT& ptrAccessible, DPtrListT& objAccessible,
 		    BaseGDL* p)
 {
-  DPtrGDL* ptr = dynamic_cast< DPtrGDL*>( p);
-  AddPtr( ptrAccessible,  objAccessible, ptr);
-  DStructGDL* stru = dynamic_cast< DStructGDL*>( p);
-  AddStruct( ptrAccessible, objAccessible, stru);
-  DObjGDL* obj = dynamic_cast< DObjGDL*>( p);
-  AddObj( ptrAccessible, objAccessible, obj);
+  if( p == NULL)
+    return;
+  DType pType = p->Type();
+  if( pType == GDL_PTR)
+    AddPtr( ptrAccessible,  objAccessible, static_cast< DPtrGDL*>( p));
+  else if( pType == GDL_STRUCT)
+    AddStruct( ptrAccessible, objAccessible, static_cast< DStructGDL*>( p));
+  else if( pType == GDL_OBJ)
+    AddObj( ptrAccessible, objAccessible, static_cast< DObjGDL*>( p));
 }
 void EnvBaseT::AddEnv( DPtrListT& ptrAccessible, DPtrListT& objAccessible)
 {
@@ -419,14 +432,13 @@ void EnvBaseT::AddEnv( DPtrListT& ptrAccessible, DPtrListT& objAccessible)
 }
 void EnvBaseT::AddToDestroy( DPtrListT& ptrAccessible, DPtrListT& objAccessible)
 {
-// 	if( toDestroy == NULL)
-// 		return;
-    for( SizeT i=0; i<toDestroy.size(); ++i)
-      {
-         Add( ptrAccessible, objAccessible, toDestroy[i]);
-	  }
+  for( SizeT i=0; i<toDestroy.size(); ++i)
+    {
+	Add( ptrAccessible, objAccessible, toDestroy[i]);
+    }
 }
 
+typedef std::vector<DObj> VectorDObj;
 void EnvT::HeapGC( bool doPtr, bool doObj, bool verbose)
 {
   // within CLEANUP method HEAP_GC could be called again
@@ -473,9 +485,10 @@ void EnvT::HeapGC( bool doPtr, bool doObj, bool verbose)
       }
 
     EnvStackT& cS=interpreter->CallStack();
-    for( EnvStackT::reverse_iterator r = cS.rbegin(); r != cS.rend(); ++r) 
+//     for( EnvStackT::reverse_iterator r = cS.rbegin(); r != cS.rend(); ++r) 
+    for( long ix = cS.size()-1; ix >= 0; --ix) 
       {
-	(*r)->AddEnv( ptrAccessible, objAccessible);
+	cS[ix]->AddEnv( ptrAccessible, objAccessible);
       }
 
 	AddToDestroy( ptrAccessible, objAccessible);  
@@ -484,8 +497,8 @@ void EnvT::HeapGC( bool doPtr, bool doObj, bool verbose)
     if( doObj)
       {
 	std::vector<DObj>* heap = interpreter->GetAllObjHeapSTL();
-	auto_ptr< std::vector<DObj> > heap_guard( heap);
-	    SizeT nH = heap->size();//N_Elements();
+	Guard< std::vector<DObj> > heap_guard( heap);
+	SizeT nH = heap->size();//N_Elements();
 	if( nH > 0 && (*heap)[0] != 0)
 	  {
 	    for( SizeT h=0; h<nH; ++h)
@@ -512,7 +525,7 @@ void EnvT::HeapGC( bool doPtr, bool doObj, bool verbose)
     if( doPtr)
       {
 	std::vector<DPtr>* heap = interpreter->GetAllHeapSTL();
-	auto_ptr< std::vector<DPtr> > heap_guard( heap);
+	Guard< std::vector<DPtr> > heap_guard( heap);
 	    SizeT nH = heap->size();
 	if( nH > 0 && (*heap)[0] != 0)
 	  {
@@ -556,59 +569,75 @@ void EnvT::HeapGC( bool doPtr, bool doObj, bool verbose)
 
 set< DObj> EnvBaseT::inProgress;
 
+class InProgressGuard
+{
+private:
+  DObj actID;
+public:
+  InProgressGuard( DObj id): actID( id) 
+  {
+    EnvBaseT::inProgress.insert( actID);    
+  }
+  ~InProgressGuard()
+  {
+    EnvBaseT::inProgress.erase( actID);
+  }
+};
+
 // for CLEANUP calls due to reference counting
 // note: refcount is already zero for actID
 void EnvBaseT::ObjCleanup( DObj actID)
 {
-  if( actID != 0 && (inProgress.find( actID) == inProgress.end()))
-    {
-      DStructGDL* actObj;
-      try{
-	actObj=GetObjHeap( actID);
-// 	GDLInterpreter::ObjHeapT::iterator it;
-// 	actObj=GDLInterpreter::GetObjHeap( actID, it);
-    }
-      catch( GDLInterpreter::HeapException){
-		actObj=NULL;
-      }
-	    
-    if( actObj != NULL)
-	    {
-	      try{
-		  // call CLEANUP function
-		  DPro* objCLEANUP= actObj->Desc()->GetPro( "CLEANUP");
-	  
-		  if( objCLEANUP != NULL)
-		  {
-		    BaseGDL* actObjGDL = new DObjGDL( actID);
-		    auto_ptr<BaseGDL> actObjGDL_guard( actObjGDL);
-		    GDLInterpreter::IncRefObj( actID); // set refcount to 1
-	    
-		    PushNewEmptyEnvUD( objCLEANUP, &actObjGDL);
-	    
-		    inProgress.insert( actID);
-	    
-		    interpreter->call_pro( objCLEANUP->GetTree());
-	    
-		    inProgress.erase( actID);
+  if( actID == 0 || (inProgress.find( actID) != inProgress.end()))
+    return;
 
-		    EnvBaseT* callStackBack =  interpreter->CallStack().back();
-		    interpreter->CallStack().pop_back();
-		    delete callStackBack;
+  DStructGDL* actObj;
+  try{
+    actObj=GetObjHeap( actID);
+  }
+  catch( GDLInterpreter::HeapException&){
+    // not found
+    return;
+  }
+	 
+  // found actID  
+  if( actObj != NULL)
+  {
+    InProgressGuard inProgressGuard( actID); // exception save
+    
+    Guard<BaseGDL> actObjGDL_guard;
+    try{
+	// call CLEANUP function
+	DPro* objCLEANUP= actObj->Desc()->GetPro( "CLEANUP");
 
-		    FreeObjHeap( actID); // make sure actObj is freed
-		    // actObjGDL goes out of scope -> refcount is (would be) decreased
-		  }
-	      }
-	    catch( ...)
-	      {
-		FreeObjHeap( actID); // make sure actObj is freed
-		throw; // rethrow
-	      }		
-	    }
-    else		
-	FreeObjHeap( actID); // the actual freeing
+	if( objCLEANUP != NULL)
+	{
+	  BaseGDL* actObjGDL = new DObjGDL( actID);
+	  actObjGDL_guard.Init( actObjGDL);
+	  GDLInterpreter::IncRefObj( actID); // set refcount to 1
+  
+	  PushNewEmptyEnvUD( objCLEANUP, &actObjGDL);
+  
+	  interpreter->call_pro( objCLEANUP->GetTree());
+  
+	  EnvBaseT* callStackBack =  interpreter->CallStack().back();
+	  interpreter->CallStack().pop_back();
+	  delete callStackBack;
+	}
     }
+    catch( ...)
+      {
+	FreeObjHeap( actID); // make sure actObj is freed
+	throw; // rethrow
+      }		
+    // actObjGDL_guard goes out of scope -> refcount is (would be) decreased
+    FreeObjHeap( actID); 
+  }
+  else // actObj == NULL
+  {
+      Warning("Cleaning up invalid (NULL) OBJECT ID <"+i2s(actID)+">.");
+      FreeObjHeap( actID); // make sure actObj is freed
+  }
 }
 
 
@@ -634,8 +663,8 @@ void EnvT::ObjCleanup( DObj actID)
 		
 			if( objCLEANUP != NULL)
 				{
-				BaseGDL* actObjGDL = new DObjGDL( actID);
-				auto_ptr<BaseGDL> actObjGDL_guard( actObjGDL);
+				DObjGDL* actObjGDL = new DObjGDL( actID);
+				Guard<BaseGDL> actObjGDL_guard( actObjGDL);
 				GDLInterpreter::IncRefObj( actID);
 			
 				PushNewEnvUD( objCLEANUP, 1, &actObjGDL);
@@ -862,6 +891,19 @@ const string EnvBaseT::GetString( BaseGDL*& p, bool calledFromHELP)
 //   return string("<Expression>");
 // }
 
+
+void EnvT::Help(const std::string s_help[], int size_of_s)
+{
+  if (size_of_s == 0) 
+    throw GDLException( CallingNode(), pro->ObjectName()+": no inline doc ready");
+  else {
+    int i;
+    for (i = 0; i < size_of_s; i++)
+      Message(pro->ObjectName()+": "+s_help[i]);
+    throw GDLException( CallingNode(), pro->ObjectName()+": call to inline help");
+  }
+}
+
 void EnvBaseT::SetKeyword( const string& k, BaseGDL* const val) // value
 {
   int varIx=GetKeywordIx( k);
@@ -939,7 +981,13 @@ EnvBaseT* EnvBaseT::Caller()
 
   //if( callStack.size() <= 1) return NULL;
   // library environments are no longer on the call stack
-  assert( callStack.back() != this);
+  // but since we have WRAPPED_FUNNode it is convenient 
+//   assert( callStack.back() != this);
+  if( callStack.back() == this)
+  {
+    assert( callStack.size() >= 2);
+    return callStack[ callStack.size() - 2];
+  }
 
   return callStack.back();
   
@@ -976,7 +1024,7 @@ void EnvBaseT::PushNewEmptyEnvUD(  DSub* newPro, BaseGDL** newObj)
 // and obj_destroy (basic_pro.cpp)
 // and call_function (basic_fun.cpp)
 // and call_procedure (basic_pro.cpp)
-void EnvT::PushNewEnvUD(  DSub* newPro, SizeT skipP, BaseGDL** newObj)
+void EnvT::PushNewEnvUD(  DSubUD* newPro, SizeT skipP, DObjGDL** newObj)
 {
   EnvUDT* newEnv= new EnvUDT( this->CallingNode(), newPro, newObj);
 
@@ -1000,7 +1048,7 @@ void EnvT::PushNewEnvUD(  DSub* newPro, SizeT skipP, BaseGDL** newObj)
 // and obj_destroy (basic_pro.cpp)
 // and call_function (basic_fun.cpp)
 // and call_procedure (basic_pro.cpp)
-EnvT* EnvT::NewEnv(  DSub* newPro, SizeT skipP, BaseGDL** newObj)
+EnvT* EnvT::NewEnv(  DSub* newPro, SizeT skipP, DObjGDL** newObj)
 {
   EnvT* newEnv= new EnvT( this, newPro, newObj);
 
@@ -1040,8 +1088,7 @@ DStructGDL* EnvT::GetObjectPar( SizeT pIx)
 {
   BaseGDL* p1= GetParDefined( pIx);
   
-  DObjGDL* oRef = dynamic_cast<DObjGDL*>(p1);
-  if( oRef == NULL)
+  if( p1->Type() != GDL_OBJ)
     {
       Throw( "Parameter must be an object reference"
 	     " in this context: "+
@@ -1049,6 +1096,7 @@ DStructGDL* EnvT::GetObjectPar( SizeT pIx)
     }
   else
     {
+      DObjGDL* oRef = static_cast<DObjGDL*>(p1);
       DObj objIx;
       if( !oRef->Scalar( objIx))
 	Throw( "Parameter must be a scalar in this context: "+
@@ -1305,7 +1353,7 @@ int EnvBaseT::GetKeywordIx( const std::string& k)
     }
   
   // search keyword
-  IDList::iterator f=std::find_if(pro->key.begin(),
+  KeyVarListT::iterator f=std::find_if(pro->key.begin(),
 				  pro->key.end(),
 				  strAbbrefEq_k);
   if( f == pro->key.end()) 
@@ -1337,7 +1385,7 @@ int EnvBaseT::GetKeywordIx( const std::string& k)
       return -1;
     }
   // continue search (for ambiguity)
-  IDList::iterator ff=std::find_if(f+1,
+  KeyVarListT::iterator ff=std::find_if(f+1,
 				   pro->key.end(),
 				   strAbbrefEq_k);
   if( ff != pro->key.end())
@@ -1372,6 +1420,10 @@ bool EnvT::KeywordSet( const std::string& kw)
 
 bool EnvT::KeywordSet( SizeT ix)
 {
+  return EnvBaseT::KeywordSet( ix);
+}
+bool EnvBaseT::KeywordSet( SizeT ix)
+{
   BaseGDL* keyword=env[ix];
   if( keyword == NULL) return false;
   if( !keyword->Scalar()) return true;
@@ -1402,7 +1454,7 @@ void EnvBaseT::AssureLongScalarPar( SizeT pIx, DLong64& scalar)
 {
   BaseGDL* p = GetParDefined( pIx);
   DLong64GDL* lp = static_cast<DLong64GDL*>(p->Convert2( GDL_LONG64, BaseGDL::COPY));
-  auto_ptr<DLong64GDL> guard_lp( lp);
+  Guard<DLong64GDL> guard_lp( lp);
   if( !lp->Scalar( scalar))
     Throw("Parameter must be a scalar in this context: "+
 		       GetParString(pIx));
@@ -1411,7 +1463,7 @@ void EnvBaseT::AssureLongScalarPar( SizeT pIx, DLong& scalar)
 {
   BaseGDL* p = GetParDefined( pIx);
   DLongGDL* lp = static_cast<DLongGDL*>(p->Convert2( GDL_LONG, BaseGDL::COPY));
-  auto_ptr<DLongGDL> guard_lp( lp);
+  Guard<DLongGDL> guard_lp( lp);
   if( !lp->Scalar( scalar))
     Throw("Parameter must be a scalar in this context: "+
 		       GetParString(pIx));
@@ -1452,7 +1504,7 @@ void EnvT::AssureLongScalarKW( SizeT eIx, DLong& scalar)
   
   DLongGDL* lp= static_cast<DLongGDL*>(p->Convert2( GDL_LONG, BaseGDL::COPY));
   
-  auto_ptr<DLongGDL> guard_lp( lp);
+  Guard<DLongGDL> guard_lp( lp);
 
   if( !lp->Scalar( scalar))
     Throw("Expression must be a scalar in this context: "+
@@ -1463,7 +1515,7 @@ void EnvT::AssureDoubleScalarPar( SizeT pIx, DDouble& scalar)
 {
   BaseGDL* p = GetParDefined( pIx);
   DDoubleGDL* lp = static_cast<DDoubleGDL*>(p->Convert2( GDL_DOUBLE, BaseGDL::COPY));
-  auto_ptr<DDoubleGDL> guard_lp( lp);
+  Guard<DDoubleGDL> guard_lp( lp);
   if( !lp->Scalar( scalar))
     Throw("Parameter must be a scalar in this context: "+
 		       GetParString(pIx));
@@ -1494,7 +1546,7 @@ void EnvT::AssureDoubleScalarKW( SizeT eIx, DDouble& scalar)
   
   DDoubleGDL* lp= static_cast<DDoubleGDL*>(p->Convert2( GDL_DOUBLE, BaseGDL::COPY));
   
-  auto_ptr<DDoubleGDL> guard_lp( lp);
+  Guard<DDoubleGDL> guard_lp( lp);
 
   if( !lp->Scalar( scalar))
     Throw("Expression must be a scalar in this context: "+
@@ -1506,7 +1558,7 @@ void EnvT::AssureFloatScalarPar( SizeT pIx, DFloat& scalar)
 {
   BaseGDL* p = GetParDefined( pIx);
   DFloatGDL* lp = static_cast<DFloatGDL*>(p->Convert2( GDL_FLOAT, BaseGDL::COPY));
-  auto_ptr<DFloatGDL> guard_lp( lp);
+  Guard<DFloatGDL> guard_lp( lp);
   if( !lp->Scalar( scalar))
     Throw("Parameter must be a scalar in this context: "+
 		       GetParString(pIx));
@@ -1537,7 +1589,7 @@ void EnvT::AssureFloatScalarKW( SizeT eIx, DFloat& scalar)
   
   DFloatGDL* lp= static_cast<DFloatGDL*>(p->Convert2( GDL_FLOAT, BaseGDL::COPY));
   
-  auto_ptr<DFloatGDL> guard_lp( lp);
+  Guard<DFloatGDL> guard_lp( lp);
 
   if( !lp->Scalar( scalar))
     Throw("Expression must be a scalar in this context: "+
@@ -1549,7 +1601,7 @@ void EnvT::AssureStringScalarPar( SizeT pIx, DString& scalar)
 {
   BaseGDL* p = GetParDefined( pIx);
   DStringGDL* lp = static_cast<DStringGDL*>(p->Convert2( GDL_STRING, BaseGDL::COPY));
-  auto_ptr<DStringGDL> guard_lp( lp);
+  Guard<DStringGDL> guard_lp( lp);
   if( !lp->Scalar( scalar))
     Throw("Parameter must be a scalar in this context: "+
 		       GetParString(pIx));
@@ -1578,7 +1630,7 @@ void EnvT::AssureStringScalarKW( SizeT eIx, DString& scalar)
     Throw("Expression undefined: "+GetString(eIx));
   
   DStringGDL* lp= static_cast<DStringGDL*>(p->Convert2( GDL_STRING, BaseGDL::COPY));
-  auto_ptr<DStringGDL> guard_lp( lp);
+  Guard<DStringGDL> guard_lp( lp);
 
   if( !lp->Scalar( scalar))
     Throw("Expression must be a scalar in this context: "+
@@ -1588,7 +1640,7 @@ void EnvT::AssureStringScalarKW( SizeT eIx, DString& scalar)
 void EnvT::SetKW( SizeT ix, BaseGDL* newVal)
 {
   // can't use Guard here as data has to be released
-  auto_ptr<BaseGDL> guard( newVal);
+  Guard<BaseGDL> guard( newVal);
   AssureGlobalKW( ix);
   GDLDelete(GetKW( ix));
   GetKW( ix) = guard.release();
@@ -1596,7 +1648,7 @@ void EnvT::SetKW( SizeT ix, BaseGDL* newVal)
 void EnvT::SetPar( SizeT ix, BaseGDL* newVal)
 {
   // can't use Guard here as data has to be released
-  auto_ptr<BaseGDL> guard( newVal);
+  Guard<BaseGDL> guard( newVal);
   AssureGlobalPar( ix);
   GDLDelete(GetPar( ix));
   GetPar( ix) = guard.release();
@@ -1605,7 +1657,9 @@ void EnvT::SetPar( SizeT ix, BaseGDL* newVal)
 bool EnvBaseT::Contains( BaseGDL* p) const 
 { 
   if( env.Contains( p)) return true;
-  return (static_cast<DSubUD*>(pro)->GetCommonVarPtr( p) != NULL);
+  if (static_cast<DSubUD*>(pro)->GetCommonVarPtr( p) != NULL) return true;
+  // horrible slow... but correct
+  return Interpreter()->GetPtrToHeap( p) != NULL;
 }
 
 BaseGDL** EnvBaseT::GetPtrTo( BaseGDL* p) 

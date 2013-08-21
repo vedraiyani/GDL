@@ -63,6 +63,22 @@ enum DType {  // Object types (IDL type numbers)
   GDL_ULONG,      // 13 unsigned long int
   GDL_LONG64,     // 14 64 bit integer
   GDL_ULONG64     // 15 unsigned 64 bit integer
+
+  // not yet implemented
+  , GDL_LONG128  // 128 bit integer
+  , GDL_ULONG128 // unsigned 128 bit integer
+  
+  , GDL_LONGABI // arbitrary length int
+  //, GDL_ULONGABI // arbitrary length unsigned int (pointless)
+  
+  , GDL_LDOUBLE // long double  precision float (80 or 128bit)
+  , GDL_COMPLEXLDBL // Complex long double
+
+  , GDL_ARBITRARY // arbitrary precision float
+  , GDL_COMPLEXABI // Complex arbitrary
+
+  , GDL_RATIONAL // arbitrary length rational
+  , GDL_COMPLEXRAT // Complex arbitrary length rational
 };
 
 // order of conversion precedence if two types are the same,
@@ -74,17 +90,55 @@ const int DTypeOrder[]={
   4, 	//GDL_LONG,	
   8, 	//GDL_FLOAT,	
   9, 	//GDL_DOUBLE,	
-  10, 	//GDL_COMPLEX,	
+  20, 	//GDL_COMPLEX,	
   1, 	//GDL_STRING,	
   101, 	//GDL_STRUCT,	
-  11, 	//GDL_COMPLEXDBL,	
+  21, 	//GDL_COMPLEXDBL,	
   102, 	//GDL_PTR,		
   103, 	//GDL_OBJ, // must be highest number (see AdjustTypes... functions)
   3, 	//GDL_UINT,	
   4, 	//GDL_ULONG,
   5, 	//GDL_LONG64,
   5 	//GDL_ULONG64
+  
+  // not yet implemented
+  ,6  //   , GDL_LONG128  // 128 bit integer
+  ,6  //   , GDL_ULONG128 // unsigned 128 bit integer
+    //   
+  ,7  //   , GDL_LONGAB // arbitrary length int
+  // ,7  //   , GDL_ULONGAR // arbitrary length unsigned int (pointless)
+    //   
+  ,10  //   , GDL_LDOUBLE // quad precision float (80 or 128bit)
+  ,22  //   , GDL_COMPLEXLDBL // Complex quad
+    // 
+  ,11  //   , GDL_ARBITRARY // arbitrary precision float
+  ,23  //   , GDL_COMPLEXAR // Complex arbitrary
+    // 
+  ,12  //   , GDL_RATIONAL // arbitrary length rational
+  ,24  //   , GDL_COMPLEXRAT // Complex arbitrary length rational
 };	
+
+
+inline DType PromoteMatrixOperands( DType aTy, DType bTy)
+{
+  DType maxTy=(DTypeOrder[aTy] >= DTypeOrder[bTy])? aTy: bTy;
+  if( maxTy == GDL_BYTE || maxTy == GDL_INT)
+    return GDL_LONG;
+  else if( maxTy == GDL_UINT)
+    return GDL_ULONG;
+  return maxTy;
+}
+
+inline DType PromoteComplexOperand( DType aTy, DType bTy)
+{
+  if((aTy == GDL_COMPLEX && bTy == GDL_DOUBLE) ||
+     (bTy == GDL_COMPLEX && aTy == GDL_DOUBLE) )
+    return GDL_COMPLEXDBL;
+  return GDL_UNDEF;
+}
+
+namespace gdl_type_lookup {
+
 const bool IsConvertableType[]={
   false, 	//GDL_UNDEF
   true, 	//GDL_BYTE
@@ -176,14 +230,17 @@ const bool IsNonPODType[]={
   false 	//GDL_ULONG64
 };	
 
+  
+} //namespace gdl_type_lookup 
+
 inline bool NonPODType( DType t)
 {
-  return IsNonPODType[ t];
+  return gdl_type_lookup::IsNonPODType[ t];
 //   return (t == GDL_COMPLEX) || (t == GDL_COMPLEXDBL) || (t == GDL_STRING) || (t == GDL_STRUCT);
 }
 inline bool IntType( DType t)
 {
-  return IsIntType[ t];
+  return gdl_type_lookup::IsIntType[ t];
 //   int o = DTypeOrder[ t];
 //   return (o >= 2 && o <= 5);
 }
@@ -193,7 +250,7 @@ inline bool FloatType( DType t)
 }
 inline bool RealType( DType t) // Float or Int
 {
-  return IsRealType[ t];
+  return gdl_type_lookup::IsRealType[ t];
 //   int o = DTypeOrder[ t];
 //   return (o >= 2 && o <= 9);
 }
@@ -203,13 +260,13 @@ inline bool ComplexType( DType t)
 }
 inline bool NumericType( DType t) // Float or Int or Complex
 {
-  return IsNumericType[ t];
+  return gdl_type_lookup::IsNumericType[ t];
 //   int o = DTypeOrder[ t];
 //   return (o >= 2 && o <= 11);
 }
 inline bool ConvertableType( DType t) // everything except Struct, Ptr, Obj
 {
-  return IsConvertableType[ t];
+  return gdl_type_lookup::IsConvertableType[ t];
 //   int o = DTypeOrder[ t];
 //   return (o >= 1 && o <= 11);
 }
@@ -354,7 +411,27 @@ public:
     HEXL, // lower case characters
     AUTO
   };
-  
+
+  enum Cal_IOMode {
+      DEFAULT=0,
+      CMOA,
+      CMoA,
+      CmoA,
+      CMOI,
+      CDI,
+      CYI,
+      CHI,
+      ChI,
+      CMI,
+      CSI,
+      CSF,
+      CDWA,
+      CDwA,
+      CdwA,
+      CAPA,
+      CApA,
+      CapA
+  };
   // FIRST VIRTUAL FUNCTION'S GDL_OBJ FILE CONTAINS ALSO THE VTABLE
   // therefore it must be defined non-inline (g++)
   virtual ~BaseGDL(); // defined in basegdl.cpp
@@ -394,6 +471,8 @@ public:
   virtual SizeT NBytes() const;     // total bytes of data
   virtual SizeT ToTransfer() const; // elements to transfer
   virtual SizeT Sizeof() const;     // size of scalar data
+
+  virtual int HashCompare( BaseGDL* p2) const;
   
   virtual BaseGDL* Transpose( DUInt* perm);
   virtual BaseGDL* Rotate( DLong dir);
@@ -441,11 +520,13 @@ public:
   virtual BaseGDL* GetEmptyInstance() const;
   virtual BaseGDL* SetBuffer( const void* b);
   virtual void     SetBufferSize( SizeT s);
-  virtual int Scalar2index(SizeT& ret) const;
+  virtual int Scalar2Index(SizeT& ret) const;
   virtual int Scalar2RangeT(RangeT& ret) const;
   virtual SizeT GetAsIndex( SizeT i) const;
   virtual SizeT GetAsIndexStrict( SizeT i) const;
   virtual RangeT LoopIndex() const;
+  virtual DDouble HashValue() const;
+  
   virtual bool True();
   virtual bool False();
   virtual bool LogTrue();
@@ -481,8 +562,8 @@ public:
   virtual BaseGDL* NewIxFromStride( SizeT s, SizeT e, SizeT stride);
 
   // library functions
-  virtual BaseGDL* Convol( BaseGDL* kIn, BaseGDL* scaleIn, 
-			   bool center, int edgeMode);
+  virtual BaseGDL* Convol( BaseGDL* kIn, BaseGDL* scaleIn, BaseGDL* bias,
+ 			   bool center, bool normalize, int edgeMode);
   virtual BaseGDL* Rebin( const dimension& newDim, bool sample);
   // for STRUCT_ASSIGN
   virtual void Assign( BaseGDL* src, SizeT nEl);
@@ -598,7 +679,7 @@ public:
 
   
   //  virtual BaseGDL* PowInvNew( BaseGDL* r);
-  virtual BaseGDL* MatrixOp( BaseGDL* r, bool rtranspose = false, bool transposeResult =false, bool strassen = false);
+  virtual BaseGDL* MatrixOp( BaseGDL* r, bool atranspose=false, bool btranspose=false);
   virtual void AssignAt( BaseGDL* srcIn, ArrayIndexListT* ixList, SizeT offset);
   virtual void AssignAt( BaseGDL* srcIn, ArrayIndexListT* ixList);
   virtual void AssignAt( BaseGDL* srcIn);
@@ -617,6 +698,8 @@ public:
 			int prec, char fill, IOMode oM = FIXED); 
   virtual SizeT OFmtI( std::ostream* os, SizeT offs, SizeT num, int width, 
 			int minN, char fill, BaseGDL::IOMode oM = DEC);
+  virtual SizeT OFmtCal( std::ostream* os, SizeT offs, SizeT num, int width, 
+			int minN, char fill, BaseGDL::Cal_IOMode oM = DEFAULT);
   virtual SizeT IFmtA( std::istream* is, SizeT offset, SizeT num, int width);
   virtual SizeT IFmtF( std::istream* is, SizeT offs, SizeT num, int width);
   virtual SizeT IFmtI( std::istream* is, SizeT offs, SizeT num, int width, 
@@ -626,6 +709,9 @@ public:
 
   virtual PyObject* ToPython();
 #endif
+
+  virtual bool Test2() {return false;}
+  
 };
 
 
@@ -652,6 +738,7 @@ struct ForLoopInfoT
   BaseGDL*  endLoopVar; // the source for foreach as well
   BaseGDL*  loopStepVar;
   DLong     foreachIx;
+//   bool      isHash; // only used in FOREACH_INDEXNode::Run() and FOREACH_INDEX_LOOPNode::Run()
 
   ForLoopInfoT()
   : endLoopVar(NULL)

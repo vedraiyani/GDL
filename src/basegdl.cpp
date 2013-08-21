@@ -63,7 +63,10 @@ void  BaseGDL::InitFrom(const BaseGDL& right)
 // {
 //   throw GDLException("BaseGDL::Abs() called.");
 // }
-
+int BaseGDL::HashCompare( BaseGDL*) const
+{
+  throw GDLException("BaseGDL::HashCompare( BaseGDL*) called.");
+}
 bool BaseGDL::Greater(SizeT i1, SizeT i2) const
 {
   throw GDLException("BaseGDL::Greater(SizeT,SizeT) called.");
@@ -202,7 +205,7 @@ void BaseGDL::SetBufferSize( SizeT s)
   throw GDLException("BaseGDL::SetBufferSize called.");
 }
 
-int BaseGDL::Scalar2index(SizeT& ret) const 
+int BaseGDL::Scalar2Index(SizeT& ret) const 
 { 
   throw GDLException("Operation not defined for UNDEF 1.");
 }
@@ -456,7 +459,7 @@ BaseGDL* BaseGDL::PowInt( BaseGDL* r)
   throw GDLException("Operation not defined for UNDEF 170.");
 }
 
-BaseGDL* BaseGDL::MatrixOp( BaseGDL* r, bool rtranspose, bool transposeResult, bool strassen)
+BaseGDL* BaseGDL::MatrixOp( BaseGDL* r, bool atranspose, bool btranspose)
 {
   throw GDLException("Operation not defined for UNDEF 18.");
 }
@@ -508,6 +511,10 @@ SizeT BaseGDL::OFmtI( std::ostream* os, SizeT offs, SizeT num, int width,
 		      int minN, char fill, BaseGDL::IOMode oM)
 {throw GDLException("BaseGDL::OFmtI(...) called.");}
 
+SizeT BaseGDL::OFmtCal( std::ostream* os, SizeT offs, SizeT num, int width, 
+		      int minN, char fill, BaseGDL::Cal_IOMode oM)
+{throw GDLException("BaseGDL::OFmtC(...) called.");}
+
 SizeT BaseGDL::IFmtA( std::istream* is, SizeT offset, SizeT num, int width)
 {throw GDLException("BaseGDL::IFmtA(...) called.");}
 
@@ -518,8 +525,8 @@ SizeT BaseGDL::IFmtI( std::istream* is, SizeT offs, SizeT num, int width,
 		      BaseGDL::IOMode oM)
 {throw GDLException("BaseGDL::IFmtI(...) called.");}
 
-BaseGDL* BaseGDL::Convol( BaseGDL* kIn, BaseGDL* scaleIn, 
-		 bool center, int edgeMode)
+BaseGDL* BaseGDL::Convol( BaseGDL* kIn, BaseGDL* scaleIn, BaseGDL* bias,
+		 bool center, bool normalize, int edgeMode)
 {
   throw GDLException("BaseGDL::Convol(...) called.");
 }
@@ -670,6 +677,11 @@ void BaseGDL::AssignAtIx( RangeT ix, BaseGDL* srcIn)
 RangeT BaseGDL::LoopIndex() const
 { 
   throw GDLException("Operation not defined for UNDEF 29.");
+}
+
+DDouble BaseGDL::HashValue() const
+{ 
+  throw GDLException("Operation not defined for UNDEF 29a.");
 }
 
 BaseGDL* BaseGDL::Rotate( DLong dir)

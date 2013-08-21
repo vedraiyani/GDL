@@ -2,7 +2,7 @@
 #define INC_GDLParser_hpp_
 
 #include <antlr/config.hpp>
-/* $ANTLR 2.7.7 (20110618): "gdlc.g" -> "GDLParser.hpp"$ */
+/* $ANTLR 2.7.7 (20120518): "gdlc.g" -> "GDLParser.hpp"$ */
 #include <antlr/TokenStream.hpp>
 #include <antlr/TokenBuffer.hpp>
 #include "GDLTokenTypes.hpp"
@@ -194,6 +194,7 @@ public:
 	public: void deref_dot_expr();
 	public: bool  member_function_call();
 	public: void member_function_call_dot();
+	public: void arrayexpr_mfcall();
 	public: void primary_expr();
 	public: void decinc_expr();
 	public: void exponential_expr();

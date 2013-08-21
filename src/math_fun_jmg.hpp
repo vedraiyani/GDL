@@ -56,6 +56,13 @@ namespace lib {
   BaseGDL* finite_fun( EnvT* e);
   BaseGDL* check_math_fun( EnvT* e);
   BaseGDL* radon_fun( EnvT* e);
+#ifdef PL_HAVE_QHULL
+  void     triangulate( EnvT* e);
+  void qhull ( EnvT* e);
+  void grid_input (EnvT* e);
+  BaseGDL* qgrid3_fun ( EnvT* e);
+  BaseGDL* sph_scat_fun ( EnvT* e);
+#endif
   BaseGDL* trigrid_fun( EnvT* e);
   BaseGDL* poly_2d_fun( EnvT* e);
   BaseGDL* rk4jmg_fun( EnvT* e);
@@ -68,7 +75,8 @@ namespace lib {
   image_t * image_warp(SizeT, SizeT, SizeT, SizeT, DType, void*, 
 		       char *kernel_type,
 		       DDouble *param, poly2d *poly_u, poly2d *poly_v, 
-		       DLong interp, DDouble cubic, DLong warpType, DDouble initvalue);
+		       DLong interp, DDouble cubic, DLong warpType, DDouble initvalue,
+               bool doMissing);
 
   image_t * image_new(int size_x, int size_y, DDouble initvalue);
   void image_del(image_t *d);
