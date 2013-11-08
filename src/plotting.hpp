@@ -20,6 +20,7 @@
 #define gdlPlot_Min(a, b) ((a) < (b) ? (a) : (b))
 #define gdlPlot_Max(a, b) ((a) > (b) ? (a) : (b))
 
+
 //To debug Affine 3D homogenous projections matrices.
 //IDL define a matrix as  M[ncol,mrow] and print as such. However col_major and
 //row_major refer to the math notation M[row,col] where row=dim(0) and col=dim(1).
@@ -57,7 +58,7 @@
       }
 
 #include "envt.hpp"
-#include "graphics.hpp"
+#include "graphicsdevice.hpp"
 #include "initsysvar.hpp"
 
   struct GDL_3DTRANSFORMDATA
@@ -105,6 +106,9 @@ namespace lib {
 
   // main plotting routine (all defined using the plotting_routine_call class)
   void plot( EnvT* e);
+  void plot_io( EnvT* e);
+  void plot_oo( EnvT* e);
+  void plot_oi( EnvT* e);
   void oplot( EnvT* e);
   void plots( EnvT* e);
   void surface( EnvT* e);
@@ -193,10 +197,10 @@ namespace lib {
 
       overplot = handle_args(e);
 
-      GDLGStream* actStream = Graphics::GetDevice()->GetStream();
+      GDLGStream* actStream = GraphicsDevice::GetDevice()->GetStream();
       if (actStream == NULL) e->Throw("Unable to create window.");
-      isDB = actStream->hasDoubleBuffering();
-      if (isDB) actStream->setDoubleBuffering();
+      isDB = actStream->HasDoubleBuffering();
+      if (isDB) actStream->SetDoubleBuffering();
       DString name = (*static_cast<DStringGDL*>(SysVar::D()->GetTag(SysVar::D()->Desc()->TagIndex("NAME"), 0)))[0];
       if (name == "X") 
       {       
@@ -213,7 +217,8 @@ namespace lib {
 
       post_call(e, actStream);
       if (isDB) actStream->eop(); else actStream->flush();
-      if(isDB) actStream->unSetDoubleBuffering();
+      if(isDB) actStream->UnSetDoubleBuffering();
+      actStream->Update();
     } // }}}
   };
   template <typename T>

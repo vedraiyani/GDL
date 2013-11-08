@@ -109,7 +109,7 @@ void LibInit()
 
   const string routine_infoKey[]={"FUNCTIONS","SYSTEM","DISABLED","ENABLED",
 				  "PARAMETERS","SOURCE", KLISTEND};
-  new DLibFun(lib::routine_info,string("ROUTINE_INFO"),1,routine_infoKey);
+  new DLibFunRetNew(lib::routine_info,string("ROUTINE_INFO"),1,routine_infoKey);
 
 #ifndef _MSC_VER
   const string spawnKey[]={ "COUNT","EXIT_STATUS","PID",
@@ -118,7 +118,7 @@ void LibInit()
 #endif
 
   const string bytsclKey[]={"MIN","MAX","TOP","NAN",KLISTEND};
-  new DLibFun(lib::bytscl,string("BYTSCL"),3,bytsclKey);
+  new DLibFunRetNew(lib::bytscl,string("BYTSCL"),3,bytsclKey);
 
   const string n_tagsKey[]={"DATA_LENGTH","LENGTH",KLISTEND};
   new DLibFunRetNew(lib::n_tags,string("N_TAGS"),1,n_tagsKey);
@@ -139,8 +139,8 @@ void LibInit()
   const string rebinKey[]={"SAMPLE",KLISTEND};
   new DLibFunRetNew(lib::rebin_fun,string("REBIN"),9,rebinKey);
 
-  const string convolKey[]={"CENTER","EDGE_TRUNCATE","EDGE_WRAP",
-			    "BIAS","NORMALIZE",KLISTEND};
+  const string convolKey[]={"CENTER","EDGE_TRUNCATE","EDGE_WRAP","EDGE_ZERO",
+			    "BIAS","NORMALIZE","NAN", "INVALID", "MISSING",KLISTEND};
   new DLibFunRetNew(lib::convol_fun,string("CONVOL"),3,convolKey);
 
 #ifndef _MSC_VER
@@ -219,11 +219,11 @@ void LibInit()
   const string exitKey[]={"NO_CONFIRM","STATUS",KLISTEND};
   new DLibPro(lib::exitgdl,string("EXIT"),0,exitKey);
   
-  const string helpKey[]={"BRIEF","CALLS","FUNCTIONS","HELP","INFO",
+  const string helpKey[]={"ALL_KEYS","BRIEF","CALLS","FUNCTIONS","HELP","INFO",
 			  "INTERNAL_LIB_GDL","LAST_MESSAGE","LIB","MEMORY",
 			  "OUTPUT","PATH_CACHE","PREFERENCES","PROCEDURES",
 			  "RECALL_COMMANDS","ROUTINES","SOURCE_FILES","STRUCTURES", KLISTEND};
-  const string helpWarnKey[]={"TRACEBACK", KLISTEND};
+  const string helpWarnKey[]={"FULL","TRACEBACK", KLISTEND};
   new DLibPro(lib::help,string("HELP"),-1,helpKey,helpWarnKey);
 
   const string memoryKey[]={"CURRENT","HIGHWATER","NUM_ALLOC",
@@ -479,7 +479,7 @@ void LibInit()
   new DLibFunRetNew(lib::rotate,string("ROTATE"),2,NULL,NULL,true);
 
   const string reverseKey[] = {"OVERWRITE", KLISTEND};
-  new DLibFunRetNew(lib::reverse, string("REVERSE"), 2, reverseKey, NULL, true);
+  new DLibFun(lib::reverse, string("REVERSE"), 2, reverseKey, NULL, true);
 
 //   const string minKey[]={"MAX",KLISTEND};
 //   new DLibFun(lib::min_fun,string("MIN"),2,minKey);
@@ -531,7 +531,7 @@ void LibInit()
       "COLOR","GET_SCREEN_SIZE","INCHES","WINDOW_STATE","SCALE_FACTOR", 
       "XOFFSET", "YOFFSET", "ENCAPSULATED", "GET_GRAPHICS_FUNCTION", 
       "SET_GRAPHICS_FUNCTION", "CURSOR_STANDARD", "CURSOR_ORIGINAL",
-      "CURSOR_CROSSHAIR","RETAIN", KLISTEND
+      "CURSOR_CROSSHAIR","RETAIN", "GET_WINDOW_POSITION", KLISTEND
     };
   const string deviceWarnKey[] = {"SET_FONT", "HELVETICA", 
     "AVANTGARDE", "BKMAN", "COURIER", "PALATINO", 
@@ -581,6 +581,9 @@ void LibInit()
   //
   const string plotWarnKey[]= { "FONT","CHANNEL", KLISTEND };
   new DLibPro(lib::plot,string("PLOT"),2,plotKey,plotWarnKey);
+  new DLibPro(lib::plot_io,string("PLOT_IO"),2,plotKey,plotWarnKey);
+  new DLibPro(lib::plot_oo,string("PLOT_OO"),2,plotKey,plotWarnKey);
+  new DLibPro(lib::plot_oi,string("PLOT_OI"),2,plotKey,plotWarnKey);
 
   const string axisKey[]=
   {
@@ -842,76 +845,76 @@ void LibInit()
   new DLibFunRetNew(lib::t_pdf,string("T_PDF"),2);
 
   new DLibPro(lib::caldat, string("CALDAT"), 7);
-  new DLibFun(lib::julday, string("JULDAY"), 6);
+  new DLibFunRetNew(lib::julday, string("JULDAY"), 6);
 
   // SA: the HYBRID key is used in imsl_zerosys.pro to switch to the modif. Powell algo. 
   const string newtonKey[] = {"DOUBLE", "ITMAX", "TOLF", "TOLX", "HYBRID", KLISTEND };
   const string newtonWarnKey[] = {"CHECK", "STEPMAX", "TOLMIN", KLISTEND};
-  new DLibFun(lib::newton_broyden, string("NEWTON"), 2, newtonKey, newtonWarnKey);
+  new DLibFunRetNew(lib::newton_broyden, string("NEWTON"), 2, newtonKey, newtonWarnKey);
 
   const string broydenKey[] = {"DOUBLE", "ITMAX", "TOLF", "TOLX", KLISTEND };
   const string broydenWarnKey[] = {"CHECK", "EPS", "STEPMAX", "TOLMIN", KLISTEND};
-  new DLibFun(lib::newton_broyden, string("BROYDEN"), 2, broydenKey, broydenWarnKey);
+  new DLibFunRetNew(lib::newton_broyden, string("BROYDEN"), 2, broydenKey, broydenWarnKey);
 
-  new DLibFun(lib::parse_url, string("PARSE_URL"), 1);
-  new DLibFun(lib::locale_get, string("LOCALE_GET"), 0);
-  new DLibFun(lib::get_login_info, string("GET_LOGIN_INFO"), 0);
-  new DLibFun(lib::idl_base64, string("IDL_BASE64"), 1);
+  new DLibFunRetNew(lib::parse_url, string("PARSE_URL"), 1);
+  new DLibFunRetNew(lib::locale_get, string("LOCALE_GET"), 0);
+  new DLibFunRetNew(lib::get_login_info, string("GET_LOGIN_INFO"), 0);
+  new DLibFunRetNew(lib::idl_base64, string("IDL_BASE64"), 1);
 
   const string ll_arc_distanceKey[] = {"DEGREES", KLISTEND };
-  new DLibFun(lib::ll_arc_distance, string("LL_ARC_DISTANCE"), 3, ll_arc_distanceKey);
+  new DLibFunRetNew(lib::ll_arc_distance, string("LL_ARC_DISTANCE"), 3, ll_arc_distanceKey);
 
   const string command_line_argsKey[] = {"COUNT", KLISTEND };
-  new DLibFun(lib::command_line_args_fun, string("COMMAND_LINE_ARGS"), 0, command_line_argsKey);
+  new DLibFunRetNew(lib::command_line_args_fun, string("COMMAND_LINE_ARGS"), 0, command_line_argsKey);
 
   const string pmKey[] = {"FORMAT", "TITLE", KLISTEND };
   new DLibPro(lib::pm, string("PM"), -1, pmKey);
 
   const string constantKey[] = {"DOUBLE", KLISTEND };
-  new DLibFun(lib::constant, string("IMSL_CONSTANT"), 2, constantKey);
+  new DLibFunRetNew(lib::constant, string("IMSL_CONSTANT"), 2, constantKey);
 
   const string get_drive_listKey[] = {"COUNT", KLISTEND };
-  new DLibFun(lib::get_drive_list, string("GET_DRIVE_LIST"), 0, get_drive_listKey);
+  new DLibFunRetNew(lib::get_drive_list, string("GET_DRIVE_LIST"), 0, get_drive_listKey);
 
   const string binomialcoefKey[] = {"DOUBLE", KLISTEND };
-  new DLibFun(lib::binomialcoef, string("IMSL_BINOMIALCOEF"), 2, binomialcoefKey);
+  new DLibFunRetNew(lib::binomialcoef, string("IMSL_BINOMIALCOEF"), 2, binomialcoefKey);
 
   // SA: GRIB format support based on the ECMWF GRIB_API package (IDL does not support it yet)
   // GRIBAPI_ prefix is used in order to (hopefully) prevent future incompatibilities with IDL
   // -----------------------------------------------------------------------------------------
   // GRIB: file related
-  new DLibFun(lib::grib_open_file_fun, string("GRIBAPI_OPEN_FILE"), 1); 
-  new DLibFun(lib::grib_count_in_file_fun, string("GRIBAPI_COUNT_IN_FILE"), 1); 
+  new DLibFunRetNew(lib::grib_open_file_fun, string("GRIBAPI_OPEN_FILE"), 1); 
+  new DLibFunRetNew(lib::grib_count_in_file_fun, string("GRIBAPI_COUNT_IN_FILE"), 1); 
   new DLibPro(lib::grib_close_file_pro, string("GRIBAPI_CLOSE_FILE"), 1); 
   // GRIB: message related
-  new DLibFun(lib::grib_new_from_file_fun, string("GRIBAPI_NEW_FROM_FILE"), 1); 
+  new DLibFunRetNew(lib::grib_new_from_file_fun, string("GRIBAPI_NEW_FROM_FILE"), 1); 
   new DLibPro(lib::grib_release_pro, string("GRIBAPI_RELEASE"), 1); 
   // see comment in grib.cpp
-  //new DLibFun(lib::grib_get_message_size_fun, string("GRIBAPI_GET_MESSAGE_SIZE"), 1);
-  new DLibFun(lib::grib_clone_fun, string("GRIBAPI_CLONE"), 1); 
+  //new DLibFunRetNew(lib::grib_get_message_size_fun, string("GRIBAPI_GET_MESSAGE_SIZE"), 1);
+  new DLibFunRetNew(lib::grib_clone_fun, string("GRIBAPI_CLONE"), 1); 
   // GRIB: data related
-  new DLibFun(lib::grib_get_size_fun, string("GRIBAPI_GET_SIZE"), 2); 
+  new DLibFunRetNew(lib::grib_get_size_fun, string("GRIBAPI_GET_SIZE"), 2); 
   new DLibPro(lib::grib_get_pro, string("GRIBAPI_GET"), 3); 
   new DLibPro(lib::grib_get_data_pro, string("GRIBAPI_GET_DATA"), 4); 
   // -----------------------------------------------------------------------------------------
 
-  new DLibFun(lib::crossp, string("CROSSP"), 2);
+  new DLibFunRetNew(lib::crossp, string("CROSSP"), 2);
   //const string hanningKey[] = {"DOUBLE", "ALPHA", KLISTEND };
-  //new DLibFun(lib::hanning, string("HANNING"), 2, hanningKey);
+  //new DLibFunRetNew(lib::hanning, string("HANNING"), 2, hanningKey);
   const string wtnKey[] = {"COLUMN", "DOUBLE", "INVERSE", "OVERWRITE", KLISTEND };
   new DLibFun(lib::wtn, string("WTN"), 2, wtnKey);
   const string zeropolyKey[] = {"DOUBLE", "COMPANION", "JENKINS_TRAUB", KLISTEND };
-  new DLibFun(lib::zeropoly, string("IMSL_ZEROPOLY"), 1, zeropolyKey);
+  new DLibFunRetNew(lib::zeropoly, string("IMSL_ZEROPOLY"), 1, zeropolyKey);
   const string spher_harmKey[] = {"DOUBLE", KLISTEND };
-  new DLibFun(lib::spher_harm, string("SPHER_HARM"), 4, spher_harmKey);
+  new DLibFunRetNew(lib::spher_harm, string("SPHER_HARM"), 4, spher_harmKey);
   const string gdl_erfinvKey[] = {"DOUBLE", KLISTEND };
-  new DLibFun(lib::gdl_erfinv_fun, string("GDL_ERFINV"), 1, gdl_erfinvKey);
+  new DLibFunRetNew(lib::gdl_erfinv_fun, string("GDL_ERFINV"), 1, gdl_erfinvKey);
 
   // by Mateusz Turcza
   const string sem_createKey[] = {"DESTROY_SEMAPHORE", KLISTEND };
-  new DLibFun(lib::sem_create, string("SEM_CREATE"), 1, sem_createKey);
+  new DLibFunRetNew(lib::sem_create, string("SEM_CREATE"), 1, sem_createKey);
   new DLibPro(lib::sem_delete, string("SEM_DELETE"), 1);
-  new DLibFun(lib::sem_lock, string("SEM_LOCK"), 1);
+  new DLibFunRetNew(lib::sem_lock, string("SEM_LOCK"), 1);
   new DLibPro(lib::sem_release, string("SEM_RELEASE"), 1);
 
   // sort lists

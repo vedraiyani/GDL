@@ -26,7 +26,7 @@
 #include "dnodefactory.hpp"
 
 #include "objects.hpp"
-#include "graphics.hpp"
+#include "graphicsdevice.hpp"
 #include "preferences.hpp"
 #include "overload.hpp"
 
@@ -88,7 +88,7 @@ antlr::ASTFactory DNodeFactory("DNode",DNode::factory);
 
 void ResetObjects()
 {
-  Graphics::DestroyDevices();
+  GraphicsDevice::DestroyDevices();
 
   fileUnits.clear();
   cerr << flush; cout << flush; clog << flush;
@@ -303,6 +303,17 @@ void InitStructs()
   // insert into structList
   structList.push_back( dmachar);
 
+  // for internal usage
+  // attention: $WIDGET_MESSAGE would identify this as an unnamed struct
+  // see DStructDesc constructor
+  DStructDesc* widgmsg = new DStructDesc( "*WIDGET_MESSAGE*");
+  widgmsg->AddTag("ID", &aLong);
+  widgmsg->AddTag("TOP", &aLong);
+  widgmsg->AddTag("HANDLER", &aLong);
+  widgmsg->AddTag("MESSAGE", &aLong);
+  // insert into structList
+  structList.push_back( widgmsg);
+
   DStructDesc* widgbut = new DStructDesc( "WIDGET_BUTTON");
   widgbut->AddTag("ID", &aLong);
   widgbut->AddTag("TOP", &aLong);
@@ -315,17 +326,44 @@ void InitStructs()
   widgdlist->AddTag("ID", &aLong);
   widgdlist->AddTag("TOP", &aLong);
   widgdlist->AddTag("HANDLER", &aLong);
-  widgdlist->AddTag("SELECT", &aLong);
+  widgdlist->AddTag("INDEX", &aLong);
   // insert into structList
   structList.push_back( widgdlist);
+
+  DStructDesc* widgcbox = new DStructDesc( "WIDGET_COMBOBOX");
+  widgcbox->AddTag("ID", &aLong);
+  widgcbox->AddTag("TOP", &aLong);
+  widgcbox->AddTag("HANDLER", &aLong);
+  widgcbox->AddTag("INDEX", &aLong);
+  widgcbox->AddTag("STR", &aString);
+  // insert into structList
+  structList.push_back( widgcbox);
 
   DStructDesc* widglist = new DStructDesc( "WIDGET_LIST");
   widglist->AddTag("ID", &aLong);
   widglist->AddTag("TOP", &aLong);
   widglist->AddTag("HANDLER", &aLong);
-  widglist->AddTag("SELECT", &aLong);
+  widglist->AddTag("INDEX", &aLong);
+  widglist->AddTag("CLICKS", &aLong);
   // insert into structList
   structList.push_back( widglist);
+
+  DStructDesc* widgdtab = new DStructDesc( "WIDGET_TAB");
+  widgdtab->AddTag("ID", &aLong);
+  widgdtab->AddTag("TOP", &aLong);
+  widgdtab->AddTag("HANDLER", &aLong);
+  widgdtab->AddTag("TAB", &aLong);
+  // insert into structList
+  structList.push_back( widgdtab);
+
+  DStructDesc* widgdsl = new DStructDesc( "WIDGET_SLIDER");
+  widgdsl->AddTag("ID", &aLong);
+  widgdsl->AddTag("TOP", &aLong);
+  widgdsl->AddTag("HANDLER", &aLong);
+  widgdsl->AddTag("VALUE", &aLong);
+  widgdsl->AddTag("DRAG", &aInt);
+  // insert into structList
+  structList.push_back( widgdsl);
 
   DStructDesc* widgbgroup =  new DStructDesc( "WIDGET_BGROUP");
   widgbgroup->AddTag("ID", &aLong);
@@ -336,13 +374,45 @@ void InitStructs()
   // insert into structList
   structList.push_back(widgbgroup);
 
-  DStructDesc* widgtxt = new DStructDesc( "WIDGET_TEXT");
-  widgtxt->AddTag("ID", &aLong);
-  widgtxt->AddTag("TOP", &aLong);
-  widgtxt->AddTag("HANDLER", &aLong);
-  widgtxt->AddTag("SELECT", &aLong);
+  DStructDesc* widgtxtc = new DStructDesc( "WIDGET_TEXT_CH");
+  widgtxtc->AddTag("ID", &aLong);
+  widgtxtc->AddTag("TOP", &aLong);
+  widgtxtc->AddTag("HANDLER", &aLong);
+  widgtxtc->AddTag("TYPE", &aInt); // 0
+  widgtxtc->AddTag("OFFSET", &aLong);
+  widgtxtc->AddTag("CH", &aByte);
   // insert into structList
-  structList.push_back( widgtxt);
+  structList.push_back( widgtxtc);
+
+  DStructDesc* widgtxtst = new DStructDesc( "WIDGET_TEXT_STR");
+  widgtxtst->AddTag("ID", &aLong);
+  widgtxtst->AddTag("TOP", &aLong);
+  widgtxtst->AddTag("HANDLER", &aLong);
+  widgtxtst->AddTag("TYPE", &aInt); // 1
+  widgtxtst->AddTag("OFFSET", &aLong);
+  widgtxtst->AddTag("STR", &aString);
+  // insert into structList
+  structList.push_back( widgtxtst);
+
+  DStructDesc* widgtxts = new DStructDesc( "WIDGET_TEXT_SEL");
+  widgtxts->AddTag("ID", &aLong);
+  widgtxts->AddTag("TOP", &aLong);
+  widgtxts->AddTag("HANDLER", &aLong);
+  widgtxts->AddTag("TYPE", &aInt); // 3
+  widgtxts->AddTag("OFFSET", &aLong);
+  widgtxts->AddTag("LENGTH", &aLong);
+  // insert into structList
+  structList.push_back( widgtxts);
+  
+  DStructDesc* widgtxtd = new DStructDesc( "WIDGET_TEXT_DEL");
+  widgtxtd->AddTag("ID", &aLong);
+  widgtxtd->AddTag("TOP", &aLong);
+  widgtxtd->AddTag("HANDLER", &aLong);
+  widgtxtd->AddTag("TYPE", &aInt); // 2
+  widgtxtd->AddTag("OFFSET", &aLong);
+  widgtxtd->AddTag("LENGTH", &aLong);
+  // insert into structList
+  structList.push_back( widgtxtd);
 
   DStructDesc* widgver = new DStructDesc( "WIDGET_VERSION");
   widgver->AddTag("STYLE", &aString);
@@ -370,12 +440,16 @@ void InitObjects()
   
   // graphic devices must be initialized after system variables
   // !D must already exist
-  Graphics::Init();
+  GraphicsDevice::Init();
 
   // preferences
   //  Preferences::Init();
 
 #ifdef HAVE_LIBWXWIDGETS
+
+  // some X error message suggested this call
+  XInitThreads();
+
   // initialize widget system
   GDLWidget::Init();
 #endif
@@ -492,11 +566,12 @@ int get_suggested_omp_num_threads() {
   //    cout<<"OMP_NUM_THREADS is not defined"<<endl;
   
   //set number of threads for appropriate OS
-  int avload, nbofproc=omp_get_num_procs();
+  int avload = 0;
+  int nbofproc = omp_get_num_procs();
   FILE *iff;
     
 #if defined(__APPLE__) || defined(__MACH__) || defined(__FreeBSD__) || defined(__NetBSD__) || defined(__OpenBSD__) || defined(__bsdi__) || defined(__DragonFly__)
-  cout<<"is MAC/*BSD"<<endl;
+  //  cout<<"is MAC/*BSD"<<endl;
   iff= popen("echo $(sysctl -n vm.loadavg|cut -d\" \" -f 3)", "r");
   if (!iff)
     {
@@ -511,7 +586,7 @@ int get_suggested_omp_num_threads() {
       return default_num_threads;
     }
    
-#elif defined (__unix) || (__unix__)
+#elif defined (__unix) || defined(__unix__)
   iff=freopen("/proc/loadavg","r",stderr);
   fclose(stderr);
   if(!iff)
@@ -525,9 +600,10 @@ int get_suggested_omp_num_threads() {
       return default_num_threads;
     }
 
-#elif defined(_WIN32) || defined(__WIN32__) || defined(__WINDOWS__)
-  cout<<"is windows"<<endl;
-  iff= popen("wmic cpu get loadpercentage|more +1", "r");
+//#elif defined(_WIN32) || defined(__WIN32__) || defined(__WINDOWS__)
+#elif defined(_MSC_VER)
+  cout<<"get_suggested_omp_num_threads(): is windows"<<endl;
+  iff= _popen("wmic cpu get loadpercentage|more +1", "r");
   if (!iff)
     {
       return default_num_threads;
@@ -535,15 +611,18 @@ int get_suggested_omp_num_threads() {
   char buffer[4];
   char* c;
   c=fgets(buffer, sizeof(buffer), iff);
+  _pclose(iff);
   if(!c)
     {
       return default_num_threads;
     }
-  pclose(iff);
-  int cout=0;
-  while(buffer[count]!='\0' && buffer[count]!=' ')count++;
+  int count=0;
+  while(count < sizeof(buffer) && buffer[count]!='\0' && buffer[count]!=' ')count++;
   for(int i=1,j=1;i<=count;i++,j*=10)
-    avload+=(buffer[count-i]-'0')*j;
+  {
+    if( buffer[count-i] != ' ' && buffer[count-i] != '\t')
+      avload+=(buffer[count-i]-'0')*j;
+  }
   suggested_num_threads=nbofproc-(int)(avload*((float)nbofproc/100)+0.5);
   return suggested_num_threads;
 
@@ -555,18 +634,23 @@ int get_suggested_omp_num_threads() {
   //  cout << "Nb Procs.: " << nbofproc <<  endl;
   // cout << "nb Thead computed: " << nbofproc-(int)(avload+0.5) << endl;
 
+  // if the following is commented out, there is no return statement
+  // this lead to FILE_INFO in TEST_FILE_COPY fail
+#ifndef _MSC_VER
+  
   char buffer[4];
   char* c;
   c=fgets(buffer, sizeof(buffer), iff);
+  pclose(iff);
   if(!c)
     {
       return default_num_threads;
     }
-  pclose(iff);
   //   cout<<buffer[0]<<" "<<buffer[1]<<endl;
   avload=(buffer[0]-'0')+((buffer[2]-'0')>5?1:0);
 
   suggested_num_threads=nbofproc-avload;
+#endif  
   return suggested_num_threads;
 }
 #endif

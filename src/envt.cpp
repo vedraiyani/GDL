@@ -23,6 +23,7 @@
 #include "objects.hpp"
 #include "dinterpreter.hpp"
 #include "basic_pro.hpp"
+#include "nullgdl.hpp"
 
 #include <cassert> // always as last
 
@@ -106,24 +107,26 @@ void EnvUDT::operator delete( void *ptr)
 
 
 EnvBaseT::EnvBaseT( ProgNodeP cN, DSub* pro_): 
-  env(), 
-  toDestroy(),
-  pro(pro_),
-  extra(NULL),
-  newEnv(NULL), 
-  callingNode( cN),
-  lineNumber( 0),
-  obj(false)
+   toDestroy()
+  ,env()
+  ,pro(pro_)
+  ,callingNode( cN)
+  ,lineNumber( 0)
+  ,obj(false)
+  ,extra(NULL)
+  ,newEnvOff(NULL)
+  ,ptrToReturnValue(NULL)
 //, toDestroyInitialIndex( toDestroy.size())
 {}
 
-EnvUDT::EnvUDT( ProgNodeP cN, DSub* pro_, bool lF): 
+EnvUDT::EnvUDT( ProgNodeP cN, DSubUD* pro_, CallContext lF): 
   EnvBaseT( cN, pro_),
   ioError(NULL), 
   onError( -1), 
   catchVar(NULL), 
   catchNode(NULL), 
-  lFun( lF),
+  callContext( lF),
+//   callContext( RFUNCTION),
   nJump( 0),
   lastJump( -1)
 {
@@ -171,7 +174,7 @@ EnvUDT::EnvUDT( ProgNodeP cN, BaseGDL* self,
   onError( -1), 
   catchVar(NULL), 
   catchNode(NULL), 
-  lFun( false),
+  callContext( RFUNCTION),
   nJump( 0),
   lastJump( -1)
 {
@@ -221,14 +224,13 @@ EnvUDT::EnvUDT( ProgNodeP cN, BaseGDL* self,
 }
 
 // member fun
-EnvUDT::EnvUDT( BaseGDL* self, //DStructGDL* oStructGDL,  
-		ProgNodeP cN, const string& parent, bool lF): 
+EnvUDT::EnvUDT( BaseGDL* self, ProgNodeP cN, const string& parent, CallContext lF): 
   EnvBaseT( cN, NULL),
   ioError(NULL), 
   onError( -1), 
   catchVar(NULL), 
   catchNode(NULL), 
-  lFun( lF),
+  callContext( lF),
   nJump( 0),
   lastJump( -1)
 {
@@ -310,7 +312,7 @@ EnvUDT::EnvUDT( ProgNodeP callingNode_, DSubUD* newPro, DObjGDL** self):
   onError( -1), 
   catchVar(NULL), 
   catchNode(NULL), 
-  lFun( false),
+  callContext( RFUNCTION),
   nJump( 0),
   lastJump( -1)
 {
@@ -332,6 +334,8 @@ EnvUDT::EnvUDT( ProgNodeP callingNode_, DSubUD* newPro, DObjGDL** self):
 }
 
 
+
+
 void EnvBaseT::AddStruct( DPtrListT& ptrAccessible,
 			  DPtrListT& objAccessible, DStructGDL* stru)
 {
@@ -340,6 +344,13 @@ void EnvBaseT::AddStruct( DPtrListT& ptrAccessible,
   SizeT nEl = stru->N_Elements();
 
   const DStructDesc* desc = stru->Desc();
+  
+  // avoid recursion on LIST (for > 100000 list elements a segfault is generated otherwise)
+  if( desc->IsParent("LIST"))
+  {
+      AddLIST(ptrAccessible, objAccessible, stru);
+      return;
+  }
 
   SizeT nTags = desc->NTags();
   for( SizeT t=0; t<nTags; ++t)
@@ -395,7 +406,7 @@ void EnvBaseT::AddObj( DPtrListT& ptrAccessible, DPtrListT& objAccessible,
 {
   if( ptr == NULL) return;
 
-  SizeT nEl = ptr->N_Elements();
+  SizeT nEl = ptr->Size();//  N_Elements();
   for( SizeT e = 0; e<nEl; ++e)
     {
       DObj p = (*ptr)[ e];
@@ -491,7 +502,8 @@ void EnvT::HeapGC( bool doPtr, bool doObj, bool verbose)
 	cS[ix]->AddEnv( ptrAccessible, objAccessible);
       }
 
-	AddToDestroy( ptrAccessible, objAccessible);  
+    // add all data already set for destruction (not to be deleted now)  
+    AddToDestroy( ptrAccessible, objAccessible);  
 
     // do OBJ first as the cleanup might need the GDL_PTR be valid
     if( doObj)
@@ -612,7 +624,7 @@ void EnvBaseT::ObjCleanup( DObj actID)
 
 	if( objCLEANUP != NULL)
 	{
-	  BaseGDL* actObjGDL = new DObjGDL( actID);
+	  DObjGDL* actObjGDL = new DObjGDL( actID);
 	  actObjGDL_guard.Init( actObjGDL);
 	  GDLInterpreter::IncRefObj( actID); // set refcount to 1
   
@@ -644,43 +656,43 @@ void EnvBaseT::ObjCleanup( DObj actID)
 
 void EnvT::ObjCleanup( DObj actID)
 {
-  if( actID != 0 && (inProgress.find( actID) == inProgress.end()))
+    if( actID != 0 && (inProgress.find( actID) == inProgress.end()))
     {
-      DStructGDL* actObj;
-      try{
- 		actObj=GetObjHeap( actID);
+        DStructGDL* actObj;
+        try {
+            actObj=GetObjHeap( actID);
 //  		GDLInterpreter::ObjHeapT::iterator it;
 // 		actObj=GDLInterpreter::GetObjHeap( actID, it);
-      }
-      catch( GDLInterpreter::HeapException){
-		actObj=NULL;
-      }
-	    
-      if( actObj != NULL)
-		{
-			// call CLEANUP function
-			DPro* objCLEANUP= actObj->Desc()->GetPro( "CLEANUP");
-		
-			if( objCLEANUP != NULL)
-				{
-				DObjGDL* actObjGDL = new DObjGDL( actID);
-				Guard<BaseGDL> actObjGDL_guard( actObjGDL);
-				GDLInterpreter::IncRefObj( actID);
-			
-				PushNewEnvUD( objCLEANUP, 1, &actObjGDL);
-			
-				inProgress.insert( actID);
-			
-				interpreter->call_pro( objCLEANUP->GetTree());
-			
-				inProgress.erase( actID);
+        }
+        catch( GDLInterpreter::HeapException) {
+            actObj=NULL;
+        }
 
-				delete interpreter->CallStack().back();
-				interpreter->CallStack().pop_back();
-			}
- 	
-		FreeObjHeap( actID); // the actual freeing
-		}
+        if( actObj != NULL)
+        {
+            // call CLEANUP function
+            DPro* objCLEANUP= actObj->Desc()->GetPro( "CLEANUP");
+
+            if( objCLEANUP != NULL)
+            {
+                DObjGDL* actObjGDL = new DObjGDL( actID);
+                Guard<BaseGDL> actObjGDL_guard( actObjGDL);
+                GDLInterpreter::IncRefObj( actID);
+
+                EnvUDT* newEnv = PushNewEnvUD( objCLEANUP, 1, &actObjGDL);
+
+                inProgress.insert( actID);
+
+                interpreter->call_pro( objCLEANUP->GetTree());
+
+                inProgress.erase( actID);
+
+                delete newEnv;
+                interpreter->CallStack().pop_back();
+            }
+
+            FreeObjHeap( actID); // the actual freeing
+        }
     }
 }
 
@@ -1001,7 +1013,7 @@ EnvBaseT* EnvBaseT::Caller()
 
 // used by obj_new (basic_fun.cpp)
 // and obj_destroy (basic_pro.cpp)
-void EnvBaseT::PushNewEmptyEnvUD(  DSub* newPro, BaseGDL** newObj)
+void EnvBaseT::PushNewEmptyEnvUD(  DSubUD* newPro, DObjGDL** newObj)
 {
   EnvUDT* newEnv= new EnvUDT( this->CallingNode(), newPro, newObj);
 
@@ -1024,7 +1036,7 @@ void EnvBaseT::PushNewEmptyEnvUD(  DSub* newPro, BaseGDL** newObj)
 // and obj_destroy (basic_pro.cpp)
 // and call_function (basic_fun.cpp)
 // and call_procedure (basic_pro.cpp)
-void EnvT::PushNewEnvUD(  DSubUD* newPro, SizeT skipP, DObjGDL** newObj)
+EnvUDT* EnvT::PushNewEnvUD(  DSubUD* newPro, SizeT skipP, DObjGDL** newObj)
 {
   EnvUDT* newEnv= new EnvUDT( this->CallingNode(), newPro, newObj);
 
@@ -1043,6 +1055,7 @@ void EnvT::PushNewEnvUD(  DSubUD* newPro, SizeT skipP, DObjGDL** newObj)
   newEnv->extra->ResolveExtra( this); // s. a. problem caused here due to a call to EnvBaseT::Caller() in Resolve()
 
   interpreter->CallStack().push_back( newEnv); 
+  return newEnv;
 }
 // used by obj_new (basic_fun.cpp)
 // and obj_destroy (basic_pro.cpp)
@@ -1077,11 +1090,12 @@ void EnvT::AssureGlobalPar( SizeT pIx)
   
 void EnvT::AssureGlobalKW( SizeT ix)
 {
-  if( env.Env( ix) == NULL)
+  if( env.Env( ix) == NULL) {
     if( env.Loc( ix) != NULL)
       Throw( "Attempt to store into an expression.");
     else
       Throw( "Parameter must be a named variable.");
+  }
 }
 
 DStructGDL* EnvT::GetObjectPar( SizeT pIx)
@@ -1217,8 +1231,8 @@ BaseGDL*& EnvBaseT::GetParDefined(SizeT i)
 {
   SizeT ix = i + pro->key.size();
 
-  //  cout << i << " -> " << ix << "  " << env.size() << "  env[ix] " << env[ix] << endl;
-  if( ix >= env.size() || env[ ix] == NULL) 
+  // cout << i << " -> " << ix << "  " << env.size() << "  env[ix] " << env[ix] << endl;
+  if( ix >= env.size() || env[ ix] == NULL || env[ ix] == NullGDL::GetSingleInstance())
     Throw("Variable is undefined: "+GetString( ix));
   return env[ ix];
 }
@@ -1654,19 +1668,19 @@ void EnvT::SetPar( SizeT ix, BaseGDL* newVal)
   GetPar( ix) = guard.release();
 }
 
-bool EnvBaseT::Contains( BaseGDL* p) const 
-{ 
-  if( env.Contains( p)) return true;
-  if (static_cast<DSubUD*>(pro)->GetCommonVarPtr( p) != NULL) return true;
-  // horrible slow... but correct
-  return Interpreter()->GetPtrToHeap( p) != NULL;
-}
+// bool EnvBaseT::Contains( BaseGDL* p) const 
+// { 
+//   if( env.Contains( p)) return true;
+//   if (static_cast<DSubUD*>(pro)->GetCommonVarPtr( p) != NULL) return true;
+//   // horrible slow... but correct
+//   return Interpreter()->GetPtrToHeap( p) != NULL;
+// }
 
-BaseGDL** EnvBaseT::GetPtrTo( BaseGDL* p) 
-{ 
-  BaseGDL** pp = env.GetPtrTo( p);
-  if( pp != NULL) return pp;
-  pp = static_cast<DSubUD*>(pro)->GetCommonVarPtr( p);
-  if( pp != NULL) return pp;
-  return GDLInterpreter::GetPtrToHeap( p);
-}
+// BaseGDL** EnvBaseT::GetPtrTo( BaseGDL* p) 
+// { 
+//   BaseGDL** pp = env.GetPtrTo( p);
+//   if( pp != NULL) return pp;
+//   pp = static_cast<DSubUD*>(pro)->GetCommonVarPtr( p);
+//   if( pp != NULL) return pp;
+//   return GDLInterpreter::GetPtrToHeap( p);
+// }

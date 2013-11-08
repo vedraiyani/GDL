@@ -239,6 +239,14 @@ public:
             std::pair<SizeT, RefBaseGDL>( heapIx++, var));
         return tmpIx;
     }
+    static void FreeObjHeapDirect( DObj id, ObjHeapT::iterator it)
+    {
+        BaseGDL* del = (*it).second.get();
+        objHeap.erase( id); 
+        delete del;
+        // delete (*it).second.get();
+        // objHeap.erase( id);
+    }
     static void FreeObjHeap( DObj id)
     {
         if( id != 0)
@@ -246,15 +254,20 @@ public:
             ObjHeapT::iterator it=objHeap.find( id);
             if  ( it != objHeap.end()) 
             { 
-                delete (*it).second.get();
-                objHeap.erase( id);
+                FreeObjHeapDirect( id, it);
+                // delete (*it).second.get();
+                // objHeap.erase( id);
             }
         }
     }
-    static void FreeObjHeapDirect( DObj id, ObjHeapT::iterator it)
+    static void FreeHeapDirect( DPtr id, HeapT::iterator it)
     {
-        delete (*it).second.get();
-        objHeap.erase( id);
+        BaseGDL* del = (*it).second.get();
+        heap.erase( id); 
+        delete del;
+        // delete (*it).second.get();
+        // // useless because of next: (*it).second.get() = NULL;
+        // heap.erase( id); 
     }
     static void FreeHeap( DPtr id)
     {
@@ -263,8 +276,9 @@ public:
                 HeapT::iterator it=heap.find( id);
                 if( it != heap.end()) 
                     { 
-                        delete (*it).second.get();
-                        heap.erase( id); 
+                        FreeHeapDirect( id, it);
+                        // delete (*it).second.get();
+                        // heap.erase( id); 
                     }
             }
     }
@@ -274,12 +288,6 @@ public:
             {
               heap.erase( id); 
             }
-    }
-    static void FreeHeapDirect( DPtr id, HeapT::iterator it)
-    {
-        delete (*it).second.get();
-        // useless because of next: (*it).second.get() = NULL;
-        heap.erase( id); 
     }
 
    static void FreeHeap( DPtrGDL* p)
@@ -505,15 +513,15 @@ std::cout << add << " + <ObjHeapVar" << id << ">" << std::endl;
         }
         return 0;
     }
-    static BaseGDL** GetPtrToHeap( BaseGDL* p)
-    {
-        for( HeapT::iterator it=heap.begin(); it != heap.end(); ++it)
-        {
-            if( it->second.get() == p)
-                return &it->second.get();
-        }
-        return NULL;
-    }
+    // static BaseGDL** GetPtrToHeap( BaseGDL* p)
+    // {
+    //     for( HeapT::iterator it=heap.begin(); it != heap.end(); ++it)
+    //     {
+    //         if( it->second.get() == p)
+    //             return &it->second.get();
+    //     }
+    //     return NULL;
+    // }
     static DPtrGDL* GetAllHeap()
     {
         SizeT nEl = heap.size();
@@ -635,16 +643,18 @@ std::cout << add << " + <ObjHeapVar" << id << ">" << std::endl;
 
         std::cout << std::flush;
         if( dumpStack)
-        if( e.Prefix())
-        {
-            std::cerr << msgPrefix << e.toString() << std::endl;
-            lib::write_journal_comment(msgPrefix+e.toString());
-        }
-        else
-        {
-            std::cerr << e.toString() << std::endl;
-            lib::write_journal_comment(e.toString());
-        }
+            {
+                if( e.Prefix())
+                    {
+                      std::cerr << msgPrefix << e.toString() << std::endl;
+                      lib::write_journal_comment(msgPrefix+e.toString());
+                    }
+                else
+                    {
+                        std::cerr << e.toString() << std::endl;
+                        lib::write_journal_comment(e.toString());
+                    }
+            }
 
         std::cerr << msgPrefix << emsg << " " << 
         std::left << std::setw(16) << callStack.back()->GetProName();
@@ -788,46 +798,44 @@ public:
 	public:  BaseGDL**  call_lfun(ProgNodeP _t);
 	public: void call_pro(ProgNodeP _t);
 	public: BaseGDL**  l_deref(ProgNodeP _t);
-	public: BaseGDL**  l_ret_expr(ProgNodeP _t);
-	public: BaseGDL*  expr(ProgNodeP _t);
-	public:  BaseGDL**  l_arrayexpr_mfcall_as_mfcall(ProgNodeP _t);
-	public:  BaseGDL**  l_function_call(ProgNodeP _t);
-	public: BaseGDL*  tmp_expr(ProgNodeP _t);
-	public:  BaseGDL*  lib_function_call(ProgNodeP _t);
-	public: BaseGDL*  r_expr(ProgNodeP _t);
-	public: BaseGDL*  l_decinc_indexable_expr(ProgNodeP _t,
-		int dec_inc
+	public: BaseGDL**  l_decinc_indexable_expr(ProgNodeP _t,
+		 BaseGDL*& res
 	);
+	public:  BaseGDL**  l_function_call_internal(ProgNodeP _t);
 	public: BaseGDL**  l_defined_simple_var(ProgNodeP _t);
 	public: BaseGDL**  l_sys_var(ProgNodeP _t);
-	public: BaseGDL*  l_decinc_array_expr(ProgNodeP _t,
-		int dec_inc
+	public: BaseGDL**  l_decinc_array_expr(ProgNodeP _t,
+		int dec_inc, BaseGDL*& res
 	);
-	public: ArrayIndexListT*  arrayindex_list(ProgNodeP _t);
 	public: BaseGDL*  l_decinc_dot_expr(ProgNodeP _t,
 		int dec_inc
 	);
-	public: void l_dot_array_expr(ProgNodeP _t,
-		DotAccessDescT* aD
+	public: BaseGDL**  l_decinc_expr(ProgNodeP _t,
+		int dec_inc, BaseGDL*& res
 	);
-	public: void tag_array_expr(ProgNodeP _t,
-		DotAccessDescT* aD
-	);
-	public: BaseGDL*  l_decinc_expr(ProgNodeP _t,
-		int dec_inc
-	);
+	public: BaseGDL*  expr(ProgNodeP _t);
 	public: BaseGDL*  indexable_expr(ProgNodeP _t);
 	public: BaseGDL*  indexable_tmp_expr(ProgNodeP _t);
-	public: BaseGDL**  l_expr(ProgNodeP _t,
+	public:  BaseGDL*  lib_function_call_internal(ProgNodeP _t);
+	public: BaseGDL**  l_expr_internal(ProgNodeP _t,
 		BaseGDL* right
 	);
+	public: BaseGDL*  tmp_expr(ProgNodeP _t);
 	public: BaseGDL**  l_simple_var(ProgNodeP _t);
 	public: void parameter_def(ProgNodeP _t,
 		EnvBaseT* actEnv
 	);
+	public: BaseGDL*  r_expr(ProgNodeP _t);
 	public: BaseGDL**  l_indexable_expr(ProgNodeP _t);
+	public:  BaseGDL**  l_arrayexpr_mfcall_as_mfcall(ProgNodeP _t);
 	public: BaseGDL**  unused_l_array_expr(ProgNodeP _t,
 		BaseGDL* right
+	);
+	public: ArrayIndexListT*  arrayindex_list(ProgNodeP _t,
+		 bool noAssoc
+	);
+	public: void l_dot_array_expr(ProgNodeP _t,
+		DotAccessDescT* aD
 	);
 	public: BaseGDL**  l_arrayexpr_mfcall(ProgNodeP _t,
 		BaseGDL* right
@@ -835,21 +843,20 @@ public:
 	public: void tag_expr(ProgNodeP _t,
 		DotAccessDescT* aD
 	);
+	public: void tag_array_expr(ProgNodeP _t,
+		DotAccessDescT* aD
+	);
 	public: BaseGDL*  r_dot_indexable_expr(ProgNodeP _t,
 		DotAccessDescT* aD
 	);
-	public: BaseGDL*  sys_var_nocopy(ProgNodeP _t);
 	public: void r_dot_array_expr(ProgNodeP _t,
 		DotAccessDescT* aD
 	);
-	public: BaseGDL*  dot_expr(ProgNodeP _t);
 	public: BaseGDL*  assign_expr(ProgNodeP _t);
 	public:  BaseGDL*  unused_function_call(ProgNodeP _t);
-	public:  BaseGDL*  lib_function_call_retnew(ProgNodeP _t);
-	public: BaseGDL*  constant(ProgNodeP _t);
+	public:  BaseGDL*  lib_function_call_retnew_internal(ProgNodeP _t);
 	public: BaseGDL*  simple_var(ProgNodeP _t);
 	public: BaseGDL*  sys_var(ProgNodeP _t);
-	public: BaseGDL*  unused_constant_nocopy(ProgNodeP _t);
 	public: BaseGDL**  l_arrayexpr_mfcall_as_arrayexpr(ProgNodeP _t,
 		BaseGDL* right
 	);
@@ -874,17 +881,15 @@ protected:
 private:
 	static const char* tokenNames[];
 #ifndef NO_STATIC_CONSTS
-	static const int NUM_TOKENS = 235;
+	static const int NUM_TOKENS = 237;
 #else
 	enum {
-		NUM_TOKENS = 235
+		NUM_TOKENS = 237
 	};
 #endif
 	
 	static const unsigned long _tokenSet_0_data_[];
 	static const antlr::BitSet _tokenSet_0;
-	static const unsigned long _tokenSet_1_data_[];
-	static const antlr::BitSet _tokenSet_1;
 };
 
 #endif /*INC_GDLInterpreter_hpp_*/

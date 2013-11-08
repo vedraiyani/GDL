@@ -27,7 +27,7 @@
 #include "initsysvar.hpp"
 #include "math_utl.hpp"
 #include "math_fun_jmg.hpp"
-#include "graphics.hpp"
+#include "graphicsdevice.hpp"
 
 //#define GDL_DEBUG
 #undef GDL_DEBUG
@@ -47,12 +47,17 @@
 #define isfinite _finite
 #define signbit(d) (d < 0.0)? 1:0
 #endif
-
+//dirty patch to circumvent icc v.14.0.0 fatal error ("__builtin_signbit not found")
+#ifdef __INTEL_COMPILER
+#define signbit(d) (d < 0.0)? 1:0
+#endif
 namespace lib {
 
   using namespace std;
+#ifndef _MSC_VER
   using std::isinf;
   using std::isnan;
+#endif
 
   BaseGDL* machar_fun( EnvT* e)
   {
@@ -276,6 +281,7 @@ namespace lib {
 	 }
 	 return res;
        }
+      assert( false);
      }
    };
 
@@ -955,11 +961,19 @@ namespace lib {
 
       // Convert lon/lat to x/y device coord
       for( SizeT i=0; i<x_tri->N_Elements(); ++i) {
+#if !defined(USE_LIBPROJ4_NEW)
 	idata.lam = (*x_tri)[i] * DEG_TO_RAD;
 	idata.phi = (*y_tri)[i] * DEG_TO_RAD;
 	odata = PJ_FWD(idata, ref);
 	(*x_tri)[i] = odata.x *  xvsx[1] + xvsx[0];
 	(*y_tri)[i] = odata.y *  yvsy[1] + yvsy[0];
+#else
+	idata.u = (*x_tri)[i] * DEG_TO_RAD;
+	idata.v = (*y_tri)[i] * DEG_TO_RAD;
+	odata = PJ_FWD(idata, ref);
+	(*x_tri)[i] = odata.u *  xvsx[1] + xvsx[0];
+	(*y_tri)[i] = odata.v *  yvsy[1] + yvsy[0];
+#endif	
       }
     }
 #endif
@@ -1126,7 +1140,7 @@ namespace lib {
       }
     }
 
-    delete found;
+    delete[] found;
     return res;
   }
 
@@ -1331,7 +1345,7 @@ namespace lib {
 
 	warped = image_warp(p0->Dim(1), p0->Dim(0), nRow, nCol, p0->Type(), 
 			    p0->DataAddr(), kernel_name,
-			    lineartrans, poly_v, poly_u,
+			    lineartrans, NULL, NULL, //poly_v, poly_u,
 			    interp, cubic, LINEAR, missing, doMissing);
       }
     } else {
@@ -1401,6 +1415,9 @@ namespace lib {
     } else if (p0->Type() == GDL_DOUBLE) {
       return poly_2d_fun_template< DDoubleGDL, DDouble>( nCol, nRow, warped);
     }
+    e->Throw("Unhandled type: "+i2s(p0->Type()));
+    return NULL;
+
   }
 
 

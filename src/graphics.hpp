@@ -1,5 +1,5 @@
 /* *************************************************************************
-                          graphics.hpp  -  GDL graphical output
+                          graphicsdevice.hpp  -  GDL graphical output
                              -------------------
     begin                : July 22 2002
     copyright            : (C) 2002 by Marc Schellens
@@ -14,6 +14,8 @@
  *   (at your option) any later version.                                   *
  *                                                                         *
  ***************************************************************************/
+
+#error "This file is no longer an active part of GDL. It is kept for version history only. Use graphicsdevice.hpp instead"
 
 /* 
 
@@ -102,15 +104,17 @@ public:
 };
 
 
-class   Graphics;
-typedef std::vector< Graphics*> DeviceListT;
+class   GraphicsDevice;
+typedef std::vector< GraphicsDevice*> DeviceListT;
 
-class Graphics
+// class wxDC;
+class GraphicsDevice
 {
   static void InitCT();         // preset CT and actCT
 
-  static Graphics*    actDevice;
+  static GraphicsDevice*    actDevice;
   static DeviceListT  deviceList;
+  static GraphicsDevice*    actGUIDevice;
 
   static void DefineDStructDesc(); // modifies structList
 
@@ -134,8 +138,8 @@ protected:
   }
 
 public:
-  Graphics();
-  virtual ~Graphics();
+  GraphicsDevice();
+  virtual ~GraphicsDevice();g
 
   static void Init();
   static void DestroyDevices();
@@ -147,14 +151,21 @@ public:
   static GDLCT*      GetCT( SizeT ix) { return &CT[ix];}
   static SizeT       N_CT() { return CT.size();}
   static bool        SetDevice( const std::string& devName);
-  static Graphics*   GetDevice() { return actDevice;}
+  static GraphicsDevice*   GetDevice() { return actDevice;}
+  static GraphicsDevice*   GetGUIDevice() { return actGUIDevice;}
   static DStructGDL* DStruct()   { return actDevice->dStruct;} 
   
   const DString     Name() { return name;}
 
+  virtual GDLGStream* GetStreamAt( int wIx) const     { return NULL;}
   virtual GDLGStream* GetStream( bool open=true)      { return NULL;}
   virtual bool WSet( int ix)                          { return false;}
   virtual int  WAdd()                                 { return false;}
+
+  // for WIDGET_DRAW
+  virtual bool GUIOpen( int wIx, int xSize, int ySize) { return false;} 
+
+  // for plot windows
   virtual bool WOpen( int ix, const std::string& title,
 		      int xsize, int ysize, 
 		      int xpos, int ypos)             { return false;}

@@ -203,25 +203,27 @@ namespace lib {
 	      }
 
 	    if( is == &cin && noPrompt)
-	      if( prompt != NULL)
-		{
-		  prompt->ToStream( oss);
-		  actualPrompt = oss.str();
+	      {
+		if( prompt != NULL)
+		  {
+		    prompt->ToStream( oss);
+		    actualPrompt = oss.str();
 #ifdef HAVE_LIBREADLINE
-		  cout << flush;
+		    cout << flush;
 #else
-		  cout << oss.str() << flush;
+		    cout << oss.str() << flush;
 #endif
-		}
-	      else
-		{
-		  actualPrompt = ": ";
+		  }
+		else
+		  {
+		    actualPrompt = ": ";
 #ifdef HAVE_LIBREADLINE
-		  cout << flush;
+		    cout << flush;
 #else
-		  cout << ": " << flush;
+		    cout << ": " << flush;
 #endif
-		}
+		  }
+	      }
 		
 #ifdef HAVE_LIBREADLINE
 	    if( is == &cin  && isatty(0))
@@ -269,7 +271,7 @@ namespace lib {
 	    else
 #endif
 	      {
-		posBeforeLast = is->tellg();
+// 		posBeforeLast = is->tellg();
 
 		parIn->FromStream( *is);
 
@@ -277,9 +279,16 @@ namespace lib {
 	      }
 	  }
       }
+      // read until end of line
       if( !lastParIsString && !is->eof()) // && is->peek() != '\n' && is->peek() != '\r')
       {
-	is->seekg( posBeforeLast);
+	streampos actPos = is->tellg();
+
+// 	is->seekg( posBeforeLast);
+	assert( actPos > 0);
+	
+	streamoff one = 1;
+	is->seekg( actPos-one);
 	
 	DStringGDL gdlString("");
 	gdlString.FromStream( *is);

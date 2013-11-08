@@ -20,7 +20,6 @@
 #include "includefirst.hpp"
 
 #include <sys/types.h>
-#include <dirent.h>
 
 #include <string>
 #include <fstream>
@@ -32,6 +31,48 @@
 #include <sys/types.h>
 #ifndef _MSC_VER
 #include <sys/wait.h>
+#endif
+
+#ifndef _MSC_VER
+#	include <dirent.h>
+#else
+  // MSC workaround implementation in file.cpp
+  /*
+      Declaration of POSIX directory browsing functions and types for Win32.
+
+      Author:  Kevlin Henney (kevlin@acm.org, kevlin@curbralan.com)
+      History: Created March 1997. Updated June 2003.
+      Rights:  See end of file.
+  */
+  extern "C"
+  {
+
+  typedef struct DIR DIR;
+
+  struct dirent
+  {
+      char *d_name;
+  };
+
+  DIR           *opendir(const char *);
+  int           closedir(DIR *);
+  struct dirent *readdir(DIR *);
+  void          rewinddir(DIR *);
+
+  /*
+      Copyright Kevlin Henney, 1997, 2003. All rights reserved.
+
+      Permission to use, copy, modify, and distribute this software and its
+      documentation for any purpose is hereby granted without fee, provided
+      that this copyright and permissions notice appear in all copies and
+      derivatives.
+      
+      This software is supplied "as is" without express or implied warranty.
+
+      But that said, if there are any problems please get in touch.
+  */
+
+  } // extern "C"
 #endif
 
 #ifdef __APPLE__
@@ -65,7 +106,7 @@
 #include <signal.h>
 
 #ifdef HAVE_LIBWXWIDGETS
-#include <wx/wx.h>
+#include <gdlwidget.hpp>
 #endif
 
 namespace lib {
@@ -265,6 +306,8 @@ namespace lib {
     {
 	os << par->TypeStr() << right;
 	if( !doIndentation) os << "= ";
+	if( par->IsAssoc())
+	  par->ToStream( os);
     }
 
     // Dimension display
@@ -332,36 +375,70 @@ namespace lib {
 	    if ((found+ProSuffixLen) == tmp_fname.length()) NbProFilesInCurrentDir++;
 	  }
 	}
+	closedir(dirp);
 	cout << *CurrentDir << " (" << NbProFilesInCurrentDir << " files)" << endl;
       }
   }
 
   void help( EnvT* e)
   {    
+    // in order of priority
     bool kw = false;
-    //if LAST_MESSAGE is present, it is the only otput. All other kw are ignored.
     static int lastmKWIx = e->KeywordIx("LAST_MESSAGE");
     bool lastmKW = e->KeywordPresent( lastmKWIx);
+    BaseGDL** outputKW = NULL;
+    static int outputIx = e->KeywordIx( "OUTPUT");
+    bool doOutput = ( e->KeywordPresent( outputIx));
+    
+    //if LAST_MESSAGE is present, it is the only output. All other kw are ignored *EXCEPT 'output'*.
     if( lastmKW)
     {
       DStructGDL* errorState = SysVar::Error_State();
       static unsigned msgTag = errorState->Desc()->TagIndex( "MSG");
-      cout << (*static_cast<DStringGDL*>( errorState->GetTag( msgTag)))[0]<< endl;
-      return;
+      if (doOutput) 
+      {    // Setup output return variable
+          outputKW = &e->GetKW( outputIx);
+          GDLDelete((*outputKW));
+          *outputKW = static_cast<DStringGDL*>((errorState->GetTag( msgTag))->Convert2( GDL_STRING, BaseGDL::COPY));
+          return;
+      } else {
+          cout << (*static_cast<DStringGDL*>( errorState->GetTag( msgTag)))[0]<< endl;
+          return;
+      }
     }
 
     static int helpKWIx = e->KeywordIx("HELP");
     bool helpKW= e->KeywordPresent(helpKWIx);
     if( helpKW) {
       string inline_help[]={"Usage: "+e->GetProName()+", expr1, ..., exprN,", 
-			    "          /BRIEF, /CALLS, /FUNCTIONS, /HELP, /INFO,",
+			    "          /ALL_KEYS, /BRIEF, /CALLS, /FUNCTIONS, /HELP, /INFO,",
 			    "          /INTERNAL_LIB_GDL, /LAST_MESSAGE, /LIB, /MEMORY,",
 			    "          /OUTPUT, /PATH_CACHE, /PREFERENCES, /PROCEDURES,",
 			    "          /RECALL_COMMANDS, /ROUTINES, /SOURCE_FILES, /STRUCTURES,"};
       int size_of_s = sizeof(inline_help) / sizeof(inline_help[0]);	
       e->Help(inline_help, size_of_s);
     }
-    
+
+    if (e->KeywordSet("ALL_KEYS")) {  // obsolete keyword
+      cout << "GDL is using Readline to manage keys shortcuts, few useful listed below." << endl;
+      cout << "A summary can be read here : http://www.bigsmoke.us/readline/shortcuts " << endl;
+      cout << endl;
+      cout << "Moving in the command line :"<< endl;
+      cout << "  Ctrl-a          : going to the beginning of the line"<< endl;
+      cout << "  Ctrl-e          : going to the end of the line"<< endl;
+      cout << "  Ctrl-u          : removing from here to the beginning of the line"<< endl;
+      cout << "  Ctrl-k          : removing from here to the end of the line"<< endl;
+      cout << "  Ctrl-RightArrow : jumping one word on the right"<< endl;
+      cout << "  Ctrl-LeftArrow  : jumping one word on the left"<< endl;
+      cout << endl;
+      cout << "Moving in the history :"<< endl;
+      cout << "  HELP, /recall       : listing the whole history" << endl;
+      cout << "  Ctrl-p or UpArrow   : previous entry in history"  << endl;
+      cout << "  Ctrl-n or DownArrow : next entry in history"  << endl;
+      cout << endl;    
+      return;
+    }
+
     static int pathKWIx = e->KeywordIx("PATH_CACHE");
     bool pathKW= e->KeywordPresent(pathKWIx);
     if( pathKW) {
@@ -581,9 +658,7 @@ namespace lib {
     vector<DString> fList;
 
     // If OUTPUT keyword set then set up output string array (outputKW)
-    BaseGDL** outputKW = NULL;
-    static int outputIx = e->KeywordIx( "OUTPUT");
-    if( e->KeywordPresent( outputIx)) {
+    if (doOutput) {
       SizeT nlines = 0;
       if (isKWSetProcedures) {
 	nlines = np + 1;
@@ -957,44 +1032,46 @@ namespace lib {
 
     if( historyIntialized)
     {
-		// Create eventually the ".gdl" path in user $HOME
-		int result, debug=0;
-		char *homeDir = getenv( "HOME");
-		if (homeDir != NULL)
-		{
-			string pathToGDL_history = homeDir;
-			AppendIfNeeded(pathToGDL_history, "/");
-			pathToGDL_history += ".gdl";
-			// Create eventially the ".gdl" path in Home
+        // Create eventually the ".gdl" path in user $HOME
+        int result, debug=0;
+        char *homeDir = getenv( "HOME");
+        if (homeDir != NULL)
+        {
+            string pathToGDL_history = homeDir;
+            AppendIfNeeded(pathToGDL_history, "/");
+            pathToGDL_history += ".gdl";
+            // Create eventially the ".gdl" path in Home
 #ifdef _MSC_VER
-			result = mkdir(pathToGDL_history.c_str());
+            result = mkdir(pathToGDL_history.c_str());
 #else
-			result = mkdir(pathToGDL_history.c_str(), 0700);
+            result = mkdir(pathToGDL_history.c_str(), 0700);
 #endif
-			if (debug)
-			{
-				if (result == 0) cout << "Creation of ~/.gdl PATH "<< endl;
-				else cout << "~/.gdl PATH was still here "<< endl;
-			}
-			
-			// (over)write the history file in ~/.gdl PATH
-		
-			AppendIfNeeded(pathToGDL_history, "/");
-			string history_filename = pathToGDL_history + "history";
-			if (debug) cout << "History file name: " << history_filename << endl;
-			result = write_history(history_filename.c_str());
-			if (debug)
-			{
-				if (result == 0) cout<<"Successfull writing of ~/.gdl/history"<<endl;
-				else cout <<"Fail to write ~/.gdl/history"<<endl;
-			}
-		}
+            if (debug)
+            {
+                if (result == 0) cout << "Creation of ~/.gdl PATH "<< endl;
+                else cout << "~/.gdl PATH was still here "<< endl;
+            }
+
+            // (over)write the history file in ~/.gdl PATH
+
+            AppendIfNeeded(pathToGDL_history, "/");
+            string history_filename = pathToGDL_history + "history";
+            if (debug) cout << "History file name: " << history_filename << endl;
+            result = write_history(history_filename.c_str());
+            if (debug)
+            {
+                if (result == 0) cout<<"Successfull writing of ~/.gdl/history"<<endl;
+                else cout <<"Fail to write ~/.gdl/history"<<endl;
+            }
+        }
     }
 #endif
 
 #ifdef HAVE_LIBWXWIDGETS
     // wxTheApp may be a null pointer (tracker item no. 2946058)
-    if (wxTheApp) wxTheApp->OnExit(); // Defined in GDLApp::OnExit() in gdlwidget.cpp
+//     if (wxTheApp != NULL) wxTheApp->OnExit(); // Defined in GDLApp::OnExit() in gdlwidget.cpp
+//     if( gdlGUIThread != NULL)
+//       gdlGUIThread->Exit();
 
     // SA: gives the following error message with no connection to X-server:
     //   GDL> exit
@@ -1214,14 +1291,14 @@ namespace lib {
       }
     else
       {
-    StackGuard<EnvStackT> guard( e->Interpreter()->CallStack());
+	StackGuard<EnvStackT> guard( e->Interpreter()->CallStack());
 
 	proIx = DInterpreter::GetProIx( callP);
 	
-	e->PushNewEnvUD( proList[ proIx], 1);
+	EnvUDT* newEnv = e->PushNewEnvUD( proList[ proIx], 1);
 	
 	// make the call
-	EnvUDT* newEnv = static_cast<EnvUDT*>(e->Interpreter()->CallStack().back());
+// 	EnvUDT* newEnv = static_cast<EnvUDT*>(e->Interpreter()->CallStack().back());
 	e->Interpreter()->call_pro(static_cast<DSubUD*>(newEnv->GetPro())->
 				   GetTree());
       }
@@ -2901,7 +2978,7 @@ TRACEOMP( __FILE__, __LINE__)
     }
     jd=ceil(365.25*y+c)+floor(30.6001*(m+1))+day+(hour*1.0)/24.0+(minute*1.0)/1440.0+
     (second*1.0)/86400.0+1720994.50+b;
-
+    if (y > 0) jd--; //for some obscure reason
     //    cout << "jd :" << jd << endl;
     return true;
   }
@@ -2989,5 +3066,7 @@ TRACEOMP( __FILE__, __LINE__)
       }
       return ret;
     }
+    assert(false);
+    return NULL;
   }
 } // namespace

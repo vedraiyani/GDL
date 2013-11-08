@@ -54,6 +54,8 @@
 #include "matrix_cholesky.hpp"
 #endif
 
+#include "matrix_invert.hpp"
+
 #include "gshhs.hpp"
 
 using namespace std;
@@ -65,28 +67,27 @@ void LibInit_jmg()
   // the following by Joel Gales <jomoga@users.sourceforge.net>
   const string sizeKey[]={"L64","DIMENSIONS","FILE_LUN","N_DIMENSIONS",
 			  "N_ELEMENTS","STRUCTURE","TNAME","TYPE",KLISTEND};
-  new DLibFun(lib::size,string("SIZE"),1,sizeKey);
-  new DLibFun(lib::fstat,string("FSTAT"),1);
+  new DLibFunRetNew(lib::size,string("SIZE"),1,sizeKey);
+  new DLibFunRetNew(lib::fstat,string("FSTAT"),1);
   const string routine_namesKey[]={"LEVEL","VARIABLES","FETCH","ARG_NAME",
 				   "STORE","S_FUNCTIONS","S_PROCEDURES",
 				   KLISTEND};
   new DLibFun(lib::routine_names_value,string("ROUTINE_NAMES"),-1,routine_namesKey);
 
-  const string invertKey[]={"DOUBLE",KLISTEND};
-
 #if defined(USE_EIGEN)
-  //  new DLibFun(lib::invert_fun2,string("INVERT_EIG"),2,invertKey);
-  new DLibPro(lib::choldc_pro,string("CHOLDC"),3,invertKey);
-  new DLibFun(lib::cholsol_fun,string("CHOLSOL"),4,invertKey);
+  const string cholKey[]={"DOUBLE",KLISTEND};
+  new DLibPro(lib::choldc_pro,string("CHOLDC"),3,cholKey);
+  new DLibFunRetNew(lib::cholsol_fun,string("CHOLSOL"),4,cholKey);
 
   const string lacholKey[]={"DOUBLE","STATUS","UPPER",KLISTEND};
   new DLibPro(lib::la_choldc_pro,string("LA_CHOLDC"),4,lacholKey);
-  new DLibFun(lib::la_cholsol_fun,string("LA_CHOLSOL"),4,lacholKey);
+  new DLibFunRetNew(lib::la_cholsol_fun,string("LA_CHOLSOL"),4,lacholKey);
 #endif
 
 #if defined(HAVE_LIBGSL) && defined(HAVE_LIBGSLCBLAS)
   
-  new DLibFun(lib::invert_fun,string("INVERT"),2,invertKey);
+  const string invertKey[]={"DOUBLE","GSL","EIGEN",KLISTEND};
+  new DLibFunRetNew(lib::AC_invert_fun,string("INVERT"),2,invertKey);
 
   const string fftKey[]={"DOUBLE","INVERSE","OVERWRITE","DIMENSION",KLISTEND};
 #if defined(USE_FFTW)
@@ -101,15 +102,15 @@ void LibInit_jmg()
   new DLibFunRetNew(lib::random_fun,string("RANDOMN"),MAXRANK,randomKey);
 
   const string checkmathKey[]={"MASK","NOCLEAR","PRINT",KLISTEND};
-  new DLibFun(lib::check_math_fun,string("CHECK_MATH"),2,checkmathKey);
+  new DLibFunRetNew(lib::check_math_fun,string("CHECK_MATH"),2,checkmathKey);
 
   const string histogramKey[]={"BINSIZE","INPUT","MAX","MIN","NBINS",
 			       "OMAX","OMIN","REVERSE_INDICES",
 			       "LOCATIONS","NAN",KLISTEND};
-  new DLibFun(lib::histogram_fun,string("HISTOGRAM"),1,histogramKey);
+  new DLibFunRetNew(lib::histogram_fun,string("HISTOGRAM"),1,histogramKey);
 
   const string interpolateKey[]={"CUBIC","GRID","MISSING","NEAREST_NEIGHBOUR",KLISTEND};
-  new DLibFun(lib::interpolate_fun,string("INTERPOLATE"),4,interpolateKey);
+  new DLibFunRetNew(lib::interpolate_fun,string("INTERPOLATE"),4,interpolateKey);
 
   const string la_triredKey[]={"DOUBLE","UPPER",KLISTEND};
   new DLibPro(lib::la_trired_pro,string("LA_TRIRED"),3,la_triredKey);
@@ -119,17 +120,17 @@ void LibInit_jmg()
   new DLibFunRetNew(lib::machar_fun,string("MACHAR"),0,macharKey);
 
   const string rk4Key[]={"DOUBLE",KLISTEND};
-  new DLibFun(lib::rk4jmg_fun,string("RK4JMG"),5,rk4Key);
+  new DLibFunRetNew(lib::rk4jmg_fun,string("RK4JMG"),5,rk4Key);
 
 #if defined(USE_LIBPROJ4)
   const string map_proj_forwardKey[]={"CONNECTIVITY","FILL",
 				      "MAP_STRUCTURE","POLYGONS",
 				      "POLYLINES","RADIANS",KLISTEND};
-  new DLibFun(lib::map_proj_forward_fun,
+  new DLibFunRetNew(lib::map_proj_forward_fun,
 	      string("MAP_PROJ_FORWARD"),3,map_proj_forwardKey);
 
   const string map_proj_inverseKey[]={"RADIANS",KLISTEND};
-  new DLibFun(lib::map_proj_inverse_fun,
+  new DLibFunRetNew(lib::map_proj_inverse_fun,
 	      string("MAP_PROJ_INVERSE"),3,map_proj_inverseKey);
 
 #endif
@@ -146,16 +147,16 @@ void LibInit_jmg()
 
   const string convert_coordKey[]={"DATA","DEVICE","NORMAL","T3D","DOUBLE",
 				   "TO_DATA","TO_DEVICE","TO_NORMAL",KLISTEND};
-  new DLibFun(lib::convert_coord,string("CONVERT_COORD"),3,convert_coordKey);
+  new DLibFunRetNew(lib::convert_coord,string("CONVERT_COORD"),3,convert_coordKey);
 
 
   const string finiteKey[]={"INFINITY","NAN","SIGN",KLISTEND};
-  new DLibFun(lib::finite_fun,string("FINITE"),1,finiteKey);
+  new DLibFunRetNew(lib::finite_fun,string("FINITE"),1,finiteKey);
 
   const string radonKey[]={"BACKPROJECT","DOUBLE","DRHO","DX","DY",
 			   "GRAY","LINEAR","NRHO","NTHETA","NX","NY",
 			   "RHO","RMIN","THETA","XMIN","YMIN",KLISTEND};
-  new DLibFun(lib::radon_fun,string("RADON"),1,radonKey);
+  new DLibFunRetNew(lib::radon_fun,string("RADON"),1,radonKey);
 #ifdef PL_HAVE_QHULL
   const string triangulateKey[]={"CONNECTIVITY", "SPHERE", "DEGREES", "FVALUE", "REPEATS", "TOLERANCE",KLISTEND};
   new DLibPro(lib::triangulate,string("TRIANGULATE"),4,triangulateKey);
@@ -164,28 +165,28 @@ void LibInit_jmg()
   new DLibPro(lib::qhull,string("QHULL"),8,qhullKey);
 
   const string sph_scatKey[]={"BOUNDS", "BOUT", "GOUT", "GS", "NLON", "NLAT", KLISTEND};
-  new DLibFun(lib::sph_scat_fun,string("SPH_SCAT"),3,sph_scatKey);
+  new DLibFunRetNew(lib::sph_scat_fun,string("SPH_SCAT"),3,sph_scatKey);
 
   const string grid_inputKey[]={"SPHERE", "POLAR", "DEGREES", "DUPLICATES", "EPSILON", "EXCLUDE", KLISTEND};
   new DLibPro(lib::grid_input,string("GRID_INPUT"),6,grid_inputKey);
 
   const string qgrid3Key[]={"DELTA", "DIMENSION", "MISSING", "START", KLISTEND};
-  new DLibFun(lib::qgrid3_fun,string("QGRID3"),5,qgrid3Key);
+  new DLibFunRetNew(lib::qgrid3_fun,string("QGRID3"),5,qgrid3Key);
 #endif
 
   const string trigridKey[]={"MAX_VALUE","MISSING","NX","NY","MAP",
 			     KLISTEND};
-  new DLibFun(lib::trigrid_fun,string("TRIGRID"),6,trigridKey);
+  new DLibFunRetNew(lib::trigrid_fun,string("TRIGRID"),6,trigridKey);
 
   const string poly_2dKey[]={"CUBIC","MISSING",KLISTEND};
-  new DLibFun(lib::poly_2d_fun,string("POLY_2D"),6,poly_2dKey);
+  new DLibFunRetNew(lib::poly_2d_fun,string("POLY_2D"),6,poly_2dKey);
 
   const string make_arrayKey[]={"NOZERO","DIMENSION","INDEX","SIZE",
 				"TYPE","VALUE","BYTE","INTEGER",
 				"UINT","LONG","ULONG","L64","UL64",
 				"FLOAT","DOUBLE","COMPLEX",
 				"DCOMPLEX","STRING","PTR","OBJ",KLISTEND};
-  new DLibFun(lib::make_array,string("MAKE_ARRAY"),MAXRANK,make_arrayKey);
+  new DLibFunRetNew(lib::make_array,string("MAKE_ARRAY"),MAXRANK,make_arrayKey);
 
   const string reformKey[]={"OVERWRITE",KLISTEND};
   new DLibFun(lib::reform,string("REFORM"),MAXRANK,reformKey);
@@ -198,22 +199,22 @@ void LibInit_jmg()
 
 #if defined(USE_HDF)
   const string hdf_openKey[]={"READ","RDWR","CREATE","ALL","NUM_DD","WRITE",KLISTEND};
-  new DLibFun(lib::hdf_open_fun,string("HDF_OPEN"),2,hdf_openKey);
+  new DLibFunRetNew(lib::hdf_open_fun,string("HDF_OPEN"),2,hdf_openKey);
 
-  new DLibFun(lib::hdf_vg_getid_fun,string("HDF_VG_GETID"),2);
+  new DLibFunRetNew(lib::hdf_vg_getid_fun,string("HDF_VG_GETID"),2);
 
   const string hdf_vg_attachKey[]={"READ","WRITE",KLISTEND};
-  new DLibFun(lib::hdf_vg_attach_fun,string("HDF_VG_ATTACH"),2,
+  new DLibFunRetNew(lib::hdf_vg_attach_fun,string("HDF_VG_ATTACH"),2,
 	      hdf_vg_attachKey);
 
   const string hdf_vd_attachKey[]={"READ","WRITE",KLISTEND};
-  new DLibFun(lib::hdf_vd_attach_fun,string("HDF_VD_ATTACH"),2,
+  new DLibFunRetNew(lib::hdf_vd_attach_fun,string("HDF_VD_ATTACH"),2,
 	      hdf_vd_attachKey);
-  new DLibFun(lib::hdf_vd_find_fun,string("HDF_VD_FIND"),2);
+  new DLibFunRetNew(lib::hdf_vd_find_fun,string("HDF_VD_FIND"),2);
 
   const string hdf_vd_readKey[]={"FIELDS","NRECORDS","FULL_INTERLACE",
 				 "NO_INTERLACE",KLISTEND};
-  new DLibFun(lib::hdf_vd_read_fun,string("HDF_VD_READ"),2,hdf_vd_readKey);
+  new DLibFunRetNew(lib::hdf_vd_read_fun,string("HDF_VD_READ"),2,hdf_vd_readKey);
 
   const string hdf_vg_getinfoKey[]={"CLASS","NAME","NENTRIES","REF","TAG",
 				    KLISTEND};
@@ -236,14 +237,14 @@ void LibInit_jmg()
 				   "FLOAT","DFNT_FLOAT32",
 				   "DOUBLE","DFNT_FLOAT64",
 				   "STRING","DFNT_CHAR","HDF_TYPE",KLISTEND};
-  new DLibFun(lib::hdf_sd_create_fun,string("HDF_SD_CREATE"),3,
+  new DLibFunRetNew(lib::hdf_sd_create_fun,string("HDF_SD_CREATE"),3,
 	      hdf_sd_createKey);
 
   const string hdf_sd_startKey[]={"READ","RDWR","CREATE",KLISTEND};
-  new DLibFun(lib::hdf_sd_start_fun,string("HDF_SD_START"),2,hdf_sd_startKey);
-  new DLibFun(lib::hdf_sd_nametoindex_fun,string("HDF_SD_NAMETOINDEX"),2);
-  new DLibFun(lib::hdf_sd_attrfind_fun,string("HDF_SD_ATTRFIND"),2);
-  new DLibFun(lib::hdf_sd_select_fun,string("HDF_SD_SELECT"),2);
+  new DLibFunRetNew(lib::hdf_sd_start_fun,string("HDF_SD_START"),2,hdf_sd_startKey);
+  new DLibFunRetNew(lib::hdf_sd_nametoindex_fun,string("HDF_SD_NAMETOINDEX"),2);
+  new DLibFunRetNew(lib::hdf_sd_attrfind_fun,string("HDF_SD_ATTRFIND"),2);
+  new DLibFunRetNew(lib::hdf_sd_select_fun,string("HDF_SD_SELECT"),2);
 
   const string hdf_sd_getdataKey[]={"START","STRIDE","COUNT",KLISTEND};
   new DLibPro(lib::hdf_sd_getdata_pro,string("HDF_SD_GETDATA"),2,
@@ -269,7 +270,7 @@ void LibInit_jmg()
   new DLibPro(lib::hdf_sd_end_pro,string("HDF_SD_END"),1);
   new DLibPro(lib::hdf_close_pro,string("HDF_CLOSE"),1);
   
-  new DLibFun(lib::hdf_sd_dimgetid_fun, string("HDF_SD_DIMGETID"), 2);
+  new DLibFunRetNew(lib::hdf_sd_dimgetid_fun, string("HDF_SD_DIMGETID"), 2);
   const string hdf_sd_dimgetKey[] = {
     "NAME", "NATTR", "SCALE", "COUNT", KLISTEND
   };
@@ -285,41 +286,151 @@ void LibInit_jmg()
   new DLibPro(lib::tv,string("TV"),4,tvKey);
 
   const string tvrdKey[]={"CHANNEL","ORDER","TRUE","WORDS",KLISTEND};
-  new DLibFun(lib::tvrd,string("TVRD"),5,tvrdKey);
+  new DLibFunRetNew(lib::tvrd,string("TVRD"),5,tvrdKey);
 
   const string loadctKey[]={"GET_NAMES","BOTTOM","NCOLORS","RGB_TABLE","SILENT",KLISTEND};
   const string loadctWarnKey[]={"FILE",KLISTEND};
   new DLibPro(lib::loadct,string("LOADCT_INTERNALGDL"),1,loadctKey,loadctWarnKey);
 
-  const string widget_baseKey[] = {"ALIGN_BOTTOM","ALIGN_CENTER","ALIGN_LEFT","ALIGN_RIGHT","ALIGN_TOP","MBAR","MODAL","BASE_ALIGN_BOTTOM","BASE_ALIGN_CENTER","BASE_ALIGN_LEFT","BASE_ALIGN_RIGHT","BASE_ALIGN_TOP","COLUMN","ROW","CONTEXT_EVENTS","CONTEXT_MENU","EVENT_FUNC","EVENT_PRO","EXCLUSIVE","NONEXCLUSIVE","FLOATING","FRAME","FUNC_GET_VALUE","GRID_LAYOUT","GROUP_LEADER","KBRD_FOCUS_EVENTS","KILL_NOTIFY","MAP","NO_COPY","NOTIFY_REALIZE","PRO_SET_VALUE","SCR_XSIZE","SCR_YSIZE","SCROLL","SENSITIVE","SPACE","TITLE","TLB_FRAME_ATTR","TLB_ICONIFY_EVENTS","TLB_KILL_REQUEST_EVENTS","TLB_MOVE_EVENTS","TLB_SIZE_EVENTS","TOOLBAR","TRACKING_EVENTS","UNITS","UNAME","UVALUE","XOFFSET","XPAD","XSIZE","X_SCROLL_SIZE","YOFFSET","YPAD","YSIZE","Y_SCROLL_SIZE","DISPLAY_NAME","RESOURCE_NAME","RNAME_MBAR",KLISTEND};
-  new DLibFun(lib::widget_base,string("WIDGET_BASE"),1,widget_baseKey);
+  // call_external (by Christoph Fuchs)
+  const string call_externalKey[] = {"VALUE", "ALL_VALUE", "RETURN_TYPE",
+               "B_VALUE", "I_VALUE", "L_VALUE", "F_VALUE", "D_VALUE",
+               "UI_VALUE", "UL_VALUE", "L64_VALUE", "UL64_VALUE", "S_VALUE",
+               "UNLOAD", "ALL_GDL", "STRUCT_ALIGN_BYTES", KLISTEND };
+  new DLibFunRetNew(lib::call_external, string("CALL_EXTERNAL"), -1, call_externalKey);
 
-  const string widget_buttonKey[] = {"ACCELERATOR","ALIGN_CENTER","ALIGN_LEFT","ALIGN_RIGHT","BITMAP","CHECKED_MENU","DYNAMIC_RESIZE","EVENT_FUNC","EVENT_PRO","FONT","FRAME","FUNC_GET_VALUE","GROUP_LEADER","HELP","KILL_NOTIFY","MENU","NO_COPY","NO_RELEASE","NOTIFY_REALIZE","PRO_SET_VALUE","PUSHBUTTON_EVENTS","SCR_XSIZE","SCR_YSIZE","SENSITIVE","SEPARATOR","TAB_MODE","TOOLTIP","TRACKING_EVENTS","UNAME","UNITS","UVALUE","VALUE","X_BITMAP_EXTRA","XOFFSET","XSIZE","YOFFSET","YSIZE",KLISTEND};
-  new DLibFun(lib::widget_button,string("WIDGET_BUTTON"),1,widget_buttonKey);
+// WIDGET_ functions
+#define WIDGET_COMMON_KEYWORDS "EVENT_FUNC", "EVENT_PRO", "FUNC_GET_VALUE", "KILL_NOTIFY" \
+    , "NOTIFY_REALIZE" , "PRO_SET_VALUE" , "NO_COPY" , "GROUP_LEADER"\
+    , "SCR_XSIZE" , "SCR_YSIZE" , "SCROLL" , "SENSITIVE" \
+    , "UNAME" , "UNITS" , "UVALUE" , "XOFFSET" \
+    , "XSIZE" , "YOFFSET" , "YSIZE" , "FRAME"
 
-  const string widget_droplistKey[] = {"DYNAMIC_RESIZE","EVENT_FUNC","EVENT_PRO","FONT","FRAME","FUNC_GET_VALUE","GROUP_LEADER","KILL_NOTIFY","NO_COPY","NOTIFY_REALIZE","PRO_SET_VALUE","RESOURCE_NAME","SCR_XSIZE","SCR_YSIZE","SENSITIVE","TAB_MODE","TITLE","TRACKING_EVENTS","UNAME","UNITS","UVALUE","VALUE","XOFFSET","XSIZE","YOFFSET","YSIZE",KLISTEND};
-  new DLibFun(lib::widget_droplist,string("WIDGET_DROPLIST"),1,widget_droplistKey);
+  const string widget_drawKey[] = { WIDGET_COMMON_KEYWORDS
+    , "APP_SCROLL"
+    , "BUTTON_EVENTS"
+    , "CLASSNAME"
+    , "COLOR_MODEL"
+    , "COLORS"
+    , "DRAG_NOTIFY"
+    , "DROP_EVENTS"
+    , "EXPOSE_EVENTS"
+    , "GRAPHICS_LEVEL"
+    , "IGNORE_ACCELERATORS"
+    , "KEYBOARD_EVENTS"
+    , "MOTION_EVENTS"
+    , "RENDERER"
+    , "RESOURCE_NAME"
+    , "RETAIN"
+    , "TOOLTIP"
+    , "TRACKING_EVENTS"
+    , "VIEWPORT_EVENTS"
+    , "WHEEL_EVENTS"
+    , "X_SCROLL_SIZE"
+    , "Y_SCROLL_SIZE"
+    ,KLISTEND};
+  new DLibFunRetNew(lib::widget_draw,string("WIDGET_DRAW"),1,widget_drawKey);
+  
+  const string widget_tableKey[] = {WIDGET_COMMON_KEYWORDS
+  , "ALIGNMENT"
+  , "ALL_EVENTS"
+  , "AM_PM"
+  , "BACKGROUND_COLOR"
+  , "COLUMN_LABELS"
+  , "COLUMN_MAJOR"
+  , "ROW_MAJOR"
+  , "COLUMN_WIDTHS"
+  , "CONTEXT_EVENTS"
+  , "DAYS_OF_WEEK"
+  , "DISJOINT_SELECTION"
+  , "EDITABLE"
+  , "FONT"
+  , "FOREGROUND_COLOR"
+  , "FORMAT"
+  , "GROUP_LEADER"
+  , "IGNORE_ACCELERATORS"
+  , "KBRD_FOCUS_EVENTS"
+  , "MONTHS"
+  , "NO_COLUMN_HEADERS"
+  , "NO_HEADERS"
+  , "NO_ROW_HEADERS"
+  , "RESIZEABLE_COLUMNS"
+  , "RESIZEABLE_ROWS"
+  , "ROW_HEIGHTS"
+  , "ROW_LABELS"
+  , "TAB_MODE"
+  , "TRACKING_EVENTS"
+  , "VALUE"
+  , "X_SCROLL_SIZE"
+  , "Y_SCROLL_SIZE"
+  , KLISTEND};
+  new DLibFunRetNew(lib::widget_table,string("WIDGET_TABLE"),1,widget_tableKey);
+  
+  const string widget_treeKey[] = {WIDGET_COMMON_KEYWORDS
+  , "ALIGN_BOTTOM"
+  , "ALIGN_CENTER"
+  , "ALIGN_LEFT"
+  , "ALIGN_RIGHT"
+  , "ALIGN_TOP"
+  , "BITMAP"
+  , "CHECKBOX"
+  , "CHECKED"
+  , "DRAG_NOTIFY"
+  , "DRAGGABLE"
+  , "EXPANDED"
+  , "FOLDER"
+  , "GROUP_LEADER"
+  , "INDEX"
+  , "MASK"
+  , "MULTIPLE"
+  , "NO_BITMAPS"
+  , "TAB_MODE"
+  , "TOOLTIP"
+  , KLISTEND};
+//   , "CONTEXT_EVENTS"
+//   , "TRACKING_EVENTS"
+//   , "DROP_EVENTS"
+  new DLibFunRetNew(lib::widget_base,string("WIDGET_TREE"),1,widget_treeKey);
+  
+  const string widget_baseKey[] = {WIDGET_COMMON_KEYWORDS,"ALIGN_BOTTOM","ALIGN_CENTER","ALIGN_LEFT","ALIGN_RIGHT","ALIGN_TOP","MBAR","MODAL","BASE_ALIGN_BOTTOM","BASE_ALIGN_CENTER","BASE_ALIGN_LEFT","BASE_ALIGN_RIGHT","BASE_ALIGN_TOP","COLUMN","ROW","CONTEXT_EVENTS","CONTEXT_MENU","EXCLUSIVE","NONEXCLUSIVE","FLOATING","GRID_LAYOUT","KBRD_FOCUS_EVENTS","MAP","SPACE","TITLE","TLB_FRAME_ATTR","TLB_ICONIFY_EVENTS","TLB_KILL_REQUEST_EVENTS","TLB_MOVE_EVENTS","TLB_SIZE_EVENTS","TOOLBAR","TRACKING_EVENTS","XPAD","X_SCROLL_SIZE","YPAD","Y_SCROLL_SIZE","DISPLAY_NAME","RESOURCE_NAME","RNAME_MBAR",KLISTEND};
+  new DLibFunRetNew(lib::widget_base,string("WIDGET_BASE"),1,widget_baseKey);
 
-	const string widget_listKey[] = {"CONTEXT_EVENTS","EVENT_FUNC","EVENT_PRO","FONT","FRAME","FUNC_GET_VALUE","GROUP_LEADER","KILL_NOTIFY","MULTIPLE","NO_COPY","NOTIFY_REALIZE","PRO_SET_VALUE","RESOURCE_NAME","SCR_XSIZE","SCR_YSIZE","SENSITIVE","TAB_MODE","TRACKING_EVENTS","UNAME","UNITS","UVALUE","VALUE","XOFFSET","XSIZE","YOFFSET","YSIZE",KLISTEND};
-	new DLibFun(lib::widget_list,string("WIDGET_LIST"),1,widget_listKey);
+  const string widget_buttonKey[] = {WIDGET_COMMON_KEYWORDS,"ACCELERATOR","ALIGN_CENTER","ALIGN_LEFT","ALIGN_RIGHT","BITMAP","CHECKED_MENU","DYNAMIC_RESIZE","FONT","HELP","MENU","NO_COPY","NO_RELEASE","PUSHBUTTON_EVENTS","SEPARATOR","TAB_MODE","TOOLTIP","TRACKING_EVENTS","VALUE","X_BITMAP_EXTRA",KLISTEND};
+  new DLibFunRetNew(lib::widget_button,string("WIDGET_BUTTON"),1,widget_buttonKey);
 
-	const string widget_bgroupKey[] =
-	{"BUTTON_UVALUE","COLUMN","EVENT_FUNC","EXCLUSIVE","NONEXCLUSIVE","SPACE","XPAD","YPAD","FONT","FRAME","IDS","LABEL_LEFT","LABEL_TOP","MAP","NO_RELEASE","RETURN_ID","RETURN_INDEX","RETURN_NAME","ROW","SCROLL","SET_VALUE","TAB_MODE","X_SCROLL_SIZE","Y_SCROLL_SIZE","SET_VALUE","UNAME","UVALUE","XOFFSET","XSIZE","YOFFSET","YSIZE",KLISTEND};
-	new DLibFun(lib::widget_bgroup,string("CW_BGROUP"),2,widget_bgroupKey);
+  const string widget_droplistKey[] = {WIDGET_COMMON_KEYWORDS,"DYNAMIC_RESIZE","FONT","RESOURCE_NAME","TAB_MODE","TITLE","TRACKING_EVENTS","VALUE",KLISTEND};
+  new DLibFunRetNew(lib::widget_droplist,string("WIDGET_DROPLIST"),1,widget_droplistKey);
 
-  const string widget_textKey[] = {"ALL_EVENTS","CONTEXT_EVENTS","EDITABLE","EVENT_FUNC","EVENT_PRO","FONT","FRAME","FUNC_GET_VALUE","GROUP_LEADER","IGNORE_ACCELERATORS","KBRD_FOCUS_EVENTS","KILL_NOTIFY","NO_COPY","NO_NEWLINE","NOTIFY_REALIZE","PRO_SET_VALUE","RESOURCE_NAME","SCR_XSIZE","SCR_YSIZE","SCROLL","SENSITIVE","TAB_MODE","TRACKING_EVENTS","UNAME","UNITS","UVALUE","VALUE","WRAP","XOFFSET","XSIZE","YOFFSET","YSIZE",KLISTEND};
-  new DLibFun(lib::widget_text,string("WIDGET_TEXT"),1,widget_textKey);
+  const string widget_comboboxKey[] = {WIDGET_COMMON_KEYWORDS,"EDITABLE","DYNAMIC_RESIZE","FONT","RESOURCE_NAME","TAB_MODE","TITLE","TRACKING_EVENTS","VALUE",KLISTEND};
+  new DLibFunRetNew(lib::widget_combobox,string("WIDGET_COMBOBOX"),1,widget_comboboxKey);
 
-  const string widget_labelKey[] = {"ALL_EVENTS","CONTEXT_EVENTS","EDITABLE","EVENT_FUNC","EVENT_PRO","FONT","FRAME","FUNC_GET_VALUE","GROUP_LEADER","IGNORE_ACCELERATORS","KBRD_FOCUS_EVENTS","KILL_NOTIFY","NO_COPY","NO_NEWLINE","NOTIFY_REALIZE","PRO_SET_VALUE","RESOURCE_NAME","SCR_XSIZE","SCR_YSIZE","SCROLL","SENSITIVE","TAB_MODE","TRACKING_EVENTS","UNAME","UNITS","UVALUE","VALUE","WRAP","XOFFSET","XSIZE","YOFFSET","YSIZE",KLISTEND};
-  new DLibFun(lib::widget_label,string("WIDGET_LABEL"),1,widget_labelKey);
+  const string widget_listKey[] = {WIDGET_COMMON_KEYWORDS,"CONTEXT_EVENTS","FONT","MULTIPLE","RESOURCE_NAME","TAB_MODE","TRACKING_EVENTS","VALUE",KLISTEND};
+  new DLibFunRetNew(lib::widget_list,string("WIDGET_LIST"),1,widget_listKey);
 
+// 	const string widget_bgroupKey[] =
+// 	{"BUTTON_UVALUE","COLUMN","EVENT_FUNC","EXCLUSIVE","NONEXCLUSIVE","SPACE","XPAD","YPAD","FONT","FRAME","IDS","LABEL_LEFT","LABEL_TOP","MAP","NO_RELEASE","RETURN_ID","RETURN_INDEX","RETURN_NAME","ROW","SCROLL","SET_VALUE","TAB_MODE","X_SCROLL_SIZE","Y_SCROLL_SIZE","SET_VALUE","UNAME","UVALUE","XOFFSET","XSIZE","YOFFSET","YSIZE",KLISTEND};
+// 	new DLibFunRetNew(lib::widget_bgroup,string("CW_BGROUP"),2,widget_bgroupKey);
+
+  const string widget_textKey[] = {WIDGET_COMMON_KEYWORDS,"ALL_EVENTS","CONTEXT_EVENTS","EDITABLE","FONT","IGNORE_ACCELERATORS","KBRD_FOCUS_EVENTS","NO_NEWLINE","RESOURCE_NAME","TAB_MODE","TRACKING_EVENTS","VALUE","WRAP",KLISTEND};
+  new DLibFunRetNew(lib::widget_text,string("WIDGET_TEXT"),1,widget_textKey);
+
+  const string widget_labelKey[] = {WIDGET_COMMON_KEYWORDS,"ALL_EVENTS","CONTEXT_EVENTS","EDITABLE","FONT","IGNORE_ACCELERATORS","KBRD_FOCUS_EVENTS","NO_NEWLINE","RESOURCE_NAME","TAB_MODE","TRACKING_EVENTS","VALUE","WRAP",KLISTEND};
+  new DLibFunRetNew(lib::widget_label,string("WIDGET_LABEL"),1,widget_labelKey);
+
+  const string widget_tabKey[] = {WIDGET_COMMON_KEYWORDS,"ALIGN_BOTTOM","ALIGN_CENTER","ALIGN_LEFT","ALIGN_RIGHT","ALIGN_TOP","MULTILINE","LOCATION","TAB_MODE","TRACKING_EVENTS", KLISTEND};
+  new DLibFunRetNew(lib::widget_tab,string("WIDGET_TAB"),1,widget_tabKey);
+
+  const string widget_slider[] = {WIDGET_COMMON_KEYWORDS,"TITLE"/*TODO*/,"DRAG","VALUE","MINIMUM","MAXIMUM","VERTICAL","SUPPRESS_VALUE", KLISTEND};
+  new DLibFunRetNew(lib::widget_slider,string("WIDGET_SLIDER"),1,widget_slider);
+
+  
   const string widget_infoKey[] = {"VALID","MODAL","MANAGED","XMANAGER_BLOCK","CHILD","VERSION",
 				   KLISTEND};
-  new DLibFun(lib::widget_info,string("WIDGET_INFO"),1,widget_infoKey);
+  new DLibFunRetNew(lib::widget_info,string("WIDGET_INFO"),1,widget_infoKey);
 
   const string widget_eventKey[] = {"XMANAGER_BLOCK","DESTROY",
 				    KLISTEND};
-  new DLibFun(lib::widget_event,string("WIDGET_EVENT"),1,widget_eventKey);
+  new DLibFunRetNew(lib::widget_event,string("WIDGET_EVENT"),1,widget_eventKey);
 
   const string widget_controlKey[] = {"REALIZE","MANAGED","EVENT_PRO",
 				      "XMANAGER_ACTIVE_COMMAND","DESTROY",
@@ -330,12 +441,5 @@ void LibInit_jmg()
 				      "GET_VALUE",KLISTEND};
   new DLibPro(lib::widget_control,string("WIDGET_CONTROL"),1, 
 	      widget_controlKey);
-
-  // call_external (by Christoph Fuchs)
-  const string call_externalKey[] = {"VALUE", "ALL_VALUE", "RETURN_TYPE",
-               "B_VALUE", "I_VALUE", "L_VALUE", "F_VALUE", "D_VALUE",
-               "UI_VALUE", "UL_VALUE", "L64_VALUE", "UL64_VALUE", "S_VALUE",
-               "UNLOAD", "ALL_GDL", "STRUCT_ALIGN_BYTES", KLISTEND };
-  new DLibFun(lib::call_external, string("CALL_EXTERNAL"), -1, call_externalKey);
 
 }

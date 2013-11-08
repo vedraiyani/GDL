@@ -39,14 +39,14 @@
 #  endif
 
 #ifdef _MSC_VER
-#define cm2in (.01 / GSL_CONST_MKSA_INCH); // This is not good, but works
+#define cm2in (.01 / GSL_CONST_MKSA_INCH) // This is not good, but works
 #define dpi 72.0 //in dpi;
 #else
   static const float cm2in = .01 / GSL_CONST_MKSA_INCH;
   static const PLFLT dpi = 72.0 ; //in dpi;
 #endif
 
-class DevicePS: public Graphics
+class DevicePS: public GraphicsDevice
 {
   std::string      fileName;
   GDLPSStream*     actStream;
@@ -328,7 +328,7 @@ private:
     //if the plplot bug ever gets fixed, this hack won't be needed.
     char *bb;
     FILE *feps;
-    size_t buflen=2048;//largely sufficient
+    const size_t buflen=2048;//largely sufficient
     char buffer[buflen]; 
     int cnt;
     ifstream myfile (fileName.c_str());
@@ -340,7 +340,8 @@ private:
     int offx, offy, width, height;
     bb += 15;
     sscanf(bb, "%i %i %i %i", &offx, &offy, &width, &height);
-    float hsize = XPageSize*cm2in*dpi*scale, vsize = YPageSize*cm2in*dpi*scale;
+    float hsize = XPageSize*cm2in*dpi*scale;
+	float vsize = YPageSize*cm2in*dpi*scale;
     float newwidth = (width - offx), newheight = (height - offy);
     float hscale = (orient_portrait ? hsize : vsize)/newwidth/5.0;
     float vscale = (orient_portrait ? vsize : hsize)/newheight/5.0;
@@ -404,7 +405,8 @@ private:
     }
 
     // write the first buflen to temp file
-    char buffer2[buflen + extralen];
+    char* buffer2 = new char[buflen + extralen];
+	ArrayGuard<char> buffer2Guard( buffer2);
     strcpy(buffer2,sbuff.c_str());
     fwrite(&buffer2, 1, buflen+extralen, fp); 
 
@@ -441,9 +443,9 @@ private:
   }
 
 public:
-  DevicePS(): Graphics(), fileName( "gdl.ps"), actStream( NULL), color(0), 
-    decomposed( 0), encapsulated(false), scale(1.), XPageSize(17.78), YPageSize(12.7),
-    XOffset(0.0),YOffset(0.0)
+  DevicePS(): GraphicsDevice(), fileName( "gdl.ps"), actStream( NULL),
+    XPageSize(17.78), YPageSize(12.7), XOffset(0.0),YOffset(0.0),
+    color(0), decomposed( 0), encapsulated(false), scale(1.)
   {
     name = "PS";
 

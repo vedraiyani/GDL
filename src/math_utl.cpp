@@ -432,7 +432,8 @@ Esko G. Cate & David W. Twigg
 
 
   //**********************************************************************
-
+// special pragma to prevent optimization by the zealous compiler icc. (when optimized, loops forever on the 'while')
+#pragma optimize("", off)
   void machar_s ( long int *ibeta, long int *it, long int *irnd, long int *ngrd,
 		  long int *machep, long int *negep, long int *iexp, long int *minexp,
 		  long int *maxexp, float *eps, float *epsneg, float *xmin, float *xmax ) 
@@ -864,7 +865,8 @@ Esko G. Cate & David W. Twigg
     return;
 
   }
-
+// special pragma to prevent optimization by the zealous compiler icc. (when optimized, loops forever on the 'while')
+#pragma optimize("", off) 
   void machar_d ( long int *ibeta, long int *it, long int *irnd, long int *ngrd,
 		  long int *machep, long int *negep, long int *iexp, long int *minexp,
 		  long int *maxexp, double *eps, double *epsneg, double *xmin, double *xmax ) 
@@ -1387,7 +1389,7 @@ Esko G. Cate & David W. Twigg
       // Mercator
       if (map_projection == 9) {
 	strcpy(proj, "proj=merc");
-	sprintf(lat_ts, "lat_ts=%lf", 0);
+	sprintf(lat_ts, "lat_ts=%lf", 0.0);
 	parms[nparms++] = &proj[0];
 	//	parms[nparms++] = &lat_ts[0];
       }
@@ -1418,7 +1420,11 @@ Esko G. Cate & David W. Twigg
       last_lat2 = map_lat2;
 
       //      prev_ref = pj_init(nparms, parms);
+#ifdef USE_LIBPROJ4_NEW     
+      *prev_ref = PJ_INIT(nparms, parms);
+#else
       prev_ref = PJ_INIT(nparms, parms);
+#endif      
     }
     return prev_ref;
   }

@@ -16,6 +16,7 @@
  ***************************************************************************/
 
 #include "includefirst.hpp"
+
 #include "plotting.hpp"
 #include "math_utl.hpp"
 
@@ -45,11 +46,12 @@ namespace lib
     Guard<BaseGDL> xval_guard, yval_guard, p0_guard;
     DDoubleGDL *yValTemp, *xValTemp;
     Guard<BaseGDL> xval_temp_guard, yval_temp_guard;
-    SizeT xEl, yEl, zEl;
+    SizeT xEl, yEl, zEl, ixEl, iyEl;
     DDouble xStart, xEnd, yStart, yEnd, zStart, zEnd, datamax, datamin;
     bool zLog, isLog;
     bool overplot, make2dBox, make3dBox, nodata;
-    DLongGDL *colors,*thick,*labels,*style;
+    DLongGDL *colors,*labels,*style;
+    DFloatGDL* thick;
     Guard<BaseGDL> colors_guard,thick_guard,labels_guard,style_guard;
     DFloatGDL *spacing,*orientation;
     Guard<BaseGDL> spacing_guard,orientation_guard;
@@ -64,108 +66,114 @@ namespace lib
     {
       static int irregIx = e->KeywordIx( "IRREGULAR");
       irregular=e->KeywordSet(irregIx);
-      if ( nParam ( )==1 )
-      {
-        BaseGDL* p0=e->GetNumericArrayParDefined ( 0 )->Transpose ( NULL );
-
-        zVal=static_cast<DDoubleGDL*>
-        ( p0->Convert2 ( GDL_DOUBLE, BaseGDL::COPY ) );
-        p0_guard.Init ( p0 ); // delete upon exit
-
-        xEl=zVal->Dim ( 1 );
-        yEl=zVal->Dim ( 0 );
-
-        if ( zVal->Rank ( )!=2 )
-          e->Throw ( "Array must have 2 dimensions: "
-                     +e->GetParString ( 0 ) );
-
-        xVal=new DDoubleGDL ( dimension ( xEl ), BaseGDL::INDGEN );
-        xval_guard.Init ( xVal ); // delete upon exit
-        yVal=new DDoubleGDL ( dimension ( yEl ), BaseGDL::INDGEN );
-        yval_guard.Init ( yVal ); // delete upon exit
-      }
-      else if ( nParam ( )==2||nParam ( )>3 )
-      {
-        e->Throw ( "Incorrect number of arguments." );
-      }
-      else if (irregular)
-      {
-        //ZVal will be treated as 1 dim array and X and Y must have the same number of elements.
-          BaseGDL* p0=e->GetNumericArrayParDefined ( 0 )->Transpose ( NULL );
-          zVal=static_cast<DDoubleGDL*>
-          ( p0->Convert2 ( GDL_DOUBLE, BaseGDL::COPY ) );
-          p0_guard.Init( p0 ); // delete upon exit
-        xValTemp=e->GetParAs< DDoubleGDL>( 1 );
-        yValTemp=e->GetParAs< DDoubleGDL>( 2 );
-
-        if (xValTemp->N_Elements() != zVal->N_Elements() )
-          e->Throw ( "X, Y, or Z array dimensions are incompatible." );
-        if (yValTemp->N_Elements() != zVal->N_Elements() )
-          e->Throw ( "X, Y, or Z array dimensions are incompatible." );
-        //x-y ranges:
-        DDouble xmin,xmax,ymin,ymax;
-        GetMinMaxVal ( xValTemp, &xmin, &xmax );
-        GetMinMaxVal ( yValTemp, &ymin, &ymax );
-        xEl=xValTemp->N_Elements()+1;
-        yEl=yValTemp->N_Elements()+1; //all points inside
-        xVal=new DDoubleGDL ( dimension ( xEl ), BaseGDL::NOZERO );
-        yVal=new DDoubleGDL ( dimension ( yEl ), BaseGDL::NOZERO );
-        for(SizeT i=0; i<xEl; ++i) (*xVal)[i]=xmin+(i-0.5)*(xmax-xmin)/xEl;
-        for(SizeT i=0; i<yEl; ++i) (*yVal)[i]=ymin+(i-0.5)*(ymax-ymin)/yEl;
-
-      }
-      else
-      {
-        BaseGDL* p0=e->GetNumericArrayParDefined ( 0 )->Transpose ( NULL );
-        zVal=static_cast<DDoubleGDL*>
-        ( p0->Convert2 ( GDL_DOUBLE, BaseGDL::COPY ) );
-        p0_guard.Init( p0 ); // delete upon exit
-
-        if ( zVal->Dim ( 0 )==1 )
-          e->Throw ( "Array must have 2 dimensions: "
-                     +e->GetParString ( 0 ) );
-
-        xVal=e->GetParAs< DDoubleGDL>( 1 );
-        yVal=e->GetParAs< DDoubleGDL>( 2 );
-
-        if ( xVal->Rank ( )>2 )
-          e->Throw ( "X, Y, or Z array dimensions are incompatible." );
-
-        if ( yVal->Rank ( )>2 )
-          e->Throw ( "X, Y, or Z array dimensions are incompatible." );
-        if ( xVal->Rank ( )==0 || yVal->Rank ( )==0 ) e->Throw ( "X, Y, or Z array dimensions are incompatible." );
-
-        if ( xVal->Rank ( )==1 )
-        {
-          xEl=xVal->Dim ( 0 );
-
-          if ( xEl!=zVal->Dim ( 1 ) )
-            e->Throw ( "X, Y, or Z array dimensions are incompatible." );
-        }
-
-        if ( yVal->Rank ( )==1 )
-        {
-          yEl=yVal->Dim ( 0 );
-
-          if ( yEl!=zVal->Dim ( 0 ) )
-            e->Throw ( "X, Y, or Z array dimensions are incompatible." );
-        }
-
-        if ( xVal->Rank ( )==2 )
-        {
-          xEl=xVal->Dim ( 0 );
-          if ( ( xVal->Dim ( 0 )!=zVal->Dim ( 1 ) )&&( xVal->Dim ( 1 )!=zVal->Dim ( 0 ) ) )
-            e->Throw ( "X, Y, or Z array dimensions are incompatible." );
-        }
-
-        if ( yVal->Rank ( )==2 )
-        {
-          yEl=yVal->Dim ( 1 );
-          if ( ( yVal->Dim ( 0 )!=zVal->Dim ( 1 ) )&&( yVal->Dim ( 1 )!=zVal->Dim ( 0 ) ) )
-            e->Throw ( "X, Y, or Z array dimensions are incompatible." );
-        }
+      
+      // in all cases, we have to exit here
+      if ( nParam()==2 || nParam()>3 )
+	{
+	  e->Throw ( "Incorrect number of arguments." );
+	}
+                
+      if (nParam()==1) {
+	if (irregular)
+	  {
+	    e->Throw ( "Incorrect number of arguments." );
+	  } 
+	else 
+	  {
+	    BaseGDL* p0=e->GetNumericArrayParDefined ( 0 )->Transpose ( NULL );
+	    
+	    zVal=static_cast<DDoubleGDL*>
+	      ( p0->Convert2 ( GDL_DOUBLE, BaseGDL::COPY ) );
+	    p0_guard.Init ( p0 ); // delete upon exit
+	    
+	    xEl=zVal->Dim ( 1 );
+	    yEl=zVal->Dim ( 0 );
+	  
+	    if ( zVal->Rank ( )!=2 )
+	      e->Throw ( "Array must have 2 dimensions: "
+			 +e->GetParString ( 0 ) );
+	  
+	    xVal=new DDoubleGDL ( dimension ( xEl ), BaseGDL::INDGEN );
+	    xval_guard.Init ( xVal ); // delete upon exit
+	    yVal=new DDoubleGDL ( dimension ( yEl ), BaseGDL::INDGEN );
+	    yval_guard.Init ( yVal ); // delete upon exit
+	  }
       }
 
+      if ( nParam()==3) {
+	if (irregular)
+	  { 
+	    //ZVal will be treated as 1 dim array and X and Y must have the same number of elements.
+	    BaseGDL* p0=e->GetNumericArrayParDefined ( 0 )->Transpose ( NULL );
+	    zVal=static_cast<DDoubleGDL*>
+	      ( p0->Convert2 ( GDL_DOUBLE, BaseGDL::COPY ) );
+	    p0_guard.Init( p0 ); // delete upon exit
+	    xValTemp=e->GetParAs< DDoubleGDL>( 1 );
+	    yValTemp=e->GetParAs< DDoubleGDL>( 2 );
+	    
+	    if (xValTemp->N_Elements() != zVal->N_Elements() )
+	      e->Throw ( "X, Y, or Z array dimensions are incompatible." );
+	    if (yValTemp->N_Elements() != zVal->N_Elements() )
+	      e->Throw ( "X, Y, or Z array dimensions are incompatible." );
+        xEl=xValTemp->N_Elements();
+        yEl=yValTemp->N_Elements(); //all points inside
+        xVal=xValTemp;
+        yVal=yValTemp;//for the time being, will be update later
+	  }
+	else
+	  {
+	    BaseGDL* p0=e->GetNumericArrayParDefined ( 0 )->Transpose ( NULL );
+	    zVal=static_cast<DDoubleGDL*>
+	      ( p0->Convert2 ( GDL_DOUBLE, BaseGDL::COPY ) );
+	    p0_guard.Init( p0 ); // delete upon exit
+
+	    if ( zVal->Dim ( 0 )==1 )
+	      e->Throw ( "Array must have 2 dimensions: "
+			 +e->GetParString ( 0 ) );
+
+	    xVal=e->GetParAs< DDoubleGDL>( 1 );
+	    yVal=e->GetParAs< DDoubleGDL>( 2 );
+
+	    if ( xVal->Rank ( )>2 )
+	      e->Throw ( "X, Y, or Z array dimensions are incompatible." );
+
+	    if ( yVal->Rank ( )>2 )
+	      e->Throw ( "X, Y, or Z array dimensions are incompatible." );
+	    if ( xVal->Rank ( )==0 || yVal->Rank ( )==0 )
+	      e->Throw ( "X, Y, or Z array dimensions are incompatible." );
+
+	    if ( xVal->Rank ( )==1 )
+	      {
+		xEl=xVal->Dim ( 0 );
+
+		if ( xEl!=zVal->Dim ( 1 ) )
+		  e->Throw ( "X, Y, or Z array dimensions are incompatible." );
+	      }
+
+	    if ( yVal->Rank ( )==1 )
+	      {
+		yEl=yVal->Dim ( 0 );
+
+		if ( yEl!=zVal->Dim ( 0 ) )
+		  e->Throw ( "X, Y, or Z array dimensions are incompatible." );
+	      }
+
+	    if ( xVal->Rank ( )==2 )
+	      {
+		xEl=xVal->Dim ( 0 );
+		if ( ( xVal->Dim ( 0 )!=zVal->Dim ( 1 ) )&&( xVal->Dim ( 1 )!=zVal->Dim ( 0 ) ) )
+		  e->Throw ( "X, Y, or Z array dimensions are incompatible." );
+	      }
+
+	    if ( yVal->Rank ( )==2 )
+	      {
+		yEl=yVal->Dim ( 1 );
+		if ( ( yVal->Dim ( 0 )!=zVal->Dim ( 1 ) )&&( yVal->Dim ( 1 )!=zVal->Dim ( 0 ) ) )
+		  e->Throw ( "X, Y, or Z array dimensions are incompatible." );
+	      }
+	  }
+      }
+      
       GetMinMaxVal ( xVal, &xStart, &xEnd );
       GetMinMaxVal ( yVal, &yStart, &yEnd );
       //XRANGE and YRANGE overrides all that, but  Start/End should be recomputed accordingly
@@ -515,16 +523,31 @@ namespace lib
         //which needs Nans to avoid blanked regions. The idea is to mark unwanted regions with Nans for plcont, and
         //with a blanking value (minmin) for plshade. Eventually one could use a zdefined() function testing on top of it.
         PLFLT ** map;
-        actStream->Alloc2dGrid( &map, xEl, yEl);
 
         if (irregular)
         {
+          //x-y ranges:
+          DDouble xmin,xmax,ymin,ymax;
+          long xsize,ysize,xoff,yoff;        
+          actStream->GetGeometry(xsize,ysize,xoff,yoff);
+          GetMinMaxVal ( xValTemp, &xmin, &xmax );
+          GetMinMaxVal ( yValTemp, &ymin, &ymax );
+          // find a good compromise for default size of gridded map...
+          ixEl=max(51.0,2*sqrt((double)xEl)+1); //preferably odd
+          iyEl=max(51.0,2*sqrt((double)yEl)+1);
+          ixEl=ixEl<xsize?ixEl:xsize; //no more than pixels on screen!
+          iyEl=iyEl<ysize?iyEl:ysize;
+          xVal=new DDoubleGDL ( dimension ( ixEl ), BaseGDL::NOZERO );
+          yVal=new DDoubleGDL ( dimension ( iyEl ), BaseGDL::NOZERO );
+          for(SizeT i=0; i<ixEl; ++i) (*xVal)[i]=xmin+i*(xmax-xmin)/ixEl;
+          for(SizeT i=0; i<iyEl; ++i) (*yVal)[i]=ymin+i*(ymax-ymin)/iyEl;
+          actStream->Alloc2dGrid( &map, ixEl, iyEl);
           PLFLT data=0;
-          actStream->griddata(&(*xValTemp)[0],&(*yValTemp)[0],&(*zVal)[0],xEl-1,
-              &(*xVal)[0],xEl,&(*yVal)[0],yEl,map,GRID_DTLI,data);
-          for ( SizeT i=0, k=0; i<xEl; i++ )
+          actStream->griddata(&(*xValTemp)[0],&(*yValTemp)[0],&(*zVal)[0],xEl,
+              &(*xVal)[0],ixEl,&(*yVal)[0],iyEl,map,GRID_DTLI,data);
+          for ( SizeT i=0, k=0; i<ixEl; i++ )
           {
-            for ( SizeT j=0; j<yEl; j++)
+            for ( SizeT j=0; j<iyEl; j++)
             {
               PLFLT v=map[i][j];
               if ( !isfinite(v) ) v=(fill)?minmin:d_nan; //note: nan regions could eventually be filled.
@@ -533,8 +556,10 @@ namespace lib
               map[i][j] = v;
             }
           }
-
+          xEl=ixEl;
+          yEl=iyEl;
         }else{
+          actStream->Alloc2dGrid( &map, xEl, yEl);
           for ( SizeT i=0, k=0; i<xEl; i++ )
           {
             for ( SizeT j=0; j<yEl; j++)
@@ -599,11 +624,19 @@ namespace lib
             {
               for ( SizeT j=0; j<yEl; j++ )
               {
+#ifdef USE_LIBPROJ4_NEW     
+                idata.u= cgrid2.xg[i][j] * DEG_TO_RAD;
+                idata.v= cgrid2.yg[i][j] * DEG_TO_RAD;
+                odata=PJ_FWD ( idata, ref );
+                cgrid2.xg[i][j]=odata.u;
+                cgrid2.yg[i][j]=odata.v;
+#else
                 idata.lam= cgrid2.xg[i][j] * DEG_TO_RAD;
                 idata.phi= cgrid2.yg[i][j] * DEG_TO_RAD;
                 odata=PJ_FWD ( idata, ref );
                 cgrid2.xg[i][j]=odata.x;
                 cgrid2.yg[i][j]=odata.y;
+#endif
               }
             }
           }
@@ -636,7 +669,7 @@ namespace lib
         }
         if ( e->GetKW ( c_thickIx )!=NULL )
         {
-          thick=e->GetKWAs<DLongGDL>( c_thickIx ); dothick=true;
+          thick=e->GetKWAs<DFloatGDL>( c_thickIx ); dothick=true;
         }
         if ( e->GetKW ( c_labelsIx )!=NULL )
         {
@@ -675,7 +708,7 @@ namespace lib
         }
         bool hachures=(dospacing || doori);
         // Get decomposed value for colors
-        DLong decomposed=Graphics::GetDevice()->GetDecomposed();
+        DLong decomposed=GraphicsDevice::GetDevice()->GetDecomposed();
 
         // Important: make all clipping computations BEFORE setting graphic properties (color, size)
         bool doClip=(e->KeywordSet("CLIP")||e->KeywordSet("NOCLIP"));
@@ -704,8 +737,12 @@ namespace lib
               spa=floor(10000*(*spacing)[i%spacing->N_Elements()]);
               actStream->pat(1,&ori,&spa);
 
-              if (docolors) actStream->Color ( ( *colors )[i%colors->N_Elements ( )], decomposed, (PLINT)colorindex_table_0_color );
-              if (dothick) actStream->wid ( ( *thick )[i%thick->N_Elements ( )]);
+              if (docolors) actStream->Color( ( *colors )[i%colors->N_Elements ( )], decomposed, (PLINT)colorindex_table_0_color );
+#ifdef HAVE_PLPLOT_WIDTH
+              if (dothick) actStream->width( static_cast<PLFLT>(( *thick )[i%thick->N_Elements()]));
+#else
+              if (dothick) actStream->wid( static_cast<PLINT>(( *thick )[i%thick->N_Elements()]));
+#endif
               if (dostyle) gdlLineStyle(actStream, ( *style )[i%style->N_Elements ( )]);
               actStream->shade( map, xEl, yEl, isLog?doIt:NULL, xStart, xEnd, yStart, yEnd,
               clevel[i], clevel[i+1],
@@ -715,7 +752,7 @@ namespace lib
               (oneDim)?(plstream::tr1):(plstream::tr2), (oneDim)?(void *)&cgrid1:(void *)&cgrid2);
             }
             actStream->psty(0);
-            if (docolors) gdlSetGraphicsForegroundColorFromKw ( e, actStream );
+            if (docolors) gdlSetGraphicsForegroundColorFromKw( e, actStream );
             if (dothick) gdlSetPenThickness(e, actStream);
             if (dostyle) gdlLineStyle(actStream, 0);
           }
@@ -788,7 +825,11 @@ namespace lib
               actStream->stransform(gdl3dTo2dTransformContour, &Data3d);
             }
             if (docolors) actStream->Color ( ( *colors )[i%colors->N_Elements ( )], decomposed, 2);
-            if (dothick) actStream->wid ( ( *thick )[i%thick->N_Elements ( )]);
+#ifdef HAVE_PLPLOT_WIDTH
+            if (dothick) actStream->width ( static_cast<PLFLT>(( *thick )[i%thick->N_Elements ( )]));
+#else
+            if (dothick) actStream->wid( ( *thick )[i%thick->N_Elements ( )]);
+#endif
             if (dostyle) gdlLineStyle(actStream, ( *style )[i%style->N_Elements ( )]);
             if (dolabels) actStream->setcontlabelparam ( LABELOFFSET, (PLFLT) label_size, LABELSPACING,
                                                         (PLINT)(*labels)[i%labels->N_Elements()] );

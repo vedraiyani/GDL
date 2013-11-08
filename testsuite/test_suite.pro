@@ -317,6 +317,38 @@ pro goto_test
 
 end
 
+function REF_PAR_RET,x
+return,(1?x:1)
+end
+
+pro ref_par_called,x,y,target
+if x ne target or y ne target then print,"REF_PAR: error 4"
+x=537
+y=537
+end
+
+pro REF_PAR_TEST
+
+p = ptr_new(10)
+a = 10
+
+ref_par_called,(REF_PAR_RET(a)),(REF_PAR_RET(*p)),10
+if a NE 537 OR *p NE 537 then print,"REF_PAR: error 1"
+
+p = ptr_new(10)
+a = 10
+
+ref_par_called,++(REF_PAR_RET(a)),++(REF_PAR_RET(*p)),11
+if a NE 537 OR *p NE 537 then print,"REF_PAR: error 2"
+
+p = ptr_new(10)
+a = 10
+
+ref_par_called,(REF_PAR_RET(a))++,(REF_PAR_RET(*p))++,10
+if a NE 11 OR *p NE 11 then print,"REF_PAR: error 3"
+
+end
+
 function ret99
   return,99b
 end
@@ -354,6 +386,8 @@ function retOverwriteExpression
 end
 
 pro ret_test
+
+  ref_par_test
 
   if ret99() ne 99.0 then begin
     message, '***RET: ERROR1', /conti

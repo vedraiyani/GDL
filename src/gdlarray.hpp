@@ -206,7 +206,7 @@ public:
 
   T& operator[]( SizeT ix) throw()
   {
-     if( ix >= sz) 
+//      if( ix >= sz) // debug
       assert( ix < sz);
     return buf[ ix];
   }
@@ -246,8 +246,8 @@ GDLArray& operator= ( const GDLArray& right )
   {
     for ( SizeT i=0; i<sz; ++i )
       buf[ i] = right.buf[ i];
-    return *this;
   }
+  return *this;
 }
 
   GDLArray& operator+=( const GDLArray& right) throw()
@@ -317,6 +317,10 @@ GDLArray& operator= ( const GDLArray& right )
     }
   }
   
+// protected:
+//     void assert(ix<sz arg1);
+// protected:
+//     void assert(ix<sz arg1);
 }; // GDLArray
 
 #endif

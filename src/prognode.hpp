@@ -287,9 +287,10 @@ public:
       }
   }
 
-  int getType() { return ttype;}
+  int getType() const { return ttype;}
   void setType( int t) { ttype=t;}
-  std::string getText() { return text;}
+//   std::string getText() { return text;}
+  const std::string& getText() const { return text;}
   void setText(const std::string t) { text = t;}
   int getLine() const { return lineNumber;}
   void setLine( int l) { lineNumber = l;}
@@ -299,11 +300,11 @@ public:
 
   ProgNodeP BreakTarget() const { return breakTarget;}
   
-  bool LabelInRange( const int lIx)
-  {
-    // 	std::cout << "LabelInRange: " << ((lIx >= labelStart) && (lIx < labelEnd)) << "     " << lIx << "   [" << labelStart << "," << labelEnd << ")" << std::endl;
-    return (lIx >= labelStart) && (lIx < labelEnd);
-  }
+//   bool LabelInRange( int lIx) const
+//   {
+//     // 	std::cout << "LabelInRange: " << ((lIx >= labelStart) && (lIx < labelEnd)) << "     " << lIx << "   [" << labelStart << "," << labelEnd << ")" << std::endl;
+//     return (lIx >= labelStart) && (lIx < labelEnd);
+//   }
   
   friend class GDLInterpreter;
   friend class DInterpreter;
@@ -1554,6 +1555,7 @@ public:
   BaseGDL** LExpr( BaseGDL* right);
   //   BaseGDL** LExprGrab( BaseGDL* right);
   BaseGDL* Eval();
+  BaseGDL** LEval();
 };
 class PCALL_LIBNode: public CommandNode
 {
@@ -1582,24 +1584,30 @@ public:
 class DECNode: public CommandNode
 { public:
   DECNode( const RefDNode& refNode): CommandNode( refNode){}
+  BaseGDL** EvalRefCheck( BaseGDL*& res);
+  BaseGDL** LEval();
   BaseGDL* Eval();
   RetCode Run();
 };
 class INCNode: public CommandNode
 { public:
   INCNode( const RefDNode& refNode): CommandNode( refNode){}
+  BaseGDL** EvalRefCheck( BaseGDL*& res);
+  BaseGDL** LEval();
   BaseGDL* Eval();
   RetCode Run();
 };
-class POSTDECNode: public DECNode
+class POSTDECNode: public CommandNode
 { public:
-  POSTDECNode( const RefDNode& refNode): DECNode( refNode){}
+  POSTDECNode( const RefDNode& refNode): CommandNode( refNode){}
   BaseGDL* Eval();
+//   BaseGDL** LEval();
 };
-class POSTINCNode: public INCNode
+class POSTINCNode: public CommandNode
 { public:
-  POSTINCNode( const RefDNode& refNode): INCNode( refNode){}
+  POSTINCNode( const RefDNode& refNode): CommandNode( refNode){}
   BaseGDL* Eval();
+//   BaseGDL** LEval();
 };
 
 class ARRAYEXPRNode: public DefaultNode

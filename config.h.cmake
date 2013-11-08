@@ -28,6 +28,7 @@
 #cmakedefine HAVE_NEXTTOWARD 1
 #cmakedefine HAVE_OLDPLPLOT 1
 #cmakedefine HAVE_PLPLOT_SLABELFUNC 1
+#cmakedefine HAVE_PLPLOT_WIDTH 1
 #cmakedefine PLPLOT_PRIVATE_NOT_HIDDEN 1
 #cmakedefine PLPLOT_HAS_LEGEND
 #ifndef HAVE_STDINT_H
@@ -50,6 +51,9 @@
 #endif
 #ifndef HAVE_UNISTD_H
 #cmakedefine HAVE_UNISTD_H 1
+#endif
+#ifndef HAVE_EXT_STDIO_FILEBUF_H
+#cmakedefine HAVE_EXT_STDIO_FILEBUF_H 1
 #endif
 #cmakedefine OLD_DARWIN
 #cmakedefine PYTHON_MODULE 1

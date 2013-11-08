@@ -2,9 +2,11 @@ check_LTLIBRARIES = libtest_ce.la
 libtest_ce_la_SOURCES = libtest_ce.cpp
 libtest_ce_la_LDFLAGS = -rpath $(abs_srcdir)/testsuite/.libs
 
-TESTS_ENVIRONMENT = $(top_srcdir)/testsuite/try $(top_srcdir)
+#TESTS_ENVIRONMENT = $(top_srcdir)/testsuite/try $(top_srcdir)
+TESTS_ENVIRONMENT = $(top_srcdir)/testsuite/try $(top_srcdir) $(top_builddir)
 TESTS = \
   test_angles.pro \
+  test_array_equal.pro \
   test_base64.pro \
   test_binfmt.pro \
   test_bug_1779553.pro \
@@ -37,7 +39,6 @@ TESTS = \
   test_bug_3152899.pro \
   test_bug_3189072.pro \
   test_bug_3199465.pro \
-  test_bug_3244840.pro \
   test_bug_3275334.pro \
   test_bug_3286031.pro \
   test_bug_3288652.pro \
@@ -77,6 +78,7 @@ TESTS = \
   test_finite.pro \
   test_fix.pro \
   test_fixprint.pro \
+  test_format.pro \
   test_fx_root.pro \
   test_fz_roots.pro \
   test_gc.pro \
@@ -96,6 +98,7 @@ TESTS = \
   test_mpfit.pro \
   test_multiroots.pro \
   test_nans_in_sort_and_median.pro \
+  test_netcdf.pro \
   test_nestedloop.pro \
   test_plotting_ranges.pro \
   test_pmulti.pro \

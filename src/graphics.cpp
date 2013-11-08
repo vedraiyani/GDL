@@ -16,12 +16,14 @@
  *                                                                         *
  ***************************************************************************/
 
+#error "This file is no longer an active part of GDL. It is kept for version history only. Use graphicsdevice.cpp instead"
+
 #include "includefirst.hpp"
 
 #include <cstdlib>
 
 #include "objects.hpp"
-#include "graphics.hpp"
+#include "graphicsdevice.hpp"
 #ifdef _MSC_VER
 #  include "devicewin.hpp"
 #else
@@ -98,29 +100,31 @@ bool GDLCT::SetHSV( UInt ix, DFloat h, DFloat s, DFloat v)
   return true;
 }
 
-std::vector<GDLCT> Graphics::CT;    // predefined colortables
-GDLCT              Graphics::actCT; // actual used colortable
+std::vector<GDLCT> GraphicsDevice::CT;    // predefined colortables
+GDLCT              GraphicsDevice::actCT; // actual used colortable
 
-DeviceListT  Graphics::deviceList;
-Graphics*    Graphics::actDevice   = NULL;
-int Graphics::wTag;
-int Graphics::xSTag;
-int Graphics::ySTag;
-int Graphics::xVSTag;
-int Graphics::yVSTag;
-int Graphics::n_colorsTag;
+DeviceListT  GraphicsDevice::deviceList;
+GraphicsDevice*    GraphicsDevice::actDevice   = NULL;
+GraphicsDevice*    GraphicsDevice::actGUIDevice   = NULL;
 
-Graphics::~Graphics() 
+int GraphicsDevice::wTag;
+int GraphicsDevice::xSTag;
+int GraphicsDevice::ySTag;
+int GraphicsDevice::xVSTag;
+int GraphicsDevice::yVSTag;
+int GraphicsDevice::n_colorsTag;
+
+GraphicsDevice::~GraphicsDevice() 
 {
   // actDevice's dStruct is or will be deleted from sysVarList
   if( actDevice != this) delete dStruct;
 } // v-table instatiation
 
-Graphics::Graphics(): dStruct( NULL)
+GraphicsDevice::GraphicsDevice(): dStruct( NULL)
 {
 }
 
-bool Graphics::SetDevice( const string& device)
+bool GraphicsDevice::SetDevice( const string& device)
 {
   int size = deviceList.size();
   for( int i=0; i<size; i++)
@@ -138,7 +142,7 @@ bool Graphics::SetDevice( const string& device)
   return false;
 }
 
-void Graphics::Init()
+void GraphicsDevice::Init()
 {
   InitCT();
 
@@ -147,8 +151,7 @@ void Graphics::Init()
 #ifdef _MSC_VER
   deviceList.push_back( new DeviceWIN());
 #else
-#  ifndef HAVE_X
-#  else
+#  ifdef HAVE_X
   deviceList.push_back( new DeviceX());
 #  endif
 #endif
@@ -172,15 +175,17 @@ void Graphics::Init()
     exit( EXIT_FAILURE);
     }
 #  endif 
+
+  actGUIDevice = deviceList[0];
 }
 
-void Graphics::DestroyDevices()
+void GraphicsDevice::DestroyDevices()
 {
   PurgeContainer( deviceList);
   actDevice = NULL;
 }
 
-void Graphics::DefineDStructDesc()
+void GraphicsDevice::DefineDStructDesc()
 {
   DStructDesc* dSysVarDesc = FindInStructList( structList, "!DEVICE");
   if( dSysVarDesc != NULL) return; 
@@ -221,7 +226,7 @@ void Graphics::DefineDStructDesc()
   n_colorsTag = dSysVarDesc->TagIndex( "N_COLORS");
 }
 
-void Graphics::HandleEvents()
+void GraphicsDevice::HandleEvents()
 {
   DeviceListT::iterator i;
   for( i=deviceList.begin(); i != deviceList.end(); ++i)
@@ -231,7 +236,7 @@ void Graphics::HandleEvents()
 }
 
 
-void Graphics::LoadCT( UInt iCT)
+void GraphicsDevice::LoadCT( UInt iCT)
 {
   actCT = CT[iCT];
 }

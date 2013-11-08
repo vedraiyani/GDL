@@ -29,7 +29,23 @@ class CUSTOM_API GDLTreeParser : public antlr::TreeParser, public GDLTreeParserT
         return (FindInIDList( loopVarStack, lN->getText()) != -1);
         return false;
     }
-    
+
+public:    
+    static bool IsREF_CHECK(int t)
+    {
+        return    t == FCALL_LIB 
+            // || t == MFCALL_LIB  
+            // //t == FCALL_LIB_N_ELEMENTS ||
+            // || t == MFCALL_PARENT_LIB 
+            || t == QUESTION 
+            // TODO: These are ref check as well, but parameter nodes need to know
+            || t == FCALL || t == MFCALL || t == MFCALL_PARENT
+            || t == ARRAYEXPR_FCALL
+            || t == ARRAYEXPR_MFCALL
+            ;
+    }
+
+private:
     // Replaces ASSIGN with ASSIGN_REPLACE if appropiate
     void AssignReplace( RefDNode& lN, RefDNode& aN)
     {
@@ -195,10 +211,10 @@ protected:
 private:
 	static const char* tokenNames[];
 #ifndef NO_STATIC_CONSTS
-	static const int NUM_TOKENS = 235;
+	static const int NUM_TOKENS = 237;
 #else
 	enum {
-		NUM_TOKENS = 235
+		NUM_TOKENS = 237
 	};
 #endif
 	

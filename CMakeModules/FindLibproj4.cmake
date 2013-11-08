@@ -7,7 +7,8 @@
 #  the Free Software Foundation; either version 2 of the License, or
 #  (at your option) any later version.
 #
-
+# for use of version from:
+# http://home.comcast.net/~gevenden56/proj/
 
 find_library(LIBPROJ4_LIBRARIES NAMES proj4)
 find_path(LIBPROJ4_INCLUDE_DIR NAMES lib_proj.h)

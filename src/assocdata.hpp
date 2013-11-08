@@ -50,7 +50,7 @@ static	void operator delete( void *ptr);
 			     sliceSize( cp.sliceSize)
   {}
 
- Parent_* Dup() { return new Assoc_(*this);}
+  Assoc_* Dup() const { return new Assoc_(*this);}
 
   void AssignAt( BaseGDL* srcIn, ArrayIndexListT* ixList, SizeT offset);
   void AssignAt( BaseGDL* srcIn, ArrayIndexListT* ixList);
@@ -63,7 +63,11 @@ static	void operator delete( void *ptr);
   // returns (*this)[ ixList]
   Parent_* Index( ArrayIndexListT* ixList);
 
-  SizeT N_Elements() const { return 1;}
+  SizeT N_Elements() const 
+  { 
+    return this->Parent_::N_Elements();
+    return 1;
+  }
 
   bool IsAssoc() const { return true;}
 
@@ -77,23 +81,29 @@ static	void operator delete( void *ptr);
 
   SizeT NBytes() const 
   {
+    return this->Parent_::NBytes();
     throw GDLException("Assoc_::NBytes() called.");
   }
   
-  std::ostream& Write( std::ostream& os, bool swapEndian)
+  std::ostream& Write( std::ostream& os, bool swapEndian, 
+			bool compress, XDR *xdrs)
   {
     throw GDLException("Assoc_::Write(...) called.");
   }
-  std::istream& Read( std::istream& os, bool swapEndian)
-  {
+  std::istream& Read( std::istream& os, bool swapEndian, 
+		       bool compress, XDR *xdrs)
+ {
     throw GDLException("Assoc_::Read(...) called.");
   }
 
   //  std::ostream& ToStream(std::ostream& o)
-  std::ostream& ToStream(std::ostream& o, SizeT width = 0, SizeT* actPosPtr = NULL)
-  {
-    throw GDLException("File expression not allowed in this context.");
-  }
+  std::ostream& ToStream(std::ostream& o, SizeT width = 0, SizeT* actPosPtr = NULL);
+//   {
+//   
+//     os << "File<"+/dev/zero+"> "; 
+//     return Parent_::ToStream( o, width, actPosPtr);
+// //     throw GDLException("File expression not allowed in this context.");
+//   }
   std::istream& FromStream(std::istream& i)
   {
     throw GDLException("File expression not allowed in this context.");
@@ -169,12 +179,12 @@ static	void operator delete( void *ptr);
     throw GDLException("File expression not allowed in this context.");
   }
 
-  bool Equal( BaseGDL*)
+  bool Equal( BaseGDL*) const
   {
     throw GDLException("File expression not allowed in this context.");
   }
 
-  bool EqualNoDelete( const BaseGDL*)
+  bool EqualNoDelete( const BaseGDL*) const
   {
     throw GDLException("File expression not allowed in this context.");
   }
@@ -385,7 +395,8 @@ static	void operator delete( void *ptr);
   {
     throw GDLException("File expression not allowed in this context.");
   }
-  SizeT OFmtCal( std::ostream* os, SizeT offset, SizeT num, int width)
+  SizeT OFmtCal( std::ostream* os, SizeT offs, SizeT num, int width, 
+	int minN, char fill, BaseGDL::Cal_IOMode oM = BaseGDL::DEFAULT)
   {
     throw GDLException("File expression not allowed in this context.");
   }

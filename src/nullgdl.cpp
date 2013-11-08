@@ -1,5 +1,5 @@
 /***************************************************************************
-                          basegdl.cpp  -  base class for GDL datatypes
+                          nullgdl.cpp  -  class for GDL !NULL
                              -------------------
     begin                : July 22 2002
     copyright            : (C) 2002 by Marc Schellens
@@ -566,7 +566,9 @@ SizeT NullGDL::IFmtI( std::istream* is, SizeT offs, SizeT num, int width,
 {throw GDLException("NullGDL::IFmtI(...) called.");}
 
 BaseGDL* NullGDL::Convol( BaseGDL* kIn, BaseGDL* scaleIn, BaseGDL* bias,
-		 bool center, bool normalize, int edgeMode)
+		          bool center, bool normalize, int edgeMode,
+                          bool doNan, BaseGDL* missing, bool doMissing,
+                          BaseGDL* invalid, bool doInvalid)
 {
   throw GDLException("NullGDL::Convol(...) called.");
 }

@@ -73,11 +73,19 @@ namespace lib
       SizeT nEl=p0->N_Elements();
       for ( SizeT i=0; i<nEl/2; ++i )
       {
-        idata.lam=(*ll)[2*i]*DEG_TO_RAD;
+ #ifdef USE_LIBPROJ4_NEW
+       idata.u=(*ll)[2*i]*DEG_TO_RAD;
+        idata.v=(*ll)[2*i+1]*DEG_TO_RAD;
+        odata=PJ_FWD(idata, ref);
+        (*res)[2*i]=odata.u;
+        (*res)[2*i+1]=odata.v;
+#else
+       idata.lam=(*ll)[2*i]*DEG_TO_RAD;
         idata.phi=(*ll)[2*i+1]*DEG_TO_RAD;
         odata=PJ_FWD(idata, ref);
         (*res)[2*i]=odata.x;
         (*res)[2*i+1]=odata.y;
+#endif
       }
       return res;
 
@@ -107,14 +115,24 @@ namespace lib
       SizeT nEl=p0->N_Elements();
       for ( SizeT i=0; i<nEl; ++i )
       {
+#ifdef USE_LIBPROJ4_NEW
+        idata.u=(*lon)[i]*DEG_TO_RAD;
+        idata.v=(*lat)[i]*DEG_TO_RAD;
+        odata=PJ_FWD(idata, ref);
+        (*res)[2*i]=odata.u;
+        (*res)[2*i+1]=odata.v;
+#else
         idata.lam=(*lon)[i]*DEG_TO_RAD;
         idata.phi=(*lat)[i]*DEG_TO_RAD;
         odata=PJ_FWD(idata, ref);
         (*res)[2*i]=odata.x;
         (*res)[2*i+1]=odata.y;
+#endif	
       }
       return res;
     }
+    e->Throw("More than 2 parameters not handled.");
+    return NULL;
 #else
     e->Throw("GDL was compiled without support for map projections");
     return NULL;
@@ -169,11 +187,19 @@ namespace lib
       SizeT nEl=p0->N_Elements();
       for ( SizeT i=0; i<nEl/2; ++i )
       {
+#ifdef USE_LIBPROJ4_NEW
+        idata.u=(*xy)[2*i];
+        idata.v=(*xy)[2*i+1];
+        odata=PJ_INV(idata, ref);
+        (*res)[2*i]=odata.u * RAD_TO_DEG;
+        (*res)[2*i+1]=odata.v * RAD_TO_DEG;
+#else
         idata.x=(*xy)[2*i];
         idata.y=(*xy)[2*i+1];
         odata=PJ_INV(idata, ref);
         (*res)[2*i]=odata.lam * RAD_TO_DEG;
         (*res)[2*i+1]=odata.phi * RAD_TO_DEG;
+#endif	
       }
       return res;
 
@@ -203,14 +229,24 @@ namespace lib
       SizeT nEl=p0->N_Elements();
       for ( SizeT i=0; i<nEl; ++i )
       {
+#ifdef USE_LIBPROJ4_NEW
+        idata.u=(*x)[i];
+        idata.v=(*y)[i];
+        odata=PJ_INV(idata, ref);
+        (*res)[2*i]=odata.u * RAD_TO_DEG;
+        (*res)[2*i+1]=odata.v * RAD_TO_DEG;
+#else
         idata.x=(*x)[i];
         idata.y=(*y)[i];
         odata=PJ_INV(idata, ref);
         (*res)[2*i]=odata.lam * RAD_TO_DEG;
         (*res)[2*i+1]=odata.phi * RAD_TO_DEG;
+#endif	
       }
       return res;
     }
+    e->Throw("More than 2 parameters not handled.");
+    return NULL;
 #else
     e->Throw("GDL was compiled without support for map projections");
     return NULL;

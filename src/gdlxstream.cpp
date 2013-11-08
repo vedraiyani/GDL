@@ -18,7 +18,7 @@
 #include "includefirst.hpp"
 #include <iostream>
 
-#include "graphics.hpp"
+#include "graphicsdevice.hpp"
 #include "gdlxstream.hpp"
 
 #ifndef HAVE_X
@@ -126,14 +126,15 @@ void GDLXStream::GetGeometry( long& xSize, long& ySize, long& xoff, long& yoff)
 				   &win_attr);
   xSize = win_attr.width;
   ySize = win_attr.height;
-
+  xoff =  win_attr.x; //false with X11
+  yoff =  win_attr.y; //false with X11
   PLFLT xp; PLFLT yp; 
   PLINT xleng; PLINT yleng;
   PLINT plxoff; PLINT plyoff;
   plstream::gpage( xp, yp, xleng, yleng, plxoff, plyoff);
-
-  xoff = plxoff;
-  yoff = plyoff;
+  //warning neither X11 nor plplot give the good value for the position of the window!!!!
+  xoff = plxoff; //not good either!!!
+  yoff = plyoff; // idem
   if (GDL_DEBUG_PLSTREAM) fprintf(stderr,"GDLXStream::GetGeometry(%ld %ld %ld %ld)\n", xSize, ySize, xoff, yoff);
 }
 
@@ -167,7 +168,7 @@ void GDLXStream::Clear( DLong bColor)
   plgcolbg (&r0, &g0, &b0);
 
   // Get desired background color
-  GDLCT* actCT = Graphics::GetCT();
+  GDLCT* actCT = GraphicsDevice::GetCT();
   actCT->Get( bColor, rb, gb, bb);
 
   // Convert to PLINT from GDL_BYTE
@@ -223,19 +224,19 @@ void GDLXStream::WarpPointer(DLong x, DLong y)
   XwDisplay *xwd = (XwDisplay *) dev->xwd;
   XWarpPointer( xwd->display, None, dev->window, 0, 0, 0, 0, x, dev->height-y );
 }
-void GDLXStream::setDoubleBuffering()
+void GDLXStream::SetDoubleBuffering()
 {
   XwDev *dev = (XwDev *) pls->dev;
   dev->write_to_window = 0;
   pls->db = 1;
 }
-void GDLXStream::unSetDoubleBuffering()
+void GDLXStream::UnSetDoubleBuffering()
 {
   XwDev *dev = (XwDev *) pls->dev;
   dev->write_to_window = 1;
   pls->db = 0;
 }
-bool GDLXStream::hasDoubleBuffering()
+bool GDLXStream::HasDoubleBuffering()
 {
   return true;
 }

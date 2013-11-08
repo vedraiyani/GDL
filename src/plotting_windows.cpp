@@ -25,7 +25,7 @@ namespace lib {
 
   void window( EnvT* e)
   {
-    Graphics* actDevice = Graphics::GetDevice();
+    GraphicsDevice* actDevice = GraphicsDevice::GetDevice();
     int maxWin = actDevice->MaxWin();
     if( maxWin == 0)
       e->Throw( "Routine is not defined for current "
@@ -61,7 +61,7 @@ namespace lib {
 	title = "GDL "+i2s( wIx);
       }
 
-    DLong xPos=-1, yPos=-1;
+    DLong xPos=-1, yPos=-1; //NOTE: xPos=-1 and yPos=-1 are when XPOS and YPOS options were not used!
     e->AssureLongScalarKWIfPresent( "XPOS", xPos);
     e->AssureLongScalarKWIfPresent( "YPOS", yPos);
 
@@ -71,6 +71,16 @@ namespace lib {
 #else
     xSize = 640;
     ySize = 512;
+#ifdef _MSC_VER
+    // the following not tested (no access to windows) (GD)
+    bool noQscreen=true;
+    string gdlQscreen=GetEnvString("GDL_GR_WIN_QSCREEN");
+    if( gdlQscreen == "1") noQscreen=false;
+    string gdlXsize=GetEnvString("GDL_GR_WIN_WIDTH");
+    if( gdlXsize != "" && noQscreen) xSize=atoi(gdlXsize.c_str()); 
+    string gdlYsize=GetEnvString("GDL_GR_WIN_HEIGHT");
+    if( gdlYsize != "" && noQscreen) ySize=atoi(gdlYsize.c_str()); 
+#endif
 #endif
     e->AssureLongScalarKWIfPresent( "XSIZE", xSize);
     e->AssureLongScalarKWIfPresent( "YSIZE", ySize);
@@ -80,7 +90,7 @@ namespace lib {
       cout << "xPos/yPos   :"<<  xPos << " " << yPos << endl;
       cout << "xSize/ySize :"<<  xSize << " " << ySize << endl;
     }
-    if( xSize <= 0 || ySize <= 0 || xPos < -1 || yPos < -1)
+    if( xSize <= 0 || ySize <= 0 || xPos < -1 || yPos < -1) //NOTE: xPos=-1 and yPos=-1 are when XPOS and YPOS options were not used!
       e->Throw(  "Unable to create window "
 		 "(BadValue (integer parameter out of range for "
 		 "operation)).");
@@ -96,14 +106,14 @@ namespace lib {
     if( e->KeywordPresent( 3)) // RETAIN
     {
       e->AssureLongScalarKWIfPresent( "RETAIN", retainType);
-      if (retainType=0) doretain=false;
+      if (retainType == 0) doretain=false;
     }
     success = actDevice->EnableBackingStore(doretain);
  }
 
   void wset( EnvT* e)
   {
-    Graphics* actDevice = Graphics::GetDevice();
+    GraphicsDevice* actDevice = GraphicsDevice::GetDevice();
 
     SizeT nParam=e->NParam();
     DLong wIx = 0;
@@ -143,7 +153,7 @@ namespace lib {
 
   void wshow( EnvT* e)
   {
-    Graphics* actDevice = Graphics::GetDevice();
+    GraphicsDevice* actDevice = GraphicsDevice::GetDevice();
 
     SizeT nParam=e->NParam();
     DLong wIx = 0;
@@ -176,7 +186,7 @@ namespace lib {
 
   void wdelete( EnvT* e)
   {
-    Graphics* actDevice = Graphics::GetDevice();
+    GraphicsDevice* actDevice = GraphicsDevice::GetDevice();
 
     SizeT nParam=e->NParam();
     if( nParam == 0)
@@ -185,7 +195,7 @@ namespace lib {
 	bool success = actDevice->WDelete( wIx);
 	if( !success)
 	  e->Throw( "Window number "+i2s(wIx)+
-			      " out of range or no more windows.");
+			      " invalid or no more windows.");
 	return;
       }
 
@@ -196,7 +206,7 @@ namespace lib {
 	bool success = actDevice->WDelete( wIx);
 	if( !success)
 	  e->Throw( "Window number "+i2s(wIx)+
-		    " out of range or no more windows.");
+		    " invalid or no more windows.");
       }
   }
 

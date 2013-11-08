@@ -70,6 +70,7 @@ public:
     }
 
 protected:
+
   // for obj cleanup
   static std::set< DObj> inProgress;
   
@@ -82,11 +83,30 @@ protected:
   bool                 obj;       // member subroutine?
   ExtraT*            extra;
 
-  EnvBaseT*      newEnv;
+  EnvBaseT*      newEnvOff;
 
   // finds the local variable pp points to
 //   int FindLocalKW( BaseGDL** pp) { return env.FindLocal( pp);}
+private:
+    BaseGDL** ptrToReturnValue;
 public:
+
+  void SetPtrToReturnValue(BaseGDL** p) { ptrToReturnValue = p;}
+  BaseGDL** GetPtrToReturnValueNull() { BaseGDL** p = ptrToReturnValue;ptrToReturnValue=NULL;return p;}
+  BaseGDL** GetPtrToReturnValue() const { return ptrToReturnValue;}
+  BaseGDL** GetPtrToGlobalReturnValue() 
+  { 
+    if( ptrToReturnValue == NULL)
+      return NULL;
+    if( env.InLoc(ptrToReturnValue))
+    {
+      *ptrToReturnValue = NULL; // steal local value
+      return NULL; // return as not global
+    }
+    return ptrToReturnValue;
+    
+  }
+
   // used by the interperter returns the keyword index, used for UD functions
   // and used by WRAPPED subroutines
   int GetKeywordIx( const std::string& k);
@@ -101,6 +121,15 @@ public:
       }
     return false;
   }
+
+//   bool StealLocalKW( BaseGDL** ref) 
+//   { 
+//    if( !env.InLoc( pp))
+//      return false;
+// 
+//    *ref = NULL;
+//     return true;
+//   }
 
   bool LocalKW( SizeT ix) const
   {
@@ -126,6 +155,11 @@ protected:
 	       DObjGDL* obj);
   static void Add( DPtrListT& ptrAccessible, DPtrListT& objAccessible, 
 	    BaseGDL* p);
+  
+  // definition in list.cpp
+  static void AddLIST( DPtrListT& ptrAccessible,
+		        DPtrListT& objAccessible, DStructGDL* listStruct);
+
 
 public:
 // 	void DebugInfo()
@@ -133,14 +167,14 @@ public:
 // 		std::cout << this->pro->ObjectName() << std::endl;
 // 	}
 
-	EnvBaseT* GetNewEnv() {return newEnv; }
-	void SetNewEnv( EnvBaseT* nE) { newEnv = nE;}
+  EnvBaseT* GetNewEnv() {return newEnvOff; }
+  void SetNewEnv( EnvBaseT* nE) { newEnvOff = nE;}
 
   virtual void ObjCleanup( DObj actID);
 
   // for CLEANUP calls due to reference counting
-  void PushNewEmptyEnvUD(  DSub* newPro, BaseGDL** newObj = NULL);
-  void PushNewEmptyEnvUDWithExtra(  DSub* newPro, BaseGDL** newObj = NULL);
+  void PushNewEmptyEnvUD(  DSubUD* newPro, DObjGDL** newObj = NULL);
+//   void PushNewEmptyEnvUDWithExtra(  DSubUD* newPro, BaseGDL** newObj = NULL);
   
   void AddEnv( DPtrListT& ptrAccessible, DPtrListT& objAccessible);
   void AddToDestroy( DPtrListT& ptrAccessible, DPtrListT& objAccessible);
@@ -205,7 +239,7 @@ public:
   // checks if pp points to a local variable
   bool IsLocalKW( BaseGDL** pp) const { return env.InLoc( pp);}
 
-  void RemoveLoc( BaseGDL* p) { env.RemoveLoc( p);}
+//   void RemoveLoc( BaseGDL* p) { env.RemoveLoc( p);}
 
   // called after parameter definition
   void ResolveExtra();
@@ -249,9 +283,9 @@ public:
   void SetKeyword( const std::string& k, BaseGDL** const val); // reference
 
   // to check if a lib function returned a variable of this env
-  bool Contains( BaseGDL* p) const;
+//   bool Contains( BaseGDL* p) const;
 
-  BaseGDL** GetPtrTo( BaseGDL* p);
+//   BaseGDL** GetPtrTo( BaseGDL* p);
 
   DInterpreter* Interpreter() const { return interpreter;}
 
@@ -413,6 +447,12 @@ public:
 static 	void* operator new( size_t bytes);
 static	void operator delete( void *ptr);
 
+enum CallContext {
+   RFUNCTION = 0
+  ,LFUNCTION
+  ,LRFUNCTION
+};
+
 private:
 ForInfoListT<ForLoopInfoT, 32> forLoopInfo;
 // std::vector<ForLoopInfoT> forLoopInfo;
@@ -421,7 +461,7 @@ ForInfoListT<ForLoopInfoT, 32> forLoopInfo;
   DLong             onError; // on_error setting
   BaseGDL**         catchVar;
   ProgNodeP         catchNode; 
-  bool              lFun; // assignment paramter for functions as l_value
+  CallContext       callContext; // assignment paramter for functions as l_value
   SizeT             nJump; // number of jumps in current environment
   int               lastJump; // to which label last jump went
   
@@ -432,14 +472,14 @@ public:
   void ResizeForLoops( int newSize) { forLoopInfo.resize(newSize);}
 
   // UD pro/fun
-  EnvUDT( ProgNodeP idN, DSub* pro_, bool lF = false);
+  EnvUDT( ProgNodeP idN, DSubUD* pro_, CallContext lF = RFUNCTION);
 
   // member procedure
   EnvUDT( ProgNodeP idN, BaseGDL* self, 
 	const std::string& parent="");
   // member function
   EnvUDT( BaseGDL* self, ProgNodeP idN, 
-	const std::string& parent="", bool lF = false);
+	const std::string& parent="", CallContext lF = RFUNCTION);
 
 
   // for obj_new and obj_destroy
@@ -459,7 +499,8 @@ public:
     ++nJump;
     return static_cast<DSubUD*>( pro)->GotoTarget( ix);
   }
-  bool IsLFun() const { return lFun;} // left-function
+  CallContext GetCallContext() const { return callContext;} // left-function
+  void SetCallContext(CallContext cC) { callContext = cC;} // left-function
 
   void SetIOError( int targetIx) 
   { // this isn't a jump
@@ -490,14 +531,13 @@ public:
 class EnvT: public EnvBaseT
 {
 static std::vector< void*> freeList;
-
+  
 public:
 static 	void* operator new( size_t bytes);
 static	void operator delete( void *ptr);
 
   // Please use non library API (see below) function with caution
   // (most of them can be ignored by library function authors)
-
 public:
   ~EnvT()
   {
@@ -513,7 +553,7 @@ public:
 
   // used by obj_new (basic_fun.cpp)
   EnvT* NewEnv(  DSub* newPro, SizeT skipP, DObjGDL** newObj=NULL);
-  void PushNewEnvUD(  DSubUD* newPro, SizeT skipP, DObjGDL** newObj=NULL);
+  EnvUDT* PushNewEnvUD(  DSubUD* newPro, SizeT skipP, DObjGDL** newObj=NULL);
   // for exclusive use by lib::on_error
   void OnError();
   // for exclusive use by lib::catch_pro
@@ -521,7 +561,7 @@ public:
 
   const std::string GetFilename() const
   {
-    static const std::string internal("<INTERNAL_LIBRARY>");
+    static const std::string internal(INTERNAL_LIBRARY_STR);
     return internal;
   }
 
@@ -535,6 +575,10 @@ public:
 //   // saves some typing :-)
 //   void Throw( const std::string& s)
 //   { throw GDLException( CallingNode(), pro->ObjectName()+": "+s);}
+
+  // From now on all library functions which return a l-value must
+  // call SetPtrToReturnValue with the ptr to the returned value
+  void SetPtrToReturnValue(BaseGDL** p) { EnvBaseT::SetPtrToReturnValue(p);}
 
   // will print the message (can be multiline) and exit
   // first usage in "math_fun_ac.cpp"
@@ -614,8 +658,8 @@ public:
     BaseGDL* p = GetKW( ix);
     if( p == NULL)
       Throw( "Keyword is undefined: "+GetString( ix));
-	if( p->Type() == T::t)
-		return static_cast<T*>( p);
+    if( p->Type() == T::t)
+      return static_cast<T*>( p);
 //     T* res = dynamic_cast<T*>( p);
 //     if( res != NULL) return res;
     T* res = static_cast<T*>( p->Convert2( T::t, BaseGDL::COPY));
@@ -629,8 +673,8 @@ public:
   {
     BaseGDL* p = GetPar( pIx);
     if( p == NULL) return NULL;
-	if( p->Type() == T::t)
-		return static_cast<T*>( p);
+    if( p->Type() == T::t)
+	return static_cast<T*>( p);
 //     T* res = dynamic_cast<T*>( p);
 //     if( res != NULL) return res;
     T* res = static_cast<T*>( p->Convert2( T::t, BaseGDL::COPY));
@@ -820,7 +864,7 @@ public:
   typedef SizeT size_type;
   typedef EnvUDT* pointer_type;
   
-  EnvStackT(): sz(defaultStackDepth), top(0) 
+  EnvStackT(): top(0), sz(defaultStackDepth) 
   {
     envStackFrame = new EnvUDT* [ sz+1];
     envStack = envStackFrame + 1;

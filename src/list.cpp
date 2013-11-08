@@ -71,10 +71,12 @@
       ThrowFromInternalUDSub( e, "LIST container node ID <"+i2s(actP)+"> not found.");      
     }
     if( actPHeap == NULL || actPHeap->Type() != GDL_STRUCT)
-      if( e == NULL)
-	throw GDLException( "LIST node must be a STRUCT.");
-      else
-	ThrowFromInternalUDSub( e, "LIST node must be a STRUCT.");
+      {
+	if( e == NULL)
+	  throw GDLException( "LIST node must be a STRUCT.");
+	else
+	  ThrowFromInternalUDSub( e, "LIST node must be a STRUCT.");
+      }
     DStructGDL* actPStruct = static_cast<DStructGDL*>( actPHeap);
 //     static DString cNodeName("GDL_CONTAINER_NODE");
 //     if( actPStruct->Desc()->Name() != cNodeName) // this saves the FindInStructList
@@ -181,10 +183,95 @@
     }
   }
   
+  // for HEAP_GC
+  void EnvBaseT::AddLIST( DPtrListT& ptrAccessible,
+			  DPtrListT& objAccessible, DStructGDL* listStruct)
+  {
+    DStructGDL* self = listStruct;
+
+    // here static is fine
+    static DString listName("LIST");
+    static DString cNodeName("GDL_CONTAINER_NODE");
+    static unsigned pHeadTag = structDesc::LIST->TagIndex( "PHEAD");
+    static unsigned pTailTag = structDesc::LIST->TagIndex( "PTAIL");
+    static unsigned nListTag = structDesc::LIST->TagIndex( "NLIST");
+    static unsigned pNextTag = structDesc::GDL_CONTAINER_NODE->TagIndex( "PNEXT");
+    static unsigned pDataTag = structDesc::GDL_CONTAINER_NODE->TagIndex( "PDATA");
+
+    DLong nList = (*static_cast<DLongGDL*>( self->GetTag( nListTag, 0)))[0];	      
+  
+//     vector<DPtr> listElementsID;
+//     listElementsID.reserve( nList);
+
+    DPtr actP = (*static_cast<DPtrGDL*>(self->GetTag( pTailTag, 0)))[0];
+    for( SizeT elIx = 0; elIx < nList; ++elIx)
+      {
+	// no recursion here
+	// PNEXT is handled within this loop instead
+        ptrAccessible.insert( actP);
+
+	DStructGDL* actPStruct = GetLISTStruct(NULL, actP);
+
+	DPtr actPData = (*static_cast<DPtrGDL*>( actPStruct->GetTag( pDataTag, 0)))[0];
+
+	// the LIST is corrupted if this check fails,
+	// but we quietly ignore it, as this is only about heap consistency
+	if( actPData != 0 && interpreter->PtrValid( actPData))
+	{
+	  ptrAccessible.insert( actPData);
+	  Add( ptrAccessible, objAccessible, interpreter->GetHeap( actPData));
+	}
+	
+	actP = (*static_cast<DPtrGDL*>( actPStruct->GetTag( pNextTag, 0)))[0];
+      }    
+  }
+
+  void LISTCleanup( EnvUDT* e, DStructGDL* self)
+  {
+    // here static is fine
+    static DString listName("LIST");
+    static DString cNodeName("GDL_CONTAINER_NODE");
+    static unsigned pHeadTag = structDesc::LIST->TagIndex( "PHEAD");
+    static unsigned pTailTag = structDesc::LIST->TagIndex( "PTAIL");
+    static unsigned nListTag = structDesc::LIST->TagIndex( "NLIST");
+    static unsigned pNextTag = structDesc::GDL_CONTAINER_NODE->TagIndex( "PNEXT");
+    static unsigned pDataTag = structDesc::GDL_CONTAINER_NODE->TagIndex( "PDATA");
+
+    DLong nList = (*static_cast<DLongGDL*>( self->GetTag( nListTag, 0)))[0];	      
+  
+    DPtr actP = (*static_cast<DPtrGDL*>(self->GetTag( pTailTag, 0)))[0];
+    // swipe head and tail pointer
+    (*static_cast<DPtrGDL*>( self->GetTag( pTailTag, 0)))[0] = 0;
+    (*static_cast<DPtrGDL*>( self->GetTag( pHeadTag, 0)))[0] = 0;	      
+    for( SizeT elIx = 0; elIx < nList; ++elIx)
+      {
+	DStructGDL* actPStruct = GetLISTStruct(e, actP);
+
+	DPtr actPNext = (*static_cast<DPtrGDL*>( actPStruct->GetTag( pNextTag, 0)))[0];
+		
+	// the key here: break the chain
+	(*static_cast<DPtrGDL*>( actPStruct->GetTag( pNextTag, 0)))[0] = 0;
+	
+	GDLInterpreter::FreeHeap( actP); // deletes also PDATA
+	
+	actP = actPNext;
+      }    
+    (*static_cast<DLongGDL*>( self->GetTag( nListTag, 0)))[0] = 0;	      
+  }
+
   
 namespace lib {
 
   
+  void list__cleanup( EnvUDT* e)
+  {
+    SizeT nParam = e->NParam(1); // SELF
+	
+    DStructGDL* self = GetSELF( e->GetKW( 0), e);
+    
+    LISTCleanup( e, self);
+  }
+
   BaseGDL* LIST___OverloadIsTrue( EnvUDT* e)
   {
     SizeT nParam = e->NParam(1); // SELF
@@ -555,9 +642,8 @@ BaseGDL* LIST___OverloadEQOp( EnvUDT* e)
     return newObj;
   }
 
- 
-  
-  
+
+
 BaseGDL* LIST___OverloadBracketsRightSide( EnvUDT* e)
 {
   SizeT nParam = e->NParam(1); // number of parameters actually given
@@ -690,26 +776,28 @@ BaseGDL* LIST___OverloadBracketsRightSide( EnvUDT* e)
 
   if( allIx->size() == 1)
   {
-    DPtr actP = (*static_cast<DPtrGDL*>(self->GetTag( pTailTag, 0)))[0];
-    SizeT targetIx = allIx->operator[](0);
-    for( SizeT elIx = 0; elIx < targetIx; ++elIx)
-    {
-      BaseGDL* actPHeap = e->Interpreter()->GetHeap( actP);
-      if( actPHeap->Type() != GDL_STRUCT)
-	ThrowFromInternalUDSub( e, "LIST node must be a STRUCT.");	
-      DStructGDL* actPStruct = static_cast<DStructGDL*>( actPHeap);
-      if( actPStruct->Desc() != containerDesc)
-	ThrowFromInternalUDSub( e, "LIST node must be a GDL_CONTAINER_NODE STRUCT.");	
+    DLong targetIx = allIx->operator[](0);
+    if( targetIx == (listSize-1))
+      targetIx = -1;
+    DPtr actP = GetLISTNode( e, self, targetIx);
 
-      actP = (*static_cast<DPtrGDL*>( actPStruct->GetTag( pNextTag, 0)))[0];
-    }
-
-    BaseGDL* actPHeap = e->Interpreter()->GetHeap( actP);
-    if( actPHeap->Type() != GDL_STRUCT)
-      ThrowFromInternalUDSub( e, "LIST node must be a STRUCT.");	
-    DStructGDL* actPStruct = static_cast<DStructGDL*>( actPHeap);
-    if( actPStruct->Desc() != containerDesc)
-      ThrowFromInternalUDSub( e, "LIST node must be a GDL_CONTAINER_NODE STRUCT.");	
+//     DPtr actP;// = (*static_cast<DPtrGDL*>(self->GetTag( pTailTag, 0)))[0];
+//     if( targetIx == (listSize-1)) // 0
+//     {
+//       actP = (*static_cast<DPtrGDL*>( self->GetTag( pHeadTag, 0)))[0];
+//     }
+//     else
+//     {
+//       actP = (*static_cast<DPtrGDL*>(self->GetTag( pTailTag, 0)))[0];
+//       for( SizeT elIx = 0; elIx < targetIx; ++elIx)
+//       {
+// 	DStructGDL* actPStruct = GetStruct( e, actP);
+// 
+// 	actP = (*static_cast<DPtrGDL*>( actPStruct->GetTag( pNextTag, 0)))[0];
+//       }
+//     }
+//    DStructGDL* actPStruct = GetStruct( e, actP);
+    DStructGDL* actPStruct = GetLISTStruct( e, actP);   
 
     actP = (*static_cast<DPtrGDL*>(actPStruct->GetTag( pDataTag, 0)))[0];
     
@@ -733,7 +821,9 @@ BaseGDL* LIST___OverloadBracketsRightSide( EnvUDT* e)
   DPtr cID = 0;
   for( SizeT i=0; i<allIx->size(); ++i)
   {
-    SizeT actIx = allIx->operator[](i);
+    DLong actIx = allIx->operator[](i);
+    if( actIx == (listSize-1))
+      actIx = -1;
     DPtr pActNode = GetLISTNode( e, self, actIx);
     DStructGDL* actNode = GetLISTStruct( e, pActNode);   
 
@@ -1165,6 +1255,8 @@ BaseGDL* list__toarray( EnvUDT* e)
     {
       ThrowFromInternalUDSub( e, ex.ANTLRException::getMessage());
     }
+    assert(false);
+    return NULL;
   }
 
   
@@ -1216,11 +1308,13 @@ BaseGDL* list__toarray( EnvUDT* e)
       Guard<BaseGDL> newObjGuard( newObj);
       
       (*static_cast<DPtrGDL*>( listStruct->GetTag( pHeadTag, 0)))[0] =
-      (*static_cast<DPtrGDL*>( self->GetTag( pHeadTag, 0)))[0];	      
-      (*static_cast<DPtrGDL*>( self->GetTag( pHeadTag, 0)))[0] = 0;	      
+      (*static_cast<DPtrGDL*>( self->GetTag( pHeadTag, 0)))[0];
+      (*static_cast<DPtrGDL*>( self->GetTag( pHeadTag, 0)))[0] = 0;
+      
       (*static_cast<DPtrGDL*>( listStruct->GetTag( pTailTag, 0)))[0] =
-      (*static_cast<DPtrGDL*>( self->GetTag( pTailTag, 0)))[0];	      
-      (*static_cast<DPtrGDL*>( self->GetTag( pTailTag, 0)))[0] = 0;	      
+      (*static_cast<DPtrGDL*>( self->GetTag( pTailTag, 0)))[0];
+      (*static_cast<DPtrGDL*>( self->GetTag( pTailTag, 0)))[0] = 0;
+      
       (*static_cast<DLongGDL*>( listStruct->GetTag( nListTag, 0)))[0] =
       (*static_cast<DLongGDL*>( self->GetTag( nListTag, 0)))[0];
       (*static_cast<DLongGDL*>( self->GetTag( nListTag, 0)))[0] = 0;
@@ -1230,13 +1324,16 @@ BaseGDL* list__toarray( EnvUDT* e)
     }
     else
     {
-      DPtr pTail = (*static_cast<DPtrGDL*>( self->GetTag( pTailTag, 0)))[0];
-      // trigger ref-count delete of all elements      
-      BaseGDL::interpreter->FreeHeap( pTail); 
-      
-      (*static_cast<DPtrGDL*>( self->GetTag( pHeadTag, 0)))[0] = 0;	      
-      (*static_cast<DPtrGDL*>( self->GetTag( pTailTag, 0)))[0] = 0;	      
-      (*static_cast<DLongGDL*>( self->GetTag( nListTag, 0)))[0] = 0;
+      LISTCleanup( e, self);
+//       DPtr pTail = (*static_cast<DPtrGDL*>( self->GetTag( pTailTag, 0)))[0];
+// 
+//       // trigger ref-count delete of all elements      
+         // problem here due to recursion on large LISTs
+//       BaseGDL::interpreter->FreeHeap( pTail); 
+//       
+//       (*static_cast<DPtrGDL*>( self->GetTag( pHeadTag, 0)))[0] = 0;	      
+//       (*static_cast<DPtrGDL*>( self->GetTag( pTailTag, 0)))[0] = 0;	      
+//       (*static_cast<DLongGDL*>( self->GetTag( nListTag, 0)))[0] = 0;
       return NULL;      
     }
   }
@@ -1797,7 +1894,7 @@ BaseGDL* list__toarray( EnvUDT* e)
     
     SizeT nParam = e->NParam();
 
-    SizeT listLength = 0;
+    DLong listLength = 0;
     DLongGDL* lengthKW = e->IfDefGetKWAs<DLongGDL>(kwLENGTHIx);
     if( lengthKW != NULL)
     {

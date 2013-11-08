@@ -197,7 +197,9 @@
 namespace lib
 {
 using namespace std;
+#ifndef _MSC_VER
 using std::isnan;
+#endif
 
   double gm_expint(int n, double x);
   double gm_lentz(double a[], double b[], double tiny, int n, double eps);
@@ -474,7 +476,10 @@ using std::isnan;
         {
             if ((*p1)[c] == d_infinity)
                 (*res)[c] = 0.0;
-            else if (isnan((*p0)[0]) == 1 || isnan((*p1)[c]) == 1 || (*p1)[c] < 0.0)
+// initially was:
+//            else if (isnan((*p0)[0]) == 1 || isnan((*p1)[c]) == 1 || (*p1)[c] < 0.0)
+// but (*p0) is an Int (see GM_2P0) , and insnan() does not work on Ints. Error on some compilers.
+            else if (isnan((*p1)[c]) == 1 || (*p1)[c] < 0.0)
                 (*res)[c] = d_nan;
             else
                 (*res)[c] = gm_expint((*p0)[0], (*p1)[c]);
@@ -486,7 +491,8 @@ using std::isnan;
         {
             if ((*p1)[0] == d_infinity)
                 (*res)[c] = 0.0;
-            else if (isnan((*p0)[c]) == 1 || isnan((*p1)[0]) == 1 || (*p1)[0] < 0.0)
+                //same comment as above
+            else if (isnan((*p1)[0]) == 1 || (*p1)[0] < 0.0)
                 (*res)[c] = d_nan;
             else
                 (*res)[c] = gm_expint((*p0)[c], (*p1)[0]);
@@ -498,7 +504,8 @@ using std::isnan;
         {
             if ((*p1)[c] == d_infinity)
                 (*res)[c] = 0.0;
-            else if (isnan((*p0)[c]) == 1 || isnan((*p1)[c]) == 1 || (*p1)[c] < 0.0)
+                //same comment as above
+            else if (isnan((*p1)[c]) == 1 || (*p1)[c] < 0.0)
                 (*res)[c] = d_nan;
             else
                 (*res)[c] = gm_expint((*p0)[c], (*p1)[c]);
@@ -548,6 +555,8 @@ using std::isnan;
         return f;
       }
     }
+    assert(false);
+    return 0.0;
   } // gm_lentz
 
   double gm_expint(int n, double x)

@@ -14,7 +14,7 @@ cmake_minimum_required(VERSION 2.6 FATAL_ERROR)
 project(GDL)
 
 # X.X.X CVS becomes release X.X.X+1
-set(VERSION "0.9.3 CVS")
+set(VERSION "0.9.4 CVS")
 enable_testing()
 
 include(CheckIncludeFile)
@@ -23,6 +23,7 @@ include(CheckLibraryExists)
 include(CheckFunctionExists)
 include(CheckSymbolExists)
 include(CheckCSourceRuns)
+include(CheckCXXSourceCompiles)
 include(FindPkgConfig)
 include(FindPackageHandleStandardArgs)
 
@@ -138,8 +139,22 @@ check_include_file(strings.h HAVE_STRINGS_H)
 check_include_file(sys/stat.h HAVE_SYS_STAT_H)
 check_include_file(sys/types.h HAVE_SYS_TYPES_H)
 check_include_file(unistd.h HAVE_UNISTD_H)
-check_include_file(ext/stdio_filebuf.h HAVE_EXT_STDIO_FILEBUF_H)
-
+#check_include_file(ext/stdio_filebuf.h HAVE_EXT_STDIO_FILEBUF_H)
+#sometimes it compiles but stdio_filebuf is only in gcc-x-y-z directory tree...
+# would be silly not to use this functionality if present, so recheck:
+if (HAVE_EXT_STDIO_FILEBUF_H)
+else (HAVE_EXT_STDIO_FILEBUF_H)
+	check_cxx_source_compiles("
+#include <ext/stdio_filebuf.h>
+int main(int argc, char **argv) {
+    int i=0;
+    i+=1;
+}" REALLY_HAVE_EXT_STDIO_FILEBUF_H)
+endif (HAVE_EXT_STDIO_FILEBUF_H)
+if (REALLY_HAVE_EXT_STDIO_FILEBUF_H)
+message(STATUS "INFO: will use GNU extensions for STDIO (useful for compressed I/O) since it seems accepted by your c++ compiler.")
+set (HAVE_EXT_STDIO_FILEBUF_H 1)
+endif (REALLY_HAVE_EXT_STDIO_FILEBUF_H)
 # dlfcn.h
 check_include_file(dlfcn.h HAVE_DLFCN_H)
 
@@ -176,7 +191,8 @@ else(CURSES_FOUND)
 		include_directories(${CURSES_INCLUDE_DIR})
 	else(CURSES_FOUND)
 		message(FATAL_ERROR "(N)Curses was not found.\n"
-		"Use -DNCURSESDIR=DIR to specify the (n)curses directory tree.")
+		"Use -DNCURSESDIR=DIR to specify the (n)curses directory tree.\n"
+                "(suitable Debian/Ubuntu package: libncurses-dev)\n")
 	endif(CURSES_FOUND)
 endif(CURSES_FOUND)
 
@@ -202,7 +218,7 @@ if(READLINE)
 	else(READLINE_FOUND)
 		message(FATAL_ERROR "GNU readline was not found.\n"
 		  "Use -DREADLINEDIR=no to explicitely disable it.\n"
-                  "(suitable Debian/Ubuntu package: libreadline5-dev)\n"
+                  "(suitable Debian/Ubuntu package: libreadline-gplv2-dev)\n"
                   "(suitable Fedora package: readline-devel)")
 	endif(READLINE_FOUND)
 endif(READLINE)
@@ -234,6 +250,19 @@ if(OPENMP)
 			set(LIBRARIES ${LIBRARIES} ${OpenMP_CXX_FLAGS})
 		endif(WIN32 AND NOT CYGWIN)
 	endif(OPENMP_FOUND)
+else(OPENMP)
+  # we need to define those semaphore posix symbols, do it with threads libs
+  find_package(Threads)
+  if(THREADS_FOUND)
+    set(LIBRARIES ${LIBRARIES} ${CMAKE_THREAD_LIBS_INIT})
+  else(THREADS_FOUND)
+    check_library_exists(rt sem_unlink "" HAVE_RT)
+    if(HAVE_RT)
+      set(LIBRARIES ${LIBRARIES} rt)
+    else(HAVE_RT)
+      message(FATAL_ERROR "Missing a POSIX semaphore symbols (rt or threads).\n")
+    endif(HAVE_RT)
+  endif(THREADS_FOUND)
 endif(OPENMP)
 
 # GSL MANDATORY
@@ -302,6 +331,18 @@ if(PLPLOT_FOUND)
 	  message(STATUS "warning, due to old plplot library, [XYZ]TICKFORMAT option for plot axis will not be supported.\n"
 	    "you should upgrade to plplot version > 5.9.6")
 	endif(HAVE_PLPLOT_SLABELFUNC)
+	set(CMAKE_REQUIRED_INCLUDES "${PLPLOT_INCLUDE_DIR}")
+	set(CMAKE_REQUIRED_LIBRARIES "${PLPLOT_LIBRARIES}")
+	check_cxx_source_compiles("
+#include <plplot/plstream.h>
+int main(int argc, char **argv) {
+  plstream *p = new plstream();
+  PLFLT w = 0.5;
+  p->width(w);
+}" HAVE_PLPLOT_WIDTH)
+	if(HAVE_PLPLOT_WIDTH)
+	  set(HAVE_PLPLOT_WIDTH 1)
+	endif(HAVE_PLPLOT_WIDTH)
 	check_library_exists("${PLPLOT_LIBRARIES}" plstrl "" PLPLOT_PRIVATE_NOT_HIDDEN)
 	if(PLPLOT_PRIVATE_NOT_HIDDEN)
 	  set(PLPLOT_PRIVATE_NOT_HIDDEN 1)
@@ -337,7 +378,7 @@ if(GRAPHICSMAGICK)
 		Use -DGRAPHICSMAGICKDIR=DIR to specify the GraphicsMagick directory tree.
 		Use -DGRAPHICSMAGICK=OFF to not use it.
                 (suitable Fedora package: GraphicsMagick-c++-devel
-		   Debian/Ubuntu package: libgraphicsmagick++1-devel)\n")
+		   Debian/Ubuntu package: libgraphicsmagick++1-dev)\n")
 		message( STATUS 
 		"Looking for ImageMagick")
 	endif(GRAPHICSMAGICK_FOUND)
@@ -512,8 +553,8 @@ if(FFTW)
 		message(FATAL_ERROR "FFTW3 is required but was not found.\n"
 		"Use -DFFTWDIR=DIR to specify the FFTW directory tree.\n"
 		"Use -DFFTW=OFF to not use it.\n"
-                "(suitable Debian/Ubuntu package: libfftw3-dev)\n
-                "(suitable Fedora package: fftw-devel)"")
+                "(suitable Debian/Ubuntu package: libfftw3-dev)\n"
+                "(suitable Fedora package: fftw-devel)")
 	endif(FFTW_FOUND)
 endif(FFTW)
 
@@ -522,20 +563,39 @@ endif(FFTW)
 # -DLIBPROJ4DIR=DIR
 if(LIBPROJ4)
 	set(CMAKE_PREFIX_PATH ${LIBPROJ4DIR})
-	find_package(Libproj4 QUIET)
+	find_package(Libproj4)
+	if(LIBPROJ4_FOUND)	
+	else(LIBPROJ4_FOUND)
+	find_package(Libproj4new)
+	endif(LIBPROJ4_FOUND)	
+
 	if(LIBPROJ4_FOUND)	
 		set(CMAKE_REQUIRED_LIBRARIES ${LIBPROJ4_LIBRARIES} ${GSL_LIBRARIES} m)
-		check_library_exists("${LIBPROJ4_LIBRARIES}" proj_init "" USE_LIBPROJ4_NEW)
+
+		check_library_exists("${LIBPROJ4_LIBRARIES}" pj_init "" USE_LIBPROJ4_NEW)
 		if(USE_LIBPROJ4_NEW)
+#		check_library_exists("${LIBPROJ4_LIBRARIES}" proj_init "" USE_LIBPROJ4)
+#		if(USE_LIBPROJ4)
+
+                        # define USE_LIB_PROJ4 in any case
 			set(USE_LIBPROJ4 1)
+
 		else(USE_LIBPROJ4_NEW)
-			check_library_exists("${LIBPROJ4_LIBRARIES}" pj_init "" USE_LIBPROJ4)
+			check_library_exists("${LIBPROJ4_LIBRARIES}" proj_init "" USE_LIBPROJ4)
 			if(NOT USE_LIBPROJ4)
+#		else(USE_LIBPROJ4)
+#			check_library_exists("${LIBPROJ4_LIBRARIES}" pj_init "" USE_LIBPROJ4_NEW)
+#			if(NOT USE_LIBPROJ4_NEW)
+
 				message(FATAL_ERROR "Libproj4 is required but was not found.\n"
 				"Use -DLIBPROJ4DIR=DIR to specify the Libproj4 directory tree.\n"
 				"Use -DLIBPRJ4=OFF to not use it.")
+
 			endif(NOT USE_LIBPROJ4)
 		endif(USE_LIBPROJ4_NEW)
+#			endif(NOT USE_LIBPROJ4_NEW)
+#		endif(USE_LIBPROJ4)
+
 		include_directories(${LIBPROJ4_INCLUDE_DIR})
 		set(LIBRARIES ${LIBRARIES} ${LIBPROJ4_LIBRARIES})
 		set(CMAKE_REQUIRED_LIBRARIES)
@@ -669,7 +729,8 @@ if(EIGEN3)
 		message(FATAL_ERROR "EIGEN3 is required but was not found.\n"
 		"Use -DEIGEN3DIR=DIR to specify the Eigen3 directory tree.\n"
 		"Use -DEIGEN3=OFF to not use it.\n"
-                "(suitable Fedora package: eigen3-devel)")
+                "(suitable Fedora package: eigen3-devel)\n"
+                "(suitable Debian/Ubuntu package: libeigen3-dev)")
 	endif(EIGEN3_FOUND)
 endif(EIGEN3)
 

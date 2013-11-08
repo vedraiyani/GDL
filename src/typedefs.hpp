@@ -89,6 +89,7 @@ typedef long long int OMPInt;
 
 const SizeT MAXRANK=8;         // arrays are limited to 8 dimensions
 const std::string MAXRANK_STR("8");  // for use in strings (error messages)
+const std::string INTERNAL_LIBRARY_STR("<INTERNAL_LIBRARY>");
 
 //// SA: the version introduced by Joel in 2006:
 ////#if defined(HAVE_64BIT_OS)
@@ -166,6 +167,9 @@ typedef std::set< DPtr>               DPtrListT;
 
 //class ArrayIndexT;
 //typedef std::vector<ArrayIndexT*> ArrayIndexVectorT;
+
+// // for GUI (but also used in GDLEventHandler()
+// typedef DLong WidgetIDT;
 
 // to resolve include conflict (declared in gdlexception.hpp)
 void ThrowGDLException( const std::string& str);

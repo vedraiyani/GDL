@@ -53,7 +53,6 @@ convert2.cpp
 convol.cpp
 convol_inc0.cpp
 convol_inc1.cpp
-convol_inc2.cpp
 datalistt.hpp
 datatypes.cpp
 datatypes.hpp
@@ -113,17 +112,21 @@ gdlpython.hpp
 gdlsvgstream.cpp
 gdlsvgstream.hpp
 gdlwidget.cpp
+gdlwidgeteventhandler.cpp
 gdlwidget.hpp
+gdlwidgetdraw.cpp
 gdlwinstream.cpp
 gdlwinstream.hpp
+gdlwxstream.cpp
+gdlwxstream.hpp
 gdlxstream.cpp
 gdlxstream.hpp
 gdlzstream.cpp
 gdlzstream.hpp
 getfmtast.cpp
 getfmtast.hpp
-graphics.cpp
-graphics.hpp
+graphicsdevice.cpp
+graphicsdevice.hpp
 grib.cpp
 grib.hpp
 gshhs.cpp
@@ -175,6 +178,8 @@ math_utl.cpp
 math_utl.hpp
 matrix_cholesky.cpp
 matrix_cholesky.hpp
+matrix_invert.cpp
+matrix_invert.hpp
 mpi.cpp
 mpi.hpp
 ncdf_att_cl.cpp
@@ -234,6 +239,7 @@ typedefs.hpp
 typetraits.cpp
 typetraits.hpp
 widget.cpp
+widget.hpp
 )
 
 if(WIN32 AND NOT CYGWIN)

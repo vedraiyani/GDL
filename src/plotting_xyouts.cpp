@@ -184,7 +184,7 @@ namespace lib
           bool okClipBox=true;
           for ( int i=0; i<4; ++i )
           {
-            if (!(worldbox[i]==worldbox[i])) //NaN
+            if (!(isfinite(worldbox[i]))) //NaN
             {
               okClipBox=false;restoreClipBox=false;doClip=false;
             }
@@ -301,7 +301,7 @@ namespace lib
         yVal=yValou;
       }
       // Get decomposed value for colors
-      DLong decomposed=Graphics::GetDevice()->GetDecomposed();
+      DLong decomposed=GraphicsDevice::GetDevice()->GetDecomposed();
 
       for ( SizeT i=0; i<minEl; ++i )
       {
@@ -322,12 +322,20 @@ namespace lib
         {
           LPTYPE idata;
           XYTYPE odata;
+#ifdef USE_LIBPROJ4_NEW
+          idata.u=x * DEG_TO_RAD;
+          idata.v=y * DEG_TO_RAD;
+          odata=PJ_FWD(idata, ref);
+          x=odata.u;
+          y=odata.v;
+#else
           idata.lam=x * DEG_TO_RAD;
           idata.phi=y * DEG_TO_RAD;
           odata=PJ_FWD(idata, ref);
           x=odata.x;
           y=odata.y;
-        }
+#endif	
+         }
 #endif
 
         if( xLog ) x=log10(x);
@@ -339,8 +347,13 @@ namespace lib
         //plot!
         if (docharsize) actStream->sizeChar(( *size )[i%size->N_Elements ( )]);
         if (docolor) actStream->Color ( ( *color )[i%color->N_Elements ( )], decomposed, 2);
-        if (docharthick) actStream->wid ( ( *charthick )[i%charthick->N_Elements ( )]);
-        //orientation word is not orientation page depending on axes increment direction [0..1] vs. [1..0]
+#ifdef HAVE_PLPLOT_WIDTH
+        if (docharthick) actStream->width( static_cast<PLFLT>(( *charthick )[i%charthick->N_Elements()]));
+#else
+	if (docharthick) actStream->wid( static_cast<PLINT>(( *charthick )[i%charthick->N_Elements()]));
+#endif
+
+	//orientation word is not orientation page depending on axes increment direction [0..1] vs. [1..0]
         PLFLT oriD=(( *orientation )[i%orientation->N_Elements ( )]); //ori DEVICE
         PLFLT oriW=oriD; //ori WORLD
         oriD *= DEGTORAD;

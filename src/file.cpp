@@ -17,10 +17,20 @@
 
 #include "includefirst.hpp"
 
+#ifndef _MSC_VER
+#	include <libgen.h>
+#	include <sys/types.h>
+#endif
+
+#include <sys/stat.h>
+
+#ifndef _MSC_VER
+#	include <unistd.h> 
+#endif
+
 #include "basegdl.hpp"
 #include "str.hpp"
 
-#include <libgen.h>
 
 //#ifdef HAVE_LIBWXWIDGETS
 
@@ -28,10 +38,6 @@
 #include "file.hpp"
 #include "objects.hpp"
 
-#ifndef _MSC_VER
-#include <unistd.h>
-#endif
-#include <sys/stat.h>
 #include <climits> // PATH_MAX
 
 // #include <wx/utils.h>
@@ -39,26 +45,37 @@
 // #include <wx/dir.h>
 
 #ifndef _MSC_VER
-#include <glob.h>
-#include <fnmatch.h>
-#include <dirent.h>
+
+#	include <glob.h>
+#	include <fnmatch.h>
+#	include <dirent.h>
+
 #else
-#include <io.h>
-#define access _access
-#define R_OK    4       /* Test for read permission.  */
-#define W_OK    2       /* Test for write permission.  */
-//#define   X_OK    1       /* execute permission - unsupported in windows*/
-#define F_OK    0       /* Test for existence.  */
-#define PATH_MAX 255
 
-#include <direct.h>
+#	include <io.h>
 
-#if !defined(S_ISDIR)
-#define __S_ISTYPE(mode, mask)	(((mode) & S_IFMT) == (mask))
-#define S_ISDIR(mode)	 __S_ISTYPE((mode), S_IFDIR)
-#define S_ISREG(mode)    __S_ISTYPE((mode), S_IFREG)
+#	define access _access
+
+#	define R_OK    4       /* Test for read permission.  */
+#	define W_OK    2       /* Test for write permission.  */
+//#	define   X_OK    1       /* execute permission - unsupported in windows*/
+#	define F_OK    0       /* Test for existence.  */
+
+#	define PATH_MAX 255
+
+#	include <direct.h>
+
+
+#	if !defined(S_ISDIR)
+
+#	define __S_ISTYPE(mode, mask)	(((mode) & S_IFMT) == (mask))
+#	define S_ISDIR(mode)	 __S_ISTYPE((mode), S_IFDIR)
+#	define S_ISREG(mode)    __S_ISTYPE((mode), S_IFREG)
+
 #endif
+
 #include <shlwapi.h>
+
 #endif
 
 // workaround for HP-UX. A better solution is needed i think
@@ -80,13 +97,11 @@
 #ifdef _MSC_VER
 
 /*
-
     Implementation of POSIX directory browsing functions and types for Win32.
 
     Author:  Kevlin Henney (kevlin@acm.org, kevlin@curbralan.com)
     History: Created March 1997. Updated June 2003 and July 2012.
     Rights:  See end of file.
-
 */
 
 #include <errno.h>
@@ -113,6 +128,7 @@ struct DIR
     struct dirent       result; /* d_name null iff first time */
     char                *name;  /* null-terminated char string */
 };
+
 
 DIR *opendir(const char *name)
 {
@@ -166,16 +182,13 @@ int closedir(DIR *dir)
         {
             result = _findclose(dir->handle);
         }
-
         free(dir->name);
         free(dir);
     }
-
     if(result == -1) /* map all errors to EBADF */
     {
         errno = EBADF;
     }
-
     return result;
 }
 
@@ -195,7 +208,6 @@ struct dirent *readdir(DIR *dir)
     {
         errno = EBADF;
     }
-
     return result;
 }
 
@@ -216,173 +228,21 @@ void rewinddir(DIR *dir)
 #ifdef __cplusplus
 }
 #endif
-
 /*
-
     Copyright Kevlin Henney, 1997, 2003, 2012. All rights reserved.
 
     Permission to use, copy, modify, and distribute this software and its
     documentation for any purpose is hereby granted without fee, provided
     that this copyright and permissions notice appear in all copies and
     derivatives.
-    
     This software is supplied "as is" without express or implied warranty.
-
     But that said, if there are any problems please get in touch.
-
 */
-
 #endif
 
 namespace lib {
 
   using namespace std;
-
-  BaseGDL* file_test( EnvT* e)
-  {
-    SizeT nParam=e->NParam( 1); 
-    
-    BaseGDL* p0 = e->GetParDefined( 0);
-
-    DStringGDL* p0S = dynamic_cast<DStringGDL*>( p0);
-    if( p0S == NULL)
-      e->Throw( "String expression required in this context: "+
-		e->GetParString(0));
-
-    static int directoryIx = e->KeywordIx( "DIRECTORY");
-    bool directory = e->KeywordSet( directoryIx);
-
-    static int executableIx = e->KeywordIx( "EXECUTABLE");
-    bool executable = e->KeywordSet( executableIx);
-
-    static int readIx = e->KeywordIx( "READ");
-    bool read = e->KeywordSet( readIx);
-
-    static int writeIx = e->KeywordIx( "WRITE");
-    bool write = e->KeywordSet( writeIx);
-
-    static int zero_lengthIx = e->KeywordIx( "ZERO_LENGTH");
-    bool zero_length = e->KeywordSet( zero_lengthIx);
-
-    static int get_modeIx = e->KeywordIx( "GET_MODE");
-    bool get_mode = e->KeywordPresent( get_modeIx);
-
-    static int regularIx = e->KeywordIx( "REGULAR");
-    bool regular = e->KeywordSet( regularIx);
-
-    static int block_specialIx = e->KeywordIx( "BLOCK_SPECIAL");
-    bool block_special = e->KeywordSet( block_specialIx);
-
-    static int character_specialIx = e->KeywordIx( "CHARACTER_SPECIAL");
-    bool character_special = e->KeywordSet( character_specialIx);
-
-    static int named_pipeIx = e->KeywordIx( "NAMED_PIPE");
-    bool named_pipe = e->KeywordSet( named_pipeIx);
-
-    static int socketIx = e->KeywordIx( "SOCKET");
-    bool socket = e->KeywordSet( socketIx);
-
-    static int symlinkIx = e->KeywordIx( "SYMLINK");
-    bool symlink = e->KeywordSet( symlinkIx);
-
-    static int noexpand_pathIx = e->KeywordIx( "NOEXPAND_PATH");
-    bool noexpand_path = e->KeywordSet( noexpand_pathIx);
-
-    DLongGDL* getMode = NULL; 
-    if( get_mode)
-      {
-	getMode = new DLongGDL( p0S->Dim()); // zero
-	e->SetKW( get_modeIx, getMode);
-      }
-    
-    DLongGDL* res = new DLongGDL( p0S->Dim()); // zero
-
-//     bool doStat = 
-//       zero_length || get_mode || directory || 
-//       regular || block_special || character_special || 
-//       named_pipe || socket || symlink;
-
-    SizeT nEl = p0S->N_Elements();
-
-    for( SizeT f=0; f<nEl; ++f)
-      {
-	const char* actFile;
-        string tmp;
-
-        if (!noexpand_path) 
-        {
-          tmp = (*p0S)[f];
-          WordExp(tmp);
-	  if( tmp.length() > 1 && tmp[ tmp.length()-1] == '/')
-          actFile = tmp.substr(0,tmp.length()-1).c_str();
-	else
-          actFile = tmp.c_str();
-        } 
-        else 
-        {
-          tmp = (*p0S)[f];
-	  if( tmp.length() > 1 && tmp[ tmp.length()-1] == '/')
-          actFile = tmp.substr(0,tmp.length()-1).c_str();
-	else
-          actFile = tmp.c_str();
-        }
-
-	
-
-	struct stat statStruct;
-#ifdef _MSC_VER
-	int actStat = stat( actFile, &statStruct);
-#else
-	int actStat = lstat( actFile, &statStruct);
-#endif
-	if( actStat != 0) 
-	  continue;
-
-	// 	if( !wxFileExists( actFile) && !wxDirExists( actFile))
-	// 	  continue;
-
-	// 	if( directory && !wxDirExists( actFile))
-	// 	  continue;
-	// 	if( read && !wxFile::Access( actFile, wxFile::read))
-	// 	  continue;
-	// 	if( write && !wxFile::Access( actFile, wxFile::write))
-	// 	  continue;
-
-	if( read && access( actFile, R_OK) != 0)
-	  continue;
-	if( write && access( actFile, W_OK) != 0)
-	  continue;
-
-	if( zero_length && statStruct.st_size != 0) 
-	  continue;
-#ifndef _MSC_VER
-	if( executable && access( actFile, X_OK) != 0)
-	  continue;
-
-	if( get_mode)
-	  (*getMode)[ f] = statStruct.st_mode & 
-	    (S_IRWXU | S_IRWXG | S_IRWXO);
-	if( block_special && S_ISBLK(statStruct.st_mode) == 0) 
-	  continue;
-	if( character_special && S_ISCHR(statStruct.st_mode) == 0) 
-	  continue;
-	if( named_pipe && S_ISFIFO(statStruct.st_mode) == 0) 
-	  continue;
-	if( socket && S_ISSOCK(statStruct.st_mode) == 0) 
-	  continue;
-	if( symlink && S_ISLNK(statStruct.st_mode) == 0) 
-	  continue;
-#endif
-	if( directory && S_ISDIR(statStruct.st_mode) == 0) 
-	  continue;
-	if( regular && S_ISREG(statStruct.st_mode) == 0) 
-	  continue;
-	
-	(*res)[ f] = 1;
-      }
-
-    return res;
-  }
 
   DString GetCWD()
   {
@@ -473,16 +333,27 @@ namespace lib {
 	  {
 	    DString testFile = root + entryStr;
 #ifdef _MSC_VER
+
 	    int actStat = stat( testFile.c_str(), &statStruct);
+
 #else
+
 	    int actStat = lstat( testFile.c_str(), &statStruct);
+
 #endif
+
 	    if( S_ISDIR(statStruct.st_mode) == 0)
+
 	      { // only test non-dirs
+
 #ifdef _MSC_VER
+
 		int match = PathMatchSpecEx(entryStr.c_str(), pat.c_str(), 0);
+
 #else
+
 		int match = fnmatch( pat.c_str(), entryStr.c_str(), 0);
+
 #endif
 		if( match == 0)
 		  {
@@ -534,10 +405,15 @@ namespace lib {
 	  {
 	    DString testDir = root + entryStr;
 #ifdef _MSC_VER
+
 	    int actStat = stat( testDir.c_str(), &statStruct);
+
 #else
+
 	    int actStat = lstat( testDir.c_str(), &statStruct);
+
 #endif
+
 	    if( S_ISDIR(statStruct.st_mode) != 0)
 	      {
 		recurDir.push_back( testDir);
@@ -545,9 +421,13 @@ namespace lib {
 	    else if( notAdded)
 	      {
 #ifdef _MSC_VER
+
 		int match = PathMatchSpec(entryStr.c_str(), pat.c_str());
+
 #else
+
 		int match = fnmatch( pat.c_str(), entryStr.c_str(), 0);
+
 #endif
 		if( match == 0)
 		  notAdded = false;
@@ -598,23 +478,41 @@ namespace lib {
     // dirN == "+DIRNAME"
 
 #ifdef _MSC_VER
+
 	// Windows does not use '~' as a home directory alias
+
 	DString initDir = dirN;
+
 #else
+
     // do first a glob because of '~'
+
     int flags = GLOB_TILDE | GLOB_NOSORT;
+
     glob_t p;
+
     int offset_tilde=0;
+
     if (dirN[0] == '+') offset_tilde=1;
+
     int gRes = glob( dirN.substr(offset_tilde).c_str(), flags, NULL, &p);
+
     if( gRes != 0 || p.gl_pathc == 0)
+
       {
+
 		globfree( &p);
+
 		return;
+
       }
 
+
+
     DString initDir = p.gl_pathv[ 0];
+
     globfree( &p);
+
 #endif
     
     if (dirN[0] == '+')
@@ -694,11 +592,17 @@ namespace lib {
     int fnFlags = 0;
 
 #ifndef _MSC_VER
+
     if( !match_dot)
+
       fnFlags |= FNM_PERIOD;
 
+
+
     if( !quote)
+
       fnFlags |= FNM_NOESCAPE;
+
 #endif
 
     DString root = dirN;
@@ -741,11 +645,12 @@ namespace lib {
       dir = opendir( dirN.c_str());
     else
       dir = opendir( ".");
-    if( dir == NULL)
+    if( dir == NULL) {
       if( accErr)
 	throw GDLException( "FILE_SEARCH: Error opening dir: "+dirN);
       else
 	return;
+    }
 
     for(;;)
       {
@@ -760,19 +665,33 @@ namespace lib {
 	      {
 		DString testDir = root + entryStr;
 #ifdef _MSC_VER
+
 		int actStat = stat( testDir.c_str(), &statStruct);
+
 #else
+
 		int actStat = lstat( testDir.c_str(), &statStruct);
+
 #endif
+
 		if( S_ISDIR(statStruct.st_mode) != 0)
+
 		    recurDir.push_back( testDir);
+
 	      }
 
+
+
 	    // dirs are also returned if they match
+
 #ifdef _MSC_VER
+
 	    int match = PathMatchSpec(entryStr.c_str(), pat.c_str());
+
 #else
+
 	    int match = fnmatch( pat.c_str(), entryStr.c_str(), fnFlags);
+
 #endif
 	    if( match == 0)
 	      fL.push_back( prefix + entryStr);
@@ -780,12 +699,12 @@ namespace lib {
       }
 
     int c = closedir( dir);
-    if( c == -1)
+    if( c == -1) {
       if( accErr)
 	throw GDLException( "FILE_SEARCH: Error closing dir: "+dirN);
       else
 	return;
-
+    }
     // recursive search
     SizeT nRecur = recurDir.size();
     for( SizeT d=0; d<nRecur; ++d)
@@ -1097,20 +1016,22 @@ DString makeInsensitive(const DString &s)
 
     // accepting only strings as parameters
     BaseGDL* p0 = e->GetParDefined(0);
-    DStringGDL* p0S = dynamic_cast<DStringGDL*>(p0);
-    if (p0S == NULL) e->Throw("String expression required in this context: " + e->GetParString(0));
+    if( p0->Type() != GDL_STRING)
+      e->Throw("String expression required in this context: " + e->GetParString(0));
+    DStringGDL* p0S = static_cast<DStringGDL*>(p0);
 
     BaseGDL* p1;
     DStringGDL* p1S;
     bool DoRemoveSuffix = false;
 
     if (nParams == 2) {
-    // shall we remove a suffix ?
+      // shall we remove a suffix ?
       p1 = e->GetPar(1);
-      p1S = dynamic_cast<DStringGDL*>(p1);
-      //    if (p1S == NULL) e->Throw("String expression required in this context: " + e->GetParString(0));
+      if( p1 == NULL || p1->Type() != GDL_STRING)
+	e->Throw("String expression required in this context: " + e->GetParString(1));
+      p1S = static_cast<DStringGDL*>(p1);
       if (p1S->N_Elements() == 1) {
-	if (strlen(strdup((*p1S)[0].c_str())) >0) DoRemoveSuffix=true;
+	if ((*p1S)[0].length() >0) DoRemoveSuffix=true;
       }
       if (p1S->N_Elements() > 1) 
 	e->Throw(" Expression must be a scalar or 1 element array in this context: " + e->GetParString(1));
@@ -1120,17 +1041,30 @@ DString makeInsensitive(const DString &s)
     resDim=p0S->Dim();
     DStringGDL* res = new DStringGDL(resDim, BaseGDL::NOZERO);
 
-    char *bname;
-    char *tmp;
-
     for (SizeT i = 0; i < p0S->N_Elements(); i++) {
 
-      tmp=strdup((*p0S)[i].c_str());
+      //tmp=strdup((*p0S)[i].c_str());
+      const string& tmp=(*p0S)[i];
 
       //      cout << ">>"<<(*p0S)[i].c_str() << "<<" << endl;
-      if (strlen(tmp) > 0) {
-	bname=basename(tmp);
-	(*res)[i]=string(bname);
+      if (tmp.length() > 0) {
+
+#ifdef _MSC_VER
+	char path_buffer[_MAX_PATH];
+	char drive[_MAX_DRIVE];
+	char dir[_MAX_DIR];
+	char fname[_MAX_FNAME];
+	char ext[_MAX_EXT];
+
+	_splitpath( tmp.c_str(),drive,dir,fname,ext);
+	string bname = string(fname)+"."+ext;
+#else
+	char buf[ PATH_MAX+1];
+	strncpy(buf, tmp.c_str(), PATH_MAX+1);
+	string bname = basename(buf);
+#endif
+
+	(*res)[i] = bname;
       } 
       else
 	{
@@ -1142,19 +1076,19 @@ DString makeInsensitive(const DString &s)
     if (DoRemoveSuffix) {
       
       string suffixe=(*p1S)[0];
-      int suffLength=strlen(strdup((*p1S)[0].c_str()));
+      int suffLength=(*p1S)[0].length();
       
       static int fold_caseIx = e->KeywordIx( "FOLD_CASE");
       bool fold_case = e->KeywordSet( fold_caseIx);
       
       if (fold_case) suffixe=StrUpCase(suffixe);
 
-      cout << "suffixe :"<< suffixe << endl;
+      //cout << "suffixe :"<< suffixe << endl;
 
       
       string tmp1, fin_tmp;
       for (SizeT i = 0; i < p0S->N_Elements(); i++) {
-	tmp1=(*res)[i].c_str();
+	tmp1=(*res)[i];
 	
 	// Strickly greater : if equal, we keep it !
 	if (tmp1.length() > suffLength) {
@@ -1178,20 +1112,33 @@ DString makeInsensitive(const DString &s)
   {
     // accepting only strings as parameters
     BaseGDL* p0 = e->GetParDefined(0);
-    DStringGDL* p0S = dynamic_cast<DStringGDL*>(p0);
-    if (p0S == NULL) e->Throw("String expression required in this context: " + e->GetParString(0));
+    if( p0->Type() != GDL_STRING)
+      e->Throw("String expression required in this context: " + e->GetParString(0));
+    DStringGDL* p0S = static_cast<DStringGDL*>(p0);
 
     dimension resDim;
     resDim=p0S->Dim();
     DStringGDL* res = new DStringGDL(resDim, BaseGDL::NOZERO);
 
-    char *dname;
-
     for (SizeT i = 0; i < p0S->N_Elements(); i++) {
-      char *tmp;
-      tmp=strdup((*p0S)[i].c_str());
-      dname=dirname(tmp);
-      (*res)[i]=string(dname);
+      //tmp=strdup((*p0S)[i].c_str());
+      const string& tmp = (*p0S)[i];
+
+#ifdef _MSC_VER
+   char path_buffer[_MAX_PATH];
+   char drive[_MAX_DRIVE];
+   char dir[_MAX_DIR];
+   char fname[_MAX_FNAME];
+   char ext[_MAX_EXT];
+
+   _splitpath( tmp.c_str(),drive,dir,fname,ext);
+   string dname = string(drive)+":"+dir;
+#else
+	char buf[ PATH_MAX+1];
+	strncpy(buf, tmp.c_str(), PATH_MAX+1);
+	string dname = dirname(buf);
+#endif
+   (*res)[i] = dname;
 
     }
     
@@ -1299,6 +1246,169 @@ DString makeInsensitive(const DString &s)
     return res;
 
   }
+  BaseGDL* file_test( EnvT* e)
+  {
+    SizeT nParam=e->NParam( 1); 
+    
+    BaseGDL* p0 = e->GetParDefined( 0);
+
+    DStringGDL* p0S = dynamic_cast<DStringGDL*>( p0);
+    if( p0S == NULL)
+      e->Throw( "String expression required in this context: "+
+		e->GetParString(0));
+
+    static int directoryIx = e->KeywordIx( "DIRECTORY");
+    bool directory = e->KeywordSet( directoryIx);
+
+    static int executableIx = e->KeywordIx( "EXECUTABLE");
+    bool executable = e->KeywordSet( executableIx);
+
+    static int readIx = e->KeywordIx( "READ");
+    bool read = e->KeywordSet( readIx);
+
+    static int writeIx = e->KeywordIx( "WRITE");
+    bool write = e->KeywordSet( writeIx);
+
+    static int zero_lengthIx = e->KeywordIx( "ZERO_LENGTH");
+    bool zero_length = e->KeywordSet( zero_lengthIx);
+
+    static int get_modeIx = e->KeywordIx( "GET_MODE");
+    bool get_mode = e->KeywordPresent( get_modeIx);
+
+    static int regularIx = e->KeywordIx( "REGULAR");
+    bool regular = e->KeywordSet( regularIx);
+
+    static int block_specialIx = e->KeywordIx( "BLOCK_SPECIAL");
+    bool block_special = e->KeywordSet( block_specialIx);
+
+    static int character_specialIx = e->KeywordIx( "CHARACTER_SPECIAL");
+    bool character_special = e->KeywordSet( character_specialIx);
+
+    static int named_pipeIx = e->KeywordIx( "NAMED_PIPE");
+    bool named_pipe = e->KeywordSet( named_pipeIx);
+
+    static int socketIx = e->KeywordIx( "SOCKET");
+    bool socket = e->KeywordSet( socketIx);
+
+    static int symlinkIx = e->KeywordIx( "SYMLINK");
+    bool symlink = e->KeywordSet( symlinkIx);
+
+    static int noexpand_pathIx = e->KeywordIx( "NOEXPAND_PATH");
+    bool noexpand_path = e->KeywordSet( noexpand_pathIx);
+
+    DLongGDL* getMode = NULL; 
+    if( get_mode)
+      {
+	getMode = new DLongGDL( p0S->Dim()); // zero
+	e->SetKW( get_modeIx, getMode);
+      }
+    
+    DLongGDL* res = new DLongGDL( p0S->Dim()); // zero
+
+//     bool doStat = 
+//       zero_length || get_mode || directory || 
+//       regular || block_special || character_special || 
+//       named_pipe || socket || symlink;
+
+    SizeT nEl = p0S->N_Elements();
+
+    for( SizeT f=0; f<nEl; ++f)
+      {
+	string actFile;
+
+        if (!noexpand_path) 
+        {
+	  string tmp = (*p0S)[f];
+          WordExp(tmp);
+	  if( tmp.length() > 1 && tmp[ tmp.length()-1] == '/')
+	    actFile = tmp.substr(0,tmp.length()-1);
+	  else
+	    actFile = tmp;
+        } 
+        else 
+        {
+	  const string& tmp = (*p0S)[f];
+	  if( tmp.length() > 1 && tmp[ tmp.length()-1] == '/')
+	    actFile = tmp.substr(0,tmp.length()-1);
+	  else
+	    actFile = tmp;
+        }
+
+	struct stat statStruct;
+#ifdef _MSC_VER
+
+	int actStat = stat( actFile.c_str(), &statStruct);
+
+#else
+
+	int actStat = lstat( actFile.c_str(), &statStruct);
+
+#endif
+// // debug
+// 	if( actStat != 0)
+// 	{
+// 	  cout << "FILE_TEST: actStat != 0: " << actFile << endl;
+// 	}
+	
+	if( actStat != 0) 
+	  continue;
+
+	// 	if( !wxFileExists( actFile) && !wxDirExists( actFile))
+	// 	  continue;
+
+	// 	if( directory && !wxDirExists( actFile))
+	// 	  continue;
+	// 	if( read && !wxFile::Access( actFile, wxFile::read))
+	// 	  continue;
+	// 	if( write && !wxFile::Access( actFile, wxFile::write))
+	// 	  continue;
+	if( read && access( actFile.c_str(), R_OK) != 0)
+	  continue;
+
+	if( write && access( actFile.c_str(), W_OK) != 0)
+	  continue;
+
+	if( zero_length && statStruct.st_size != 0) 
+	  continue;
+
+#ifndef _MSC_VER
+
+	if( executable && access( actFile.c_str(), X_OK) != 0)
+	  continue;
+
+	if( get_mode)
+	  (*getMode)[ f] = statStruct.st_mode & 
+	    (S_IRWXU | S_IRWXG | S_IRWXO);
+
+	if( block_special && S_ISBLK(statStruct.st_mode) == 0) 
+	  continue;
+
+	if( character_special && S_ISCHR(statStruct.st_mode) == 0) 
+	  continue;
+
+	if( named_pipe && S_ISFIFO(statStruct.st_mode) == 0) 
+	  continue;
+
+	if( socket && S_ISSOCK(statStruct.st_mode) == 0) 
+	  continue;
+
+	if( symlink && S_ISLNK(statStruct.st_mode) == 0) 
+	  continue;
+
+#endif
+
+	if( directory && S_ISDIR(statStruct.st_mode) == 0) 
+	  continue;
+
+	if( regular && S_ISREG(statStruct.st_mode) == 0) 
+	  continue;
+
+	(*res)[ f] = 1;
+
+      }
+    return res;
+  }
+
 
   BaseGDL* file_info( EnvT* e)
   {
@@ -1340,66 +1450,114 @@ DString makeInsensitive(const DString &s)
         // stating the file (and moving on to the next file if failed)
 	struct stat statStruct;
 #ifdef _MSC_VER
-	if (stat(actFile, &statStruct) != 0) continue;
+
+	int actStat = stat(actFile, &statStruct);
+
 #else
-	if (lstat(actFile, &statStruct) != 0) continue;
+
+	int actStat = lstat(actFile, &statStruct);
+
 #endif
+// // debug
+// 	cout << "FILE_INFO: actStat = " << actStat << ": " << actFile << endl;
+// 	if( actStat != 0)
+// 	{
+// 	  cout << "FILE_INFO: actStat != 0: " << actFile << endl;
+// 	}
+
+	if( actStat != 0) 
+	  continue;
+
         // checking struct tag indices (once)
+
         if (!indices_known) 
+
         {
+
           tExists =           res->Desc()->TagIndex("EXISTS"); 
           tRead =             res->Desc()->TagIndex("READ"); 
           tWrite =            res->Desc()->TagIndex("WRITE"); 
           tRegular =          res->Desc()->TagIndex("REGULAR"); 
           tDirectory =        res->Desc()->TagIndex("DIRECTORY");
+
 #ifndef _MSC_VER
+
           tBlockSpecial =     res->Desc()->TagIndex("BLOCK_SPECIAL");
           tCharacterSpecial = res->Desc()->TagIndex("CHARACTER_SPECIAL");
           tNamedPipe =        res->Desc()->TagIndex("NAMED_PIPE");
           tExecute =          res->Desc()->TagIndex("EXECUTE"); 
           tSetuid =           res->Desc()->TagIndex("SETUID");
           tSetgid =           res->Desc()->TagIndex("SETGID");
-		  tSocket =           res->Desc()->TagIndex("SOCKET");
+	  tSocket =           res->Desc()->TagIndex("SOCKET");
           tStickyBit =        res->Desc()->TagIndex("STICKY_BIT");
           tSymlink =          res->Desc()->TagIndex("SYMLINK");
           tDanglingSymlink =  res->Desc()->TagIndex("DANGLING_SYMLINK");
           tMode =             res->Desc()->TagIndex("MODE");
+
 #endif
+
           tAtime =            res->Desc()->TagIndex("ATIME");
           tCtime =            res->Desc()->TagIndex("CTIME");
           tMtime =            res->Desc()->TagIndex("MTIME");
           tSize =             res->Desc()->TagIndex("SIZE");
+
           indices_known = true;
+
         }
 
         // EXISTS (would not reach here if stat failed)
         *(res->GetTag(tExists, f)) = DByteGDL(1);
         
         // READ, WRITE, EXECUTE
+
         *(res->GetTag(tRead, f)) =    DByteGDL(access(actFile, R_OK) == 0);
+
         *(res->GetTag(tWrite, f)) =   DByteGDL(access(actFile, W_OK) == 0);
+
 #ifndef _MSC_VER
+
         *(res->GetTag(tExecute, f)) = DByteGDL(access(actFile, X_OK) == 0);
+
 #endif
 
+
+
         // REGULAR, DIRECTORY, BLOCK_SPECIAL, CHARACTER_SPECIAL, NAMED_PIPE, SOCKET
+
         *(res->GetTag(tRegular, f)) =          DByteGDL(S_ISREG( statStruct.st_mode) != 0);
+
         *(res->GetTag(tDirectory, f)) =        DByteGDL(S_ISDIR( statStruct.st_mode) != 0);
+
 #ifndef _MSC_VER
+
         *(res->GetTag(tBlockSpecial, f)) =     DByteGDL(S_ISBLK( statStruct.st_mode) != 0);
+
         *(res->GetTag(tCharacterSpecial, f)) = DByteGDL(S_ISCHR( statStruct.st_mode) != 0);
+
         *(res->GetTag(tNamedPipe, f)) =        DByteGDL(S_ISFIFO(statStruct.st_mode) != 0);
+
         *(res->GetTag(tSocket, f)) =           DByteGDL(S_ISSOCK(statStruct.st_mode) != 0);
+
 #endif  
+
         // SETUID, SETGID, STICKY_BIT
+
 #ifndef _MSC_VER
+
         *(res->GetTag(tSetuid, f)) =           DByteGDL((S_ISUID & statStruct.st_mode) != 0);
+
         *(res->GetTag(tSetgid, f)) =           DByteGDL((S_ISGID & statStruct.st_mode) != 0);
+
         *(res->GetTag(tStickyBit, f)) =        DByteGDL((S_ISVTX & statStruct.st_mode) != 0);
+
         // MODE
+
         *(res->GetTag(tMode, f)) = DLongGDL(
+
           statStruct.st_mode & (S_IRWXU | S_IRWXG | S_IRWXO | S_ISUID | S_ISGID | S_ISVTX)
+
         );
+
 #endif
 
         // ATIME, CTIME, MTIME
@@ -1411,13 +1569,21 @@ DString makeInsensitive(const DString &s)
 	*(res->GetTag(tSize, f)) = DLong64GDL(statStruct.st_size);
 
         // SYMLINK, DANLING_SYMLINK
+
 #ifndef _MSC_VER // No symlinks in windows
+
         if (S_ISLNK(statStruct.st_mode) != 0)
+
         {
+
           *(res->GetTag(tSymlink, f)) = DByteGDL(1);
+
           // warning: statStruct now describes the linked file
+
           *(res->GetTag(tDanglingSymlink, f)) = DByteGDL(stat(actFile, &statStruct) != 0);
+
         }
+
 #endif
       }
 

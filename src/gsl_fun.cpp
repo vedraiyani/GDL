@@ -91,6 +91,8 @@
 
 #include "interp_multid.h"
 
+//#include "gsl_errorhandler.hpp"
+
 
 #define LOG10E 0.434294
 
@@ -102,12 +104,14 @@
 namespace lib {
 
   using namespace std;
+
+#ifndef _MSC_VER
   using std::isnan;
+#endif
 
   const int szdbl=sizeof(double);
   const int szflt=sizeof(float);
 
-  
   class SetTemporaryGSLErrorHandlerT
   {
     gsl_error_handler_t* oldHandler;
@@ -133,308 +137,6 @@ namespace lib {
   {
     gsl_set_error_handler( GDLGenericGSLErrorHandler);
   }
-  
- 
-
-  BaseGDL* invert_fun( EnvT* e)
-  {
-    SizeT nParam=e->NParam(1);
-    int s;
-    float f32;
-    double f64;
-    double det;
-    long singular=0;
-
-    //     if( nParam == 0)
-    //       e->Throw( "Incorrect number of arguments.");
-
-    BaseGDL* p0 = e->GetParDefined( 0);
-
-    SizeT nEl = p0->N_Elements();
-
-    if( nEl == 0)
-      e->Throw( "Variable is undefined: " + e->GetParString(0));
-    
-    if (p0->Rank() > 2)
-      e->Throw( "Input must be a square matrix:" + e->GetParString(0));
-    
-    if (p0->Rank() > 1) {
-      if (p0->Dim(0) != p0->Dim(1))
-        e->Throw( "Input must be a square matrix:" + e->GetParString(0));
-    }
-
-    // status 
-    // check here, if not done, res would be pending in case of SetPar() throws
-    // SetPar() only throws in AssureGlobalPar()
-    if (nParam == 2) e->AssureGlobalPar( 1);
-
-    // only one element matrix
-
-    if( nEl == 1) {
-      if( p0->Type() == GDL_COMPLEXDBL) {
-	DComplexDblGDL* res = static_cast<DComplexDblGDL*>
-	  (p0->Convert2(GDL_COMPLEXDBL, BaseGDL::COPY));
-	double a, b, deno;
-	a=real((*res)[0]);
-	b=imag((*res)[0]);
-	deno=a*a+b*b;
-	if (deno == 0.0) {
-	  singular=1;
-	  (*res)[0]= DComplexDbl(0., 0.);
-	} else {
-	  (*res)[0]= DComplexDbl(a/deno, -b/deno);
-	}
-	if (nParam == 2) e->SetPar(1,new DLongGDL( singular)); 
-	return res;
-      }
-      if( p0->Type() == GDL_COMPLEX) {
-	DComplexGDL* res = static_cast<DComplexGDL*>
-	  (p0->Convert2(GDL_COMPLEX, BaseGDL::COPY));
-	float a, b, deno;
-	a=real((*res)[0]);
-	b=imag((*res)[0]);
-	deno=a*a+b*b;
-	if (deno == 0.0) {
-	  singular=1;
-	  (*res)[0]= DComplex(0., 0.);
-	} else {
-	  (*res)[0]= DComplex(a/deno, -b/deno);
-	}
-	if (nParam == 2) e->SetPar(1,new DLongGDL( singular)); 
-	return res;
-      }
-      if(( p0->Type() == GDL_DOUBLE) || e->KeywordSet("DOUBLE")) {
-	DDoubleGDL* res = static_cast<DDoubleGDL*>
-	  (p0->Convert2(GDL_DOUBLE, BaseGDL::COPY));
-	if ((*res)[0] == 0.0) {
-	  singular=1;
-	} else {
-	  double unity=1.0 ;
-	  (*res)[0]= unity / ((*res)[0]);
-	}
-	if (nParam == 2) e->SetPar(1,new DLongGDL( singular)); 
-	return res;
-      }
-
-      // all other cases (including GDL_STRING, Float, Int, ... )
-      //      if( p0->Type() == GDL_STRING) {
-      DFloatGDL* res = static_cast<DFloatGDL*>
-	(p0->Convert2( GDL_FLOAT, BaseGDL::COPY));
-      if ((*res)[0] == 0.0) {
-	singular=1;
-      } else {
-	(*res)[0]= 1.0 / ((*res)[0]);
-      }
-      if (nParam == 2) e->SetPar(1,new DLongGDL( singular)); 
-      return res;
-    }
-    
-    // more than one element matrix
-
-    // GSL error handling
-    SetTemporaryGSLErrorHandlerT setTemporaryGSLErrorHandler( GDLGenericGSLErrorHandler);
-
-    if( p0->Type() == GDL_COMPLEX)
-      {
-	DComplexGDL* p0C = static_cast<DComplexGDL*>( p0);
-	DComplexGDL* res = new DComplexGDL( p0C->Dim(), BaseGDL::NOZERO);
-	Guard<DComplexGDL> resGuard( res);
-
-	float f32_2[2];
-	double f64_2[2];
-
-	gsl_matrix_complex *mat = 
-	  gsl_matrix_complex_alloc(p0->Dim(0), p0->Dim(1));
-	GDLGuard<gsl_matrix_complex> g1( mat, gsl_matrix_complex_free);
-	gsl_matrix_complex *inverse = 
-	  gsl_matrix_complex_calloc(p0->Dim(0), p0->Dim(1));
-	GDLGuard<gsl_matrix_complex> g2( inverse, gsl_matrix_complex_free);
-	gsl_permutation *perm = gsl_permutation_alloc(p0->Dim(0));
-	GDLGuard<gsl_permutation> g3( perm, gsl_permutation_free);
-
-	for( SizeT i=0; i<nEl; ++i) {
-	  memcpy(f32_2, &(*p0C)[i], szdbl);
-	  f64 = (double) f32_2[0];
-	  memcpy(&mat->data[2*i], &f64, szdbl);
-
-	  f64 = (double) f32_2[1];
-	  memcpy(&mat->data[2*i+1], &f64, szdbl);
-	}
- 
-	gsl_linalg_complex_LU_decomp (mat, perm, &s);
-       	det = gsl_linalg_complex_LU_lndet(mat);
-	if (gsl_isinf(det) == 0) {
-	  gsl_linalg_complex_LU_invert (mat, perm, inverse);
-	  if (det * LOG10E < 1e-5) singular = 2;
-	}
-	else singular = 1;
-
-	for( SizeT i=0; i<nEl; ++i) {
-	  memcpy(&f64_2[0], &inverse->data[2*i], szdbl*2);
-	  f32_2[0] = (float) f64_2[0];
-	  f32_2[1] = (float) f64_2[1];
-
-	  memcpy(&(*res)[i], &f32_2[0], szflt*2);
-	}
-
-	// 	gsl_permutation_free(perm);
-	// 	gsl_matrix_complex_free(mat);
-	// 	gsl_matrix_complex_free(inverse);
-
-	if (nParam == 2) e->SetPar(1,new DLongGDL( singular)); 
-	resGuard.release();
-	return res;
-      }
-    else if( p0->Type() == GDL_COMPLEXDBL)
-      {
-	DComplexDblGDL* p0C = static_cast<DComplexDblGDL*>( p0);
-	DComplexDblGDL* res = new DComplexDblGDL( p0C->Dim(), BaseGDL::NOZERO);
-	Guard<DComplexDblGDL> resGuard( res);
-
-	gsl_matrix_complex *mat = 
-	  gsl_matrix_complex_alloc(p0->Dim(0), p0->Dim(1));
-	GDLGuard<gsl_matrix_complex> g1( mat, gsl_matrix_complex_free);
-	gsl_matrix_complex *inverse = 
-	  gsl_matrix_complex_calloc(p0->Dim(0), p0->Dim(1));
-	GDLGuard<gsl_matrix_complex> g2( inverse, gsl_matrix_complex_free);
-	gsl_permutation *perm = gsl_permutation_alloc(p0->Dim(0));
-	GDLGuard<gsl_permutation> g3( perm, gsl_permutation_free);
-
-	memcpy(mat->data, &(*p0C)[0], nEl*szdbl*2);
-
-	gsl_linalg_complex_LU_decomp (mat, perm, &s);
-	det = gsl_linalg_complex_LU_lndet(mat);
-	if (gsl_isinf(det) == 0) {
-	  gsl_linalg_complex_LU_invert (mat, perm, inverse);
-	  if (det * LOG10E < 1e-5) singular = 2;
-	}
-	else singular = 1;
-
-	memcpy(&(*res)[0], inverse->data, nEl*szdbl*2);
-
-	// 	gsl_permutation_free(perm);
-	// 	gsl_matrix_complex_free(mat);
-	// 	gsl_matrix_complex_free(inverse);
-
-	if (nParam == 2) e->SetPar(1,new DLongGDL( singular)); 
-	resGuard.release();
-	return res;
-      }
-    else if (( p0->Type() == GDL_DOUBLE) ||  e->KeywordSet("DOUBLE"))
-      {
-
-	DDoubleGDL* p0D = static_cast<DDoubleGDL*>
-	  (p0->Convert2(GDL_DOUBLE,BaseGDL::COPY));
-
-
-	//	DDoubleGDL* p0D = static_cast<DDoubleGDL*>( p0);
-	DDoubleGDL* res = new DDoubleGDL( p0->Dim(), BaseGDL::NOZERO);
-	Guard<DDoubleGDL> resGuard( res);
-
-	gsl_matrix *mat = gsl_matrix_alloc(p0->Dim(0), p0->Dim(1));
-	GDLGuard<gsl_matrix> g1( mat, gsl_matrix_free);
-	gsl_matrix *inverse = gsl_matrix_calloc(p0->Dim(0), p0->Dim(1));
-	GDLGuard<gsl_matrix> g2( inverse, gsl_matrix_free);
-	gsl_permutation *perm = gsl_permutation_alloc(p0->Dim(0));
-	GDLGuard<gsl_permutation> g3( perm, gsl_permutation_free);
-
-	memcpy(mat->data, &(*p0D)[0], nEl*szdbl);
-
-	gsl_linalg_LU_decomp (mat, perm, &s);
-	det = gsl_linalg_LU_lndet(mat);
-	if (gsl_isinf(det) == 0) {
-	  gsl_linalg_LU_invert (mat, perm, inverse);
-	  if (det * LOG10E < 1e-5) singular = 2;
-	}
-	else singular = 1;
-
-	memcpy(&(*res)[0], inverse->data, nEl*szdbl);
-
-	// 	gsl_permutation_free(perm);
-	// 	gsl_matrix_free(mat);
-	// 	gsl_matrix_free(inverse);
-
-	if (nParam == 2) e->SetPar(1,new DLongGDL( singular)); 
-	resGuard.release();
-	return res;
-      }
-    else if( p0->Type() == GDL_FLOAT ||
-	     p0->Type() == GDL_LONG ||
-	     p0->Type() == GDL_ULONG ||
-	     p0->Type() == GDL_INT ||
-	     p0->Type() == GDL_STRING ||
-	     p0->Type() == GDL_UINT ||
-	     p0->Type() == GDL_BYTE)
-      {
-	DFloatGDL* p0F = static_cast<DFloatGDL*>( p0);
-	DLongGDL* p0L = static_cast<DLongGDL*>( p0);
-	DULongGDL* p0UL = static_cast<DULongGDL*>( p0);
-	DIntGDL* p0I = static_cast<DIntGDL*>( p0);
-	//	DStringGDL* p0S = static_cast<DStringGDL*>( p0);
-	DUIntGDL* p0UI = static_cast<DUIntGDL*>( p0);
-	DByteGDL* p0B = static_cast<DByteGDL*>( p0);
-
-	//	if (p0->Type() == STRING) {
-	DFloatGDL* p0SS = static_cast<DFloatGDL*>
-	  (p0->Convert2( GDL_FLOAT, BaseGDL::COPY));
-	Guard<DFloatGDL> p0SSGuard( p0SS);
-	//}
-
-	DFloatGDL* res = new DFloatGDL( p0->Dim(), BaseGDL::NOZERO);
-	Guard<DFloatGDL> resGuard( res);
-
-	gsl_matrix *mat = gsl_matrix_alloc(p0->Dim(0), p0->Dim(1));
-	GDLGuard<gsl_matrix> g1( mat, gsl_matrix_free);
-	gsl_matrix *inverse = gsl_matrix_calloc(p0->Dim(0), p0->Dim(1));
-	GDLGuard<gsl_matrix> g2( inverse, gsl_matrix_free);
-	gsl_permutation *perm = gsl_permutation_alloc(p0->Dim(0));
-	GDLGuard<gsl_permutation> g3( perm, gsl_permutation_free);
-
-	for( SizeT i=0; i<nEl; ++i) {
-	  switch ( p0->Type()) {
-	  case GDL_FLOAT: f64 = (double) (*p0F)[i]; break;
-	  case GDL_LONG:  f64 = (double) (*p0L)[i]; break;
-	  case GDL_ULONG: f64 = (double) (*p0UL)[i]; break;
-	  case GDL_INT:   f64 = (double) (*p0I)[i]; break;
-	  case GDL_STRING:f64 = (double) (*p0SS)[i]; break;
-	  case GDL_UINT:  f64 = (double) (*p0UI)[i]; break;
-	  case GDL_BYTE:  f64 = (double) (*p0B)[i]; break;
-	  }
-	  memcpy(&mat->data[i], &f64, szdbl);
-	}
-
-	gsl_linalg_LU_decomp (mat, perm, &s);
-	det = gsl_linalg_LU_lndet(mat);
-	if (gsl_isinf(det) == 0) {
-	  gsl_linalg_LU_invert (mat, perm, inverse);
-	  if (det * LOG10E < 1e-5) singular = 2;
-	}
-	else singular = 1;
-
-	for( SizeT i=0; i<nEl; ++i) {
-	  f32 = (float) inverse->data[i];
-	  memcpy(&(*res)[i], &f32, 4);
-	}
-
-	// 	gsl_permutation_free(perm);
-	// 	gsl_matrix_free(mat);
-	// 	gsl_matrix_free(inverse);
-
-	if (nParam == 2) e->SetPar(1,new DLongGDL( singular)); 
-	resGuard.release();
-	return res;
-      }
-    else 
-      {
-	cout << "Should never reach this point ! Please report it !" << endl; 
-	DFloatGDL* res = static_cast<DFloatGDL*>
-	  (p0->Convert2( GDL_FLOAT, BaseGDL::COPY));
-
-	if (nParam == 2) e->SetPar(1,new DLongGDL( singular)); 
-	return res;
-      }
-  }
-
 
   template< typename T1, typename T2>
   int cp2data2_template( BaseGDL* p0, T2* data, SizeT nEl, 
@@ -630,7 +332,7 @@ namespace lib {
   }
 
   template < typename T>
-  T* fft_template(BaseGDL* p0,
+  T* fft_template(EnvT* e,BaseGDL* p0,
 		  SizeT nEl, SizeT dbl, SizeT overwrite, 
 		  double direct, DLong dimension)
   {
@@ -648,7 +350,11 @@ namespace lib {
 	resGuard.Reset( res);
       } 
     else
+    {
       res = (T*) p0;
+      if( e->GlobalPar(0))
+	e->SetPtrToReturnValue(&e->GetPar(0));
+    }
     
     DComplexGDL* tabfft = new DComplexGDL(p0->Dim());
     Guard<DComplexGDL> tabfftGuard( tabfft);
@@ -918,7 +624,7 @@ namespace lib {
       // AC 10-09-2012: temporary fix
       dbl=1;
     
-      return fft_template< DComplexDblGDL> (p0, nEl, dbl, overwrite,
+      return fft_template< DComplexDblGDL> (e, p0, nEl, dbl, overwrite,
 					    direct, dimension);
 
     }  
@@ -931,7 +637,7 @@ namespace lib {
 	e->StealLocalPar(0); // only steals if local par
       // 		e->StealLocalParUndefGlobal(0);
     
-      return fft_template< DComplexGDL> (p0, nEl, dbl, overwrite, 
+      return fft_template< DComplexGDL> (e, p0, nEl, dbl, overwrite, 
 					 direct, dimension);
 
     }
@@ -944,7 +650,7 @@ namespace lib {
 
       //cout << "if 3" << endl;
       overwrite = 0;
-      return fft_template< DComplexGDL> (p0, nEl, dbl, overwrite, 
+      return fft_template< DComplexGDL> (e, p0, nEl, dbl, overwrite, 
 					 direct, dimension);
 
     } else {
@@ -954,7 +660,7 @@ namespace lib {
       DComplexGDL* p0C = static_cast<DComplexGDL*>
 	(p0->Convert2( GDL_COMPLEX, BaseGDL::COPY));
       Guard<BaseGDL> guard_p0C( p0C); 
-      return fft_template< DComplexGDL> (p0C, nEl, dbl, overwrite, 
+      return fft_template< DComplexGDL> (e, p0C, nEl, dbl, overwrite, 
 					 direct,dimension); 
 
     }
@@ -1108,6 +814,8 @@ namespace lib {
 
 	return 0;
       }
+    assert(false);
+    return 0;
   }
 
   template< typename T1, typename T2>
@@ -1190,6 +898,8 @@ namespace lib {
 	(T2) gsl_ran_ugaussian (r);
       return 0;
     }
+    assert(false);
+    return 0;
   }
 
 
@@ -1507,14 +1217,13 @@ namespace lib {
     // INPUT keyword
     static int inputIx = e->KeywordIx("INPUT"); 
     DLongGDL* input = e->IfDefGetKWAs<DLongGDL>( inputIx);
-    if (input != NULL)
+    if (input != NULL) {
       if (input->N_Elements() < nbins)
-	e->Throw( 
-		 "Expression " +e->GetString(inputIx) + 
+	e->Throw("Expression " +e->GetString(inputIx) + 
 		 " does not have enough elements.");
       else if (input->N_Elements() > nbins)
 	nbins = input->N_Elements();
- 
+    }
     // Adjust "b" if binsize specified otherwise gsl_histogram_set_ranges_uniform
     // will change bsize to (b-a)/nbins
     // SA: another case when it's needed: !MAX && !BINSIZE && NBINS
@@ -1785,9 +1494,11 @@ namespace lib {
 	//here we use a padded temp array (1D only):
 	for (SizeT k = 0; k < nxa-1; ++k) temp[k]=(*array)[k*ninterp+iterate]; temp[nxa-1]=temp[nxa-2]; //pad!
 	gdl_interp1d_init(interpolant, xa, temp, nxa, use_missing?missing_GIVEN:missing_NEAREST, missing, gamma);
+#ifndef __PATHCC__
 #pragma omp parallel if (chunksize >= CpuTPOOL_MIN_ELTS && (CpuTPOOL_MAX_ELTS == 0 || CpuTPOOL_MAX_ELTS <= chunksize))
 #pragma omp for
-	for (SizeT i = 0; i < chunksize; ++i)
+#endif
+	for (OMPInt i = 0; i < chunksize; ++i)
 	  {
 	    double x = xval[i];
 	    (*res)[i*ninterp+iterate] = gdl_interp1d_eval(interpolant, xa, temp, x, accx);
@@ -1911,9 +1622,11 @@ namespace lib {
 
       for (SizeT k = 0; k < nxa * nya; ++k) temp[k] = (*array)[k * ninterp + iterate];
       gdl_interp2d_init(interpolant, xa, ya, temp, nxa, nya, use_missing ? missing_GIVEN : missing_NEAREST, missing, gamma);
+#ifndef __PATHCC__
 #pragma omp parallel if (chunksize >= CpuTPOOL_MIN_ELTS && (CpuTPOOL_MAX_ELTS == 0 || CpuTPOOL_MAX_ELTS <= chunksize))
 #pragma omp for
-      for (SizeT i = 0; i < chunksize; ++i)
+#endif
+      for (OMPInt i = 0; i < chunksize; ++i)
       {
         double x = xval[i];
         double y = yval[i];
@@ -2055,9 +1768,11 @@ namespace lib {
       {
 	for (SizeT k = 0; k < nxa*nya*nza; ++k) temp[k]=(*array)[k*ninterp+iterate];
 	gdl_interp3d_init(interpolant, xa, ya, za, temp, nxa, nya, nza, use_missing?missing_GIVEN:missing_NEAREST, missing);
+#ifndef __PATHCC__
 #pragma omp parallel if (chunksize >= CpuTPOOL_MIN_ELTS && (CpuTPOOL_MAX_ELTS == 0 || CpuTPOOL_MAX_ELTS <= chunksize))
 #pragma omp for
-	for (SizeT i = 0; i < chunksize; ++i)
+#endif
+	for (OMPInt i = 0; i < chunksize; ++i)
 	  {
 	    double x = xval[i];
 	    double y = yval[i];
@@ -2094,26 +1809,52 @@ namespace lib {
     DDouble missing;
     e->AssureDoubleScalarKWIfPresent(missingIx, missing);
 
-    DDoubleGDL* p0D;
+    DDoubleGDL* p0D[2];
     DDoubleGDL* p1D;
     DDoubleGDL* p2D;
     DDoubleGDL* p3D;
-    Guard<BaseGDL> guard0;
+    Guard<BaseGDL> guard00;
+    Guard<BaseGDL> guard01;
     Guard<BaseGDL> guard1;
     Guard<BaseGDL> guard2;
     Guard<BaseGDL> guard3;
+    int complexity=1;
 
     if (nParam < 2) e->Throw("Incorrect number of arguments.");
 
-    // convert to internal double arrays
+    // convert to internal double arrays. Special case for complex values, we separate R and I
     BaseGDL* p0 = e->GetParDefined(0);
     if (p0->Rank() < nParam - 1)
       e->Throw("Number of parameters must agree with dimensions of argument.");
-    if (p0->Type() == GDL_DOUBLE) p0D = static_cast<DDoubleGDL*>(p0);
+    if (p0->Type() == GDL_COMPLEX) {
+        complexity=2;
+        DComplexGDL* c0 = static_cast<DComplexGDL*> (p0);
+        p0D[0] = new DDoubleGDL(c0->Dim(), BaseGDL::NOZERO); guard00.Init(p0D[0]);
+        p0D[1] = new DDoubleGDL(c0->Dim(), BaseGDL::NOZERO); guard01.Init(p0D[1]);
+#pragma omp parallel if ( p0->N_Elements() >= CpuTPOOL_MIN_ELTS && (CpuTPOOL_MAX_ELTS == 0 || CpuTPOOL_MAX_ELTS <= p0->N_Elements()))
+#pragma omp for
+        for (OMPInt i = 0; i < c0->N_Elements(); ++i) {
+            (*p0D[0])[i] = (*c0)[i].real();
+            (*p0D[1])[i] = (*c0)[i].imag();
+        }
+    }
+    else if( p0->Type() == GDL_COMPLEXDBL) {
+        complexity=2;
+        DComplexDblGDL* c0 = static_cast<DComplexDblGDL*> (p0);
+        p0D[0] = new DDoubleGDL(c0->Dim(), BaseGDL::NOZERO); guard00.Init(p0D[0]);
+        p0D[1] = new DDoubleGDL(c0->Dim(), BaseGDL::NOZERO); guard01.Init(p0D[1]);
+#pragma omp parallel if ( p0->N_Elements() >= CpuTPOOL_MIN_ELTS && (CpuTPOOL_MAX_ELTS == 0 || CpuTPOOL_MAX_ELTS <= p0->N_Elements()))
+#pragma omp for
+        for (OMPInt i = 0; i < c0->N_Elements(); ++i) {
+            (*p0D[0])[i] = (*c0)[i].real();
+            (*p0D[1])[i] = (*c0)[i].imag();
+        }
+    }
+    else if (p0->Type() == GDL_DOUBLE) p0D[0] = static_cast<DDoubleGDL*>(p0);
     else
       {
-	p0D = static_cast<DDoubleGDL*>(p0->Convert2( GDL_DOUBLE, BaseGDL::COPY));
-	guard0.Init(p0D);
+	p0D[0] = static_cast<DDoubleGDL*>(p0->Convert2( GDL_DOUBLE, BaseGDL::COPY));
+	guard00.Init(p0D[0]);
       }
 
     BaseGDL* p1 = e->GetParDefined(1);
@@ -2146,88 +1887,115 @@ namespace lib {
 	}
     }
 
-    // Determine dimensions of output
-    DDoubleGDL* res;
-    // 1D Interpolation
-    if (nParam == 2) {
-      //   res=interpolate_1dim(e,p0D,p1D,cubic,use_missing,missing);
-      if (nnbor)   res=interpolate_1dim(e,gdl_interp1d_nearest,p0D,p1D,use_missing,missing,0.0);
-      else if (cubic)   res=interpolate_1dim(e,gdl_interp1d_cubic,p0D,p1D,use_missing,missing,gamma);
-      else         res=interpolate_1dim(e,gdl_interp1d_linear,p0D,p1D,use_missing,missing,0.0);
-    }
- 
-    if (nParam == 3) {
-      if (nnbor)        res=interpolate_2dim(e,gdl_interp2d_binearest,p0D,p1D,p2D,grid,use_missing,missing,0.0);
-      else if (cubic)   res=interpolate_2dim(e,gdl_interp2d_bicubic,p0D,p1D,p2D,grid,use_missing,missing,gamma);
-      else              res=interpolate_2dim(e,gdl_interp2d_bilinear,p0D,p1D,p2D,grid,use_missing,missing,0.0);
-    }
-    if (nParam == 4) {
-      res=interpolate_3dim(e,gdl_interp3d_trilinear,p0D,p1D,p2D,p3D,grid,use_missing,missing);
-    }
+    DDoubleGDL* res[2];
+    for (int iloop=0; iloop<complexity; ++iloop)
+    {
 
+
+        // 1D Interpolation
+        if (nParam == 2) {
+          //   res[iloop]=interpolate_1dim(e,p0D[iloop],p1D,cubic,use_missing,missing);
+          if (nnbor)   res[iloop]=interpolate_1dim(e,gdl_interp1d_nearest,p0D[iloop],p1D,use_missing,missing,0.0);
+          else if (cubic)   res[iloop]=interpolate_1dim(e,gdl_interp1d_cubic,p0D[iloop],p1D,use_missing,missing,gamma);
+          else         res[iloop]=interpolate_1dim(e,gdl_interp1d_linear,p0D[iloop],p1D,use_missing,missing,0.0);
+        }
+
+        if (nParam == 3) {
+          if (nnbor)        res[iloop]=interpolate_2dim(e,gdl_interp2d_binearest,p0D[iloop],p1D,p2D,grid,use_missing,missing,0.0);
+          else if (cubic)   res[iloop]=interpolate_2dim(e,gdl_interp2d_bicubic,p0D[iloop],p1D,p2D,grid,use_missing,missing,gamma);
+          else              res[iloop]=interpolate_2dim(e,gdl_interp2d_bilinear,p0D[iloop],p1D,p2D,grid,use_missing,missing,0.0);
+        }
+        if (nParam == 4) {
+          res[iloop]=interpolate_3dim(e,gdl_interp3d_trilinear,p0D[iloop],p1D,p2D,p3D,grid,use_missing,missing);
+        }
+    }
     if (p0->Type() == GDL_DOUBLE)
       {
-	return res;
+	return res[0];
       }
     else if (p0->Type() == GDL_FLOAT)
       {
 	DFloatGDL* res1 = static_cast<DFloatGDL*>
-	  (res->Convert2(GDL_FLOAT, BaseGDL::COPY));
-	delete res;
+	  (res[0]->Convert2(GDL_FLOAT, BaseGDL::COPY));
+	delete res[0];
 	return res1;
       }
     else if (p0->Type() == GDL_INT)
       {
 	DIntGDL* res1 = static_cast<DIntGDL*>
-	  (res->Convert2(GDL_INT, BaseGDL::COPY));
-	delete res;
+	  (res[0]->Convert2(GDL_INT, BaseGDL::COPY));
+	delete res[0];
 	return res1;
       }
     else if (p0->Type() == GDL_UINT)
       {
 	DUIntGDL* res1 = static_cast<DUIntGDL*>
-	  (res->Convert2(GDL_UINT, BaseGDL::COPY));
-	delete res;
+	  (res[0]->Convert2(GDL_UINT, BaseGDL::COPY));
+	delete res[0];
 	return res1;
       }
     else if (p0->Type() == GDL_LONG)
       {
 	DLongGDL* res1 = static_cast<DLongGDL*>
-	  (res->Convert2(GDL_LONG, BaseGDL::COPY));
-	delete res;
+	  (res[0]->Convert2(GDL_LONG, BaseGDL::COPY));
+	delete res[0];
 	return res1;
       }
     else if (p0->Type() == GDL_ULONG)
       {
 	DULongGDL* res1 = static_cast<DULongGDL*>
-	  (res->Convert2(GDL_ULONG, BaseGDL::COPY));
-	delete res;
+	  (res[0]->Convert2(GDL_ULONG, BaseGDL::COPY));
+	delete res[0];
 	return res1;
       }
     else if (p0->Type() == GDL_LONG64)
       {
 	DLong64GDL* res1 = static_cast<DLong64GDL*>
-	  (res->Convert2(GDL_LONG64, BaseGDL::COPY));
-	delete res;
+	  (res[0]->Convert2(GDL_LONG64, BaseGDL::COPY));
+	delete res[0];
 	return res1;
       }
     else if (p0->Type() == GDL_ULONG64)
       {
 	DULong64GDL* res1 = static_cast<DULong64GDL*>
-	  (res->Convert2(GDL_ULONG64, BaseGDL::COPY));
-	delete res;
+	  (res[0]->Convert2(GDL_ULONG64, BaseGDL::COPY));
+	delete res[0];
 	return res1;
       }
     else if (p0->Type() == GDL_BYTE)
       {
 	DByteGDL* res1 = static_cast<DByteGDL*>
-	  (res->Convert2(GDL_BYTE, BaseGDL::COPY));
-	delete res;
+	  (res[0]->Convert2(GDL_BYTE, BaseGDL::COPY));
+	delete res[0];
 	return res1;
       }
-    else
+    else if (p0->Type() == GDL_COMPLEX) {
+	DComplexGDL* res1 = new DComplexGDL(res[0]->Dim(), BaseGDL::NOZERO);
+#pragma omp parallel if ( p0->N_Elements() >= CpuTPOOL_MIN_ELTS && (CpuTPOOL_MAX_ELTS == 0 || CpuTPOOL_MAX_ELTS <= p0->N_Elements()))
+#pragma omp for
+        for (OMPInt i = 0; i < res1->N_Elements(); ++i) {
+	    (*res1)[ i] = DComplex((*res[0])[i],(*res[1])[i]);
+//             (*res1)[i].real() = (*res[0])[i];
+//             (*res1)[i].imag() = (*res[1])[i];
+        }
+ 	delete res[0]; delete res[1];
+	return res1;       
+    }
+    else if (p0->Type() == GDL_COMPLEXDBL) {
+	DComplexDblGDL* res1 = new DComplexDblGDL(res[0]->Dim(), BaseGDL::NOZERO);
+#pragma omp parallel if ( p0->N_Elements() >= CpuTPOOL_MIN_ELTS && (CpuTPOOL_MAX_ELTS == 0 || CpuTPOOL_MAX_ELTS <= p0->N_Elements()))
+#pragma omp for
+        for (OMPInt i = 0; i < res1->N_Elements(); ++i) {
+	    (*res1)[ i] = DComplexDbl((*res[0])[i],(*res[1])[i]);
+// 	    (*res1)[i].real() = (*res[0])[i];
+//             (*res1)[i].imag() = (*res[1])[i];
+        }
+ 	delete res[0]; delete res[1];
+	return res1;       
+    }
+    else //?
       {
-	return res;
+	return res[0];
       }
 
   }
@@ -2543,6 +2311,8 @@ namespace lib {
 					   );
     // TODO: no guarding if res is an optimized constant
     // NO!!! the return value of call_fun() is always owned by the caller (constants are Dup()ed)
+    // From 0.9.4 on, call_fun can return left and right values dependent on the call context
+    // which is by default EnvUDT::RFUNCTION, hence the above is *here* correct.
     Guard<BaseGDL> res_guard(res);
     // sanity checks
     //   if (res->Rank() != 1 || res->N_Elements() != x->size) 
@@ -2630,7 +2400,7 @@ namespace lib {
 
     // GDL magick
     StackGuard<EnvStackT> guard(e->Interpreter()->CallStack());
-    EnvUDT* newEnv = new EnvUDT(e->CallingNode(), funList[GDLInterpreter::GetFunIx(fun)], (BaseGDL**)NULL);
+    EnvUDT* newEnv = new EnvUDT(e->CallingNode(), funList[GDLInterpreter::GetFunIx(fun)], (DObjGDL**)NULL);
     newEnv->SetNextPar(&par);
     e->Interpreter()->CallStack().push_back(newEnv);
 
@@ -2739,6 +2509,7 @@ namespace lib {
     qromb_param *p = static_cast<qromb_param*>(params);
     (*(p->arg))[0]=x;
     BaseGDL* res;
+    // marc: is this ok? call_fun will be executed within the actual (callStack.back()) environment
     res = p->envt->Interpreter()->call_fun(static_cast<DSubUD*>(p->nenvt->GetPro())->GetTree());
     
     // res can be of any type!
@@ -2777,7 +2548,7 @@ namespace lib {
 
     // GDL magick
     StackGuard<EnvStackT> guard(e->Interpreter()->CallStack());
-    EnvUDT* newEnv = new EnvUDT(e->CallingNode(), funList[GDLInterpreter::GetFunIx(fun)], (BaseGDL**)NULL);
+    EnvUDT* newEnv = new EnvUDT(e->CallingNode(), funList[GDLInterpreter::GetFunIx(fun)], (DObjGDL**)NULL);
     newEnv->SetNextPar(&par1);
     e->Interpreter()->CallStack().push_back(newEnv);
 
@@ -2942,7 +2713,7 @@ namespace lib {
 
     // GDL magick
     StackGuard<EnvStackT> guard(e->Interpreter()->CallStack());
-    EnvUDT* newEnv = new EnvUDT(e->CallingNode(), funList[GDLInterpreter::GetFunIx(fun)], (BaseGDL**)NULL);
+    EnvUDT* newEnv = new EnvUDT(e->CallingNode(), funList[GDLInterpreter::GetFunIx(fun)], (DObjGDL**)NULL);
     newEnv->SetNextPar(&par1);
     e->Interpreter()->CallStack().push_back(newEnv);
 
@@ -3167,7 +2938,7 @@ namespace lib {
   
     // GDL magick
     StackGuard<EnvStackT> guard(e->Interpreter()->CallStack());
-    EnvUDT* newEnv = new EnvUDT(e->CallingNode(), funList[GDLInterpreter::GetFunIx(fun)], (BaseGDL**)NULL);
+    EnvUDT* newEnv = new EnvUDT(e->CallingNode(), funList[GDLInterpreter::GetFunIx(fun)], (DObjGDL**)NULL);
     newEnv->SetNextPar(&par0);
     e->Interpreter()->CallStack().push_back(newEnv);
   
@@ -3336,7 +3107,10 @@ namespace lib {
   BaseGDL* constant(EnvT* e)
   {
     string name;
-    bool twoparams;
+
+    bool twoparams=false;
+    if (e->NParam(1) == 2) twoparams=true;
+
     static DStructGDL *Values = SysVar::Values();
     static double nan = (*static_cast<DDoubleGDL*>(Values->GetTag(Values->Desc()->TagIndex("D_NAN"), 0)))[0];
 #ifdef USE_UDUNITS
@@ -3346,7 +3120,7 @@ namespace lib {
 #ifdef USE_UDUNITS
       DString tmpunit;
 #endif
-      if (twoparams = (e->NParam(1) == 2)) 
+      if (twoparams)
 	{
 #ifdef USE_UDUNITS
 	  e->AssureScalarPar<DStringGDL>(1, tmpunit);    
@@ -3674,14 +3448,61 @@ namespace lib {
 
     // preparing output (GSL always uses double precision and always works in-situ)
     DType inputType = p0->Type();
-    DDoubleGDL* ret = static_cast<DDoubleGDL*>(p0->Convert2(
-							    GDL_DOUBLE, 
-							    e->KeywordSet(overwriteIx) && e->StealLocalPar(0) 
-							    ? BaseGDL::CONVERT
-							    : BaseGDL::COPY
-							    ));
+    DDoubleGDL* ret;
     Guard<DDoubleGDL> ret_guard;
-    if (ret != p0) ret_guard.Reset(ret);
+    if( !e->KeywordSet(overwriteIx))
+    {
+	bool stolen = e->StealLocalPar(0);
+	if( inputType == GDL_DOUBLE &&  stolen)
+	{
+	  ret = static_cast<DDoubleGDL*>(p0);
+	  ret_guard.Init(ret);
+	}
+	else
+	{
+	  if( stolen)
+	    ret = static_cast<DDoubleGDL*>(p0->Convert2(
+							GDL_DOUBLE, 
+							BaseGDL::CONVERT
+							));
+	  else
+	    ret = static_cast<DDoubleGDL*>(p0->Convert2(
+							GDL_DOUBLE, 
+							BaseGDL::COPY
+							));
+	  ret_guard.Init(ret);
+	}      
+    }
+    else
+    {
+      bool stolen = e->StealLocalPar(0);
+      if( stolen)
+      {
+	// was local par
+	ret = static_cast<DDoubleGDL*>(p0->Convert2(
+						  GDL_DOUBLE, 
+						  BaseGDL::CONVERT
+						  ));
+	ret_guard.Init(ret);
+      }
+      else
+      {
+	assert( e->GlobalPar(0));
+	if( inputType == GDL_DOUBLE)
+	{
+	  ret = static_cast<DDoubleGDL*>(p0);
+	  e->SetPtrToReturnValue( &e->GetPar(0));	  
+	}
+	else
+	{
+	  ret = static_cast<DDoubleGDL*>(p0->Convert2(
+						    GDL_DOUBLE, 
+						    BaseGDL::COPY
+						    ));
+	  ret_guard.Init(ret);
+	}
+      }
+    }
 
     // GSL error handling
     gsl_error_handler_t* old_handler = gsl_set_error_handler(&gsl_err_2_gdl_warn);

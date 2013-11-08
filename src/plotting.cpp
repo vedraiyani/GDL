@@ -27,7 +27,7 @@
 #include <plplot/plstream.h>
 
 #include "initsysvar.hpp"
-#include "graphics.hpp"
+#include "graphicsdevice.hpp"
 #include "plotting.hpp"
 #include "math_utl.hpp"
 
@@ -40,7 +40,9 @@ namespace lib
 
   using namespace std;
 //  using std::isinf;
+#ifndef _MSC_VER
   using std::isnan;
+#endif
   
 //static values
   static DDouble savedPointX=0.0;
@@ -146,11 +148,11 @@ namespace lib
     {
        //look only in range x=[xmin,xmax]
        valx=(*xVal)[i];
-       if (std::isnan(valx)) break;
+       if (isnan(valx)) break;
        if(valx<xmin || valx>xmax) break;
        //min and max of y if not NaN and in range [minVal, maxVal] if doMinMax=yes (min_value, max_value keywords)
        valy=(*yVal)[i];
-       if (std::isnan(valy)) break;
+       if (isnan(valy)) break;
        if (doMinMax &&(valy<minVal || valy>maxVal)) break;
        if(k==0) {min=valy; max=valy;} else {min=gdlPlot_Min(min,valy); max=gdlPlot_Max(max,valy);}
        k++;
@@ -1379,7 +1381,7 @@ namespace lib
   {
     bool docolor=(color != NULL);
     // Get decomposed value for colors
-    DLong decomposed=Graphics::GetDevice()->GetDecomposed();
+    DLong decomposed=GraphicsDevice::GetDevice()->GetDecomposed();
 
     if (GDL_DEBUG_PLSTREAM) fprintf(stderr,"draw_polyline()\n");
     SizeT plotIndex=0;
@@ -1535,7 +1537,19 @@ namespace lib
 #ifdef USE_LIBPROJ4
       if ( mapSet&& !e->KeywordSet("NORMAL") )
       {
-        idata.lam=x * DEG_TO_RAD;
+#ifdef USE_LIBPROJ4_NEW
+	idata.u=x * DEG_TO_RAD;
+        idata.v=y * DEG_TO_RAD;
+        if ( i>0 )
+        {
+          xMapBefore=odata.u;
+          yMapBefore=odata.v;
+        }
+        odata=PJ_FWD(idata, ref);
+        x=odata.u;
+        y=odata.v;
+#else
+	idata.lam=x * DEG_TO_RAD;
         idata.phi=y * DEG_TO_RAD;
         if ( i>0 )
         {
@@ -1545,13 +1559,14 @@ namespace lib
         odata=PJ_FWD(idata, ref);
         x=odata.x;
         y=odata.y;
+#endif
       }
 #endif
       //note: here y is in minVal maxVal
       if ( doMinMax ) isBad=((y<minVal)||(y>maxVal));
       if ( xLog ) x=log10(x);
       if ( yLog ) y=log10(y);
-      isBad=(isBad||!isfinite(x)|| !isfinite(y)||std::isnan(x)||std::isnan(y));
+      isBad=(isBad||!isfinite(x)|| !isfinite(y)||isnan(x)||isnan(y));
       if ( isBad )
       {
         reset=1;
@@ -1763,7 +1778,7 @@ namespace lib
     }
     colorindex=i;
     // Get decomposed value for colors
-    DLong decomposed=Graphics::GetDevice()->GetDecomposed();
+    DLong decomposed=GraphicsDevice::GetDevice()->GetDecomposed();
     a->Color(color, decomposed, colorindex);
   }
 
@@ -1879,7 +1894,7 @@ namespace lib
 
   void gdlSetPlotCharthick(EnvT *e, GDLGStream *a)
   {
-    PLINT charthick=1;
+    PLFLT charthick=1;
      // get !P preference
     static DStructGDL* pStruct=SysVar::P();
     charthick=(*static_cast<DFloatGDL*>
@@ -1891,7 +1906,11 @@ namespace lib
       DFloatGDL* charthickVect=e->GetKWAs<DFloatGDL>( charthickIx );
       charthick=(*charthickVect)[0];
     }
-    a->wid(charthick);
+#ifdef HAVE_PLPLOT_WIDTH
+    a->width(static_cast<PLFLT>(charthick));
+#else
+    a->wid(static_cast<PLINT>(charthick));
+#endif
   }
 
   void gdlSetAxisCharsize(EnvT *e, GDLGStream *a, string axis)
@@ -1919,7 +1938,11 @@ namespace lib
 
     e->AssureFloatScalarKWIfPresent("THICK", thick);
     if ( thick<=0.0 ) thick=1.0;
+#ifdef HAVE_PLPLOT_WIDTH
+    a->width(static_cast<PLFLT>(thick));
+#else
     a->wid(static_cast<PLINT>(floor(thick-0.5)));
+#endif
   }
 
   //LINESTYLE
@@ -2586,21 +2609,25 @@ namespace lib
     int ns;
     char *i;
     int sgn=(value<0)?-1:1;
-    if (sgn*value<gdlEpsDouble()) {snprintf(label, length, "0",value); return;}
+    if (sgn*value<gdlEpsDouble()) 
+    {
+      snprintf(label, length, ((ptr->isLog)?"1":"0"),value); 
+      return;
+    }
     int e=floor(log10(value*sgn));
     char *test=(char*)calloc(2*length, sizeof(char)); //be safe
-    if (!(e==e)||(e<4 && e>-4)) 
+    if (!isfinite(e)||(e<4 && e>-4)) 
     {
       snprintf(test, length, "%f",value);
       ns=strlen(test);
-      i=rindex(test,'0');
+      i=strrchr (test,'0');
       while (i==(test+ns-1)) //remove trailing zeros...
       {
           *i='\0';
-        i=rindex(test,'0');
+        i=strrchr(test,'0');
         ns--;
       }
-      i=rindex(test,'.'); //remove trailing '.'
+      i=strrchr(test,'.'); //remove trailing '.'
       if (i==(test+ns-1)) {*i='\0'; ns--;}
       if (ptr->isLog) snprintf( label, length, specialfmtlog.c_str(),test);
       else
@@ -2611,11 +2638,11 @@ namespace lib
       z=value*sgn/pow(10.,e);
       snprintf(test,20,"%7.6f",z);
       ns=strlen(test);
-      i=rindex(test,'0');
+      i=strrchr(test,'0');
       while (i==(test+ns-1))
       {
           *i='\0';
-        i=rindex(test,'0');
+        i=strrchr(test,'0');
         ns--;
       }
       ns-=2;ns=(ns>6)?6:ns;
@@ -2677,7 +2704,7 @@ namespace lib
           	//  Search in user proc and function
           SizeT funIx = GDLInterpreter::GetFunIx( callF);
 
-          EnvUDT* newEnv = new EnvUDT( e->CallingNode(), funList[ funIx], (BaseGDL**)NULL);
+          EnvUDT* newEnv = new EnvUDT( e->CallingNode(), funList[ funIx], (DObjGDL**)NULL);
           Guard< EnvUDT> guard( newEnv);
           // add parameters
           newEnv->SetNextPar( new DLongGDL(axis));
@@ -2801,8 +2828,8 @@ namespace lib
     gdlGetDesiredAxisTicks(e, axis, Ticks);
     DStringGDL* TickUnits;
     gdlGetDesiredAxisTickUnits(e, axis, TickUnits);
-    DDoubleGDL* Tickv;
-    gdlGetDesiredAxisTickv(e, axis, Tickv);
+    DDoubleGDL Tickv;
+    gdlGetDesiredAxisTickv(e, axis, &Tickv);
     DString Title;
     gdlGetDesiredAxisTitle(e, axis, Title);
 
@@ -2932,7 +2959,11 @@ namespace lib
         a->smaj((PLFLT)OtherAxisSizeInMm, 1.0); //set base ticks to default 0.02 viewport converted to mm.
         a->smin((PLFLT)OtherAxisSizeInMm/2.0,1.0); //idem min (plplt defaults)
         //thick for box and ticks.
-        a->wid(Thick);
+#ifdef HAVE_PLPLOT_WIDTH
+        a->width(static_cast<PLFLT>(Thick));
+#else
+        a->wid(static_cast<PLINT>(Thick));
+#endif
         //ticks or grid eventually with style and length:
         if (abs(TickLen)<1e-6) Opt=""; else Opt="st"; //remove ticks if ticklen=0
         if (TickLen<0) {Opt+="i"; TickLen=-TickLen;}
@@ -2977,7 +3008,11 @@ namespace lib
         else if (axis=="Y") a->box("", 0.0, 0 , Opt.c_str(), 0.0, 0);
       }
       //reset charsize & thick
+#ifdef HAVE_PLPLOT_WIDTH
+      a->width(1.0);
+#else
       a->wid(1);
+#endif
       a->sizeChar(1.0);
     }
 	return 0;
@@ -3120,7 +3155,11 @@ namespace lib
         a->smaj((PLFLT)OtherAxisSizeInMm, 1.0); //set base ticks to default 0.02 viewport converted to mm.
         a->smin((PLFLT)OtherAxisSizeInMm/2.0,1.0); //idem min (plplt defaults)
         //thick for box and ticks.
-        a->wid(Thick);
+#ifdef HAVE_PLPLOT_WIDTH
+        a->width(static_cast<PLFLT>(Thick));
+#else
+        a->wid(static_cast<PLINT>(Thick));
+#endif
         //ticks or grid eventually with style and length:
         if (abs(TickLen)<1e-6) Opt=""; else Opt="st"; //remove ticks if ticklen=0
         if (TickLen<0) {Opt+="i"; TickLen=-TickLen;}
@@ -3145,7 +3184,11 @@ namespace lib
         else if (axis=="Z") a->box3("","",0,0,"","",0,0, Opt.c_str(), "", TickInterval, Minor);
       }
       //reset charsize & thick
+#ifdef HAVE_PLPLOT_WIDTH
+      a->width(1.0);
+#else
       a->wid(1);
+#endif
       a->sizeChar(1.0);
     }
 	return 0;

@@ -129,11 +129,19 @@ namespace lib {
 	  LPTYPE idata;
 	  XYTYPE odata;
 	  for( SizeT i = 0; i<nrows; ++i) {
+#ifdef USE_LIBPROJ4_NEW
+	    idata.u = (*ptr1) * DEG_TO_RAD;
+	    idata.v = (*ptr2) * DEG_TO_RAD;
+	    odata = PJ_FWD(idata, ref);
+	    (*res)[ires++] = odata.u * sx[1] + sx[0];
+	    (*res)[ires++] = odata.v * sy[1] + sy[0];
+#else
 	    idata.lam = (*ptr1) * DEG_TO_RAD;
 	    idata.phi = (*ptr2) * DEG_TO_RAD;
 	    odata = PJ_FWD(idata, ref);
 	    (*res)[ires++] = odata.x * sx[1] + sx[0];
 	    (*res)[ires++] = odata.y * sy[1] + sy[0];
+#endif
 	    ptr1++;
 	    ptr2++;
 	    ires++;
@@ -142,11 +150,19 @@ namespace lib {
 	  LPTYPE idata;
 	  XYTYPE odata;
 	  for( SizeT i = 0; i<nrows; ++i) {
+#ifdef USE_LIBPROJ4_NEW
+	    idata.u = (*ptr1) * DEG_TO_RAD;
+	    idata.v = (*ptr2) * DEG_TO_RAD;
+	    odata = PJ_FWD(idata, ref);
+	    (*res)[ires++] = xv * (odata.u * sx[1] + sx[0]);
+	    (*res)[ires++] = yv * (odata.v * sy[1] + sy[0]);
+#else
 	    idata.lam = (*ptr1) * DEG_TO_RAD;
 	    idata.phi = (*ptr2) * DEG_TO_RAD;
 	    odata = PJ_FWD(idata, ref);
 	    (*res)[ires++] = xv * (odata.x * sx[1] + sx[0]);
 	    (*res)[ires++] = yv * (odata.y * sy[1] + sy[0]);
+#endif
 	    ptr1++;
 	    ptr2++;
 	    ires++;
@@ -170,11 +186,19 @@ namespace lib {
 	  XYTYPE idata;
 	  LPTYPE odata;
 	  for( SizeT i = 0; i<nrows; ++i) {
+#ifdef USE_LIBPROJ4_NEW
+	    idata.u = ((*ptr1) - sx[0]) / sx[1];
+	    idata.v = ((*ptr2) - sy[0]) / sy[1];
+	    odata = PJ_INV(idata, ref);
+	    (*res)[ires++] = odata.u * RAD_TO_DEG;
+	    (*res)[ires++] = odata.v * RAD_TO_DEG;
+#else
 	    idata.x = ((*ptr1) - sx[0]) / sx[1];
 	    idata.y = ((*ptr2) - sy[0]) / sy[1];
 	    odata = PJ_INV(idata, ref);
 	    (*res)[ires++] = odata.lam * RAD_TO_DEG;
 	    (*res)[ires++] = odata.phi * RAD_TO_DEG;
+#endif
 	    ptr1++;
 	    ptr2++;
 	    ires++;
@@ -184,11 +208,20 @@ namespace lib {
 	XYTYPE idata;
 	LPTYPE odata;
 	for( SizeT i = 0; i<nrows; ++i) {
+#ifdef USE_LIBPROJ4_NEW
+	  idata.u = ((*ptr1) / xv - sx[0]) / sx[1];
+	  idata.v = ((*ptr2) / yv - sy[0]) / sy[1];
+	  odata = PJ_INV(idata, ref);
+	  (*res)[ires++] = odata.u * RAD_TO_DEG;
+	  (*res)[ires++] = odata.v * RAD_TO_DEG;
+#else
 	  idata.x = ((*ptr1) / xv - sx[0]) / sx[1];
 	  idata.y = ((*ptr2) / yv - sy[0]) / sy[1];
 	  odata = PJ_INV(idata, ref);
 	  (*res)[ires++] = odata.lam * RAD_TO_DEG;
 	  (*res)[ires++] = odata.phi * RAD_TO_DEG;
+#endif	  
+	  
 	  ptr1++;
 	  ptr2++;
 	  ires++;
@@ -336,7 +369,7 @@ namespace lib {
     DLong xv=1, yv=1;
     int xSize, ySize, xPos, yPos;
     // Use Size in lieu of VSize
-    Graphics* actDevice = Graphics::GetDevice();
+    GraphicsDevice* actDevice = GraphicsDevice::GetDevice();
     DLong wIx = actDevice->ActWin();
     if( wIx == -1) {
       DStructGDL* dStruct = SysVar::D();
@@ -494,7 +527,7 @@ namespace lib {
   }
   void SelfPerspective3d(DDoubleGDL* me, DDouble zdist)
   {
-    if (!(zdist==zdist)) return; //Nan
+    if (!isfinite(zdist)) return; //Nan
     if (zdist==0.0) return;
     SizeT dim0=me->Dim(0);
     SizeT dim1=me->Dim(1);
@@ -824,7 +857,7 @@ done:
   void scale3_pro(EnvT* e)
   {
     static unsigned tTag=SysVar::P()->Desc()->TagIndex("T");
-    const double invsqrt3=1.0/sqrt(3);
+    const double invsqrt3=1.0/sqrt(3.0);
     //AX
     DDouble ax=30.0;
     e->AssureDoubleScalarKWIfPresent("AX", ax);

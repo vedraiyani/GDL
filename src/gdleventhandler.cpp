@@ -25,19 +25,30 @@
 #endif
 
 #include "gdleventhandler.hpp"
-#include "graphics.hpp"
+#include "graphicsdevice.hpp"
+
+#ifdef HAVE_LIBWXWIDGETS
+#include "gdlwidget.hpp"
+#endif
 
 using namespace std;
 
 int GDLEventHandler()
 {
-  Graphics::HandleEvents();
+  GraphicsDevice::HandleEvents();
+
+#ifdef HAVE_LIBWXWIDGETS
+  GDLWidget::HandleEvents();
+  const long OS_X_DELAY_NS = 5000000; // 5ms
+#else
+  const long OS_X_DELAY_NS = 20000000; // 20ms
+#endif
 
 #ifdef __APPLE__
   // under OS X the event loop burns to much CPU time
   struct timespec delay;
   delay.tv_sec=0;
-  delay.tv_nsec = 20000000; // 20ms
+  delay.tv_nsec = OS_X_DELAY_NS; // 20ms
   nanosleep(&delay,NULL);
 #endif
 

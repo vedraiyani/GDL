@@ -26,7 +26,9 @@ namespace lib {
 
   using namespace std;
 //  using std::isinf;
+#ifndef _MSC_VER
   using std::isnan;
+#endif
 
   class plot_call : public plotting_routine_call 
   {
@@ -149,11 +151,29 @@ private:
         }
       }
     }
-    // handle Log options
+
+    xLog=FALSE;
+    yLog=FALSE;
+
+    // handle Log options passing via Functions names PLOT_IO/OO/OI
+    string ProName=e->GetProName();
+    if (ProName != "PLOT") {
+      if (ProName == "PLOT_IO") yLog=TRUE;
+      if (ProName == "PLOT_OI") xLog=TRUE;
+      if (ProName == "PLOT_OO") {
+	xLog=TRUE;
+	yLog=TRUE;
+      }
+    }
+
+    // handle Log options passing via Keywords
     int xLogIx = e->KeywordIx("XLOG");
     int yLogIx = e->KeywordIx("YLOG");
-    xLog = e->KeywordSet(xLogIx);
-    yLog = e->KeywordSet(yLogIx);
+    if (e->KeywordPresent(xLogIx)) xLog = e->KeywordSet(xLogIx);
+    if (e->KeywordPresent(yLogIx)) yLog = e->KeywordSet(yLogIx);
+
+    //cout << xLog << " " << yLog << endl;
+
     // compute adequate values for log scale, warn adequately...
     wasBadxLog = FALSE;
     wasBadyLog = FALSE;
@@ -501,6 +521,10 @@ private:
     plot_call plot;
     plot.call(e, 1);
   }
+
+  void plot_io(EnvT* e) {plot(e);}
+  void plot_oo(EnvT* e) {plot(e);}
+  void plot_oi(EnvT* e) {plot(e);}
 
 } // namespace
 

@@ -68,12 +68,12 @@ namespace lib {
 
     // DIMENSIONS
     if( e->KeywordSet( dimIx)) { 
-      if( Rank == 0) 
+      if( Rank == 0) {
 	if( e->KeywordSet(L64Ix))
 	  return new DLong64GDL( 0);
 	else
 	  return new DLongGDL( 0);
-
+      }
       dimension dim( Rank);
 
       if( e->KeywordSet(L64Ix)) { // L64
@@ -328,6 +328,8 @@ namespace lib {
       {
 	e->Throw( ex.getMessage());
       }
+    assert(false);      
+    return NULL;
   }
 
   BaseGDL* make_array( EnvT* e)
@@ -514,14 +516,8 @@ namespace lib {
     return 0;
   }
 
-//   template< typename T>
-//   BaseGDL* reform_template( EnvT* e, dimension dim)
-//   {
-//     T* res = static_cast<T*>( e->GetParDefined( 0)->Dup());
-//     res->SetDim(dim);
-//     return res;
-//   }
 
+  
   BaseGDL* reform( EnvT* e)
   {
     SizeT nParam=e->NParam(1);
@@ -530,13 +526,12 @@ namespace lib {
     BaseGDL* p0 = *p0P;
 
     SizeT nEl = p0->N_Elements();
-    SizeT Rank = p0->Rank();
+//     SizeT Rank = p0->Rank();
 //     if( Rank == 0)
 //       e->Throw( "Parameter must be an array in this context: " 
 // 		+ e->GetParString( 0));
 
-
-    SizeT Type = p0->Type();
+//     SizeT Type = p0->Type();
 
     dimension dim;
 
@@ -556,97 +551,44 @@ namespace lib {
       if( dim.Rank() == 0)
 	dim << 1;
       //     dim.Set(0, j);
-    } else arr( e, dim, 1);
-
+    } 
+    else 
+      arr( e, dim, 1);
 
     if (dim.NDimElements() != nEl) 
       e->Throw( "New subscripts must not change the number of elements in " 
 		+ e->GetParString( 0));
 
-
-    if (e->KeywordSet( "OVERWRITE")) {
-
-      // make a copy if p0 is not global
-      //      if( !e->GlobalPar( 0))
-      //	p0 = p0->Dup();
-      // better: steal p0
-      if( !e->GlobalPar( 0))
-	{
-	  bool success = e->StealLocalPar( 0); 
-	  //*p0P = NULL; // prevent local parameter form deletion
-	  assert( success);
-	}
-
-      p0->SetDim(dim);
-      return p0;
-    }
-
-    // steal local parmeter
+    // make a copy if p0 is not global
+    //      if( !e->GlobalPar( 0))
+    //	p0 = p0->Dup();
+    // better: steal p0
     if( !e->GlobalPar( 0))
       {
 	bool success = e->StealLocalPar( 0); //*p0P = NULL;
+	//*p0P = NULL; // prevent local parameter form deletion
 	assert( success);
-	p0->SetDim( dim);
+	p0->SetDim(dim);
 	return p0;
       }
+
+    static int overwriteIx = e->KeywordIx("OVERWRITE");
+    if (e->KeywordSet( overwriteIx)) 
+    {
+      p0->SetDim(dim);
+      e->SetPtrToReturnValue( p0P);
+      return p0;
+    }
 
     // global paramter - make a copy
     BaseGDL* res = p0->Dup();
     res->SetDim(dim);
     return res;
-
-//     // GDL_BYTE
-//     if (Type == GDL_BYTE) {
-    
-//       return reform_template< DByteGDL>( e, dim);
-    
-//       //GDL_INT
-//     } else if (Type || Type == GDL_INT) {
-    
-//       return reform_template< DIntGDL>( e, dim);
-    
-//       // GDL_UINT
-//     } else if (Type == GDL_UINT) {
-    
-//       return reform_template< DUIntGDL>( e, dim);
-    
-//       // GDL_LONG
-//     } else if (Type == GDL_LONG) {
-    
-//       return reform_template< DLongGDL>( e, dim);
-    
-//       // GDL_ULONG
-//     } else if (Type == GDL_ULONG) {
-    
-//       return reform_template< DULongGDL>( e, dim);
-    
-//       // GDL_LONG64
-//     } else if (Type == GDL_LONG64) {
-    
-//       return reform_template< DLong64GDL>( e, dim);
-    
-//       // GDL_ULONG64
-//     } else if (Type == GDL_ULONG64) {
-    
-//       return reform_template< DULong64GDL>( e, dim);
-      
-//       // GDL_FLOAT
-//     } else if (Type == GDL_FLOAT) {
-    
-//       return reform_template< DFloatGDL>( e, dim);
-    
-//       // GDL_DOUBLE
-//     } else if (Type == GDL_DOUBLE) {
-    
-//       return reform_template< DDoubleGDL>( e, dim);
-    
-//     }
-    
   }
 
   
   // note: changes here MUST be reflected in routine_names_reference() as well
-  // because DLibFun of this function is used for scope_varfetch_reference() the keyword
+  // because DLibFun of this function is used for routine_names_reference() the keyword
   // indices must match
   BaseGDL* routine_names_value( EnvT* e) 
   {
@@ -761,13 +703,20 @@ namespace lib {
 	int xI = pro->FindVar( varName);
 	//	cout << xI << endl;
 	if (xI != -1) {
-	  BaseGDL* par = ((EnvT*)(callStack[desiredlevnum-1]))->GetPar( xI);
+// 	  BaseGDL* par = ((EnvT*)(callStack[desiredlevnum-1]))->GetPar( xI);
+	  BaseGDL*& par = ((EnvT*)(callStack[desiredlevnum-1]))->GetPar( xI);
 
 	  if( par == NULL)
  		e->Throw( "Variable is undefined: " + varName);
 // 		return NULL;
 	  //	  char* addr = static_cast<char*>(par->DataAddr());
-	  return par->Dup(); // no retnew function BUT: ret value is not from current environment
+
+	  // no retnew function BUT: ret value is not from current environment
+	  // which is ok with the new ref return value handling introdcuced with 0.9.4
+	  // note that the _reference version does not need par to be defined and is hence still necessary
+	  e->SetPtrToReturnValue( &par); // <-  HERE IS THE DIFFERENCE
+	  return par; // <-  HERE IS THE DIFFERENCE 
+	  // return par->Dup(); // <-  HERE IS THE DIFFERENCE // no retnew function BUT: ret value is not from current environment
 	}
 	
  	e->Throw( "Variable not found: " + varName);
@@ -885,9 +834,8 @@ namespace lib {
     }
   }
 
-  
-  
-    BaseGDL** routine_names_reference( EnvT* e) 
+  // this version does not need the return value pointing to a defined value and is hence necessary  
+  BaseGDL** routine_names_reference( EnvT* e) 
   {
     SizeT nParam=e->NParam();
 
@@ -897,15 +845,15 @@ namespace lib {
 	DLong curlevnum = callStack.size();
 
     if (e->KeywordSet( "S_FUNCTIONS")) {
-return NULL;
+      return NULL;
     }
 
     if (e->KeywordSet( "S_PROCEDURES")) {
-return NULL;
+      return NULL;
     }
 
     if (e->KeywordSet( "LEVEL")) {
-return NULL;
+      return NULL;
     }
 
     static int variablesIx = e->KeywordIx( "VARIABLES" );
@@ -962,9 +910,9 @@ return NULL;
 	  return &par; // <-  HERE IS THE DIFFERENCE
 	}
 	
- 	e->Throw( "Variable not found: " + varName);
- 	return NULL;
-	
+	e->Throw( "Variable not found: " + varName);
+	return NULL;
+
       } else if (var) { // ARG_NAME
 
 	return NULL;
@@ -972,54 +920,20 @@ return NULL;
       } else if (arg) { // ARG_NAME
 
 	return NULL;
-	
-      } else { // STORE
 
-// 	if( nParam != 2)
-// 	  throw GDLException( e->CallingNode(),
-// 			      "ROUTINE_NAMES: Incorrect number of arguments.");
-// 
-// 	// "res" points to variables to be restored
-// 	BaseGDL* res = e->GetParDefined( 1);
-// 
-// 	SizeT s;
-// 	e->AssureScalarPar<DStringGDL>( 0, varName); 
-// 	int xI = pro->FindVar(StrUpCase( varName));
-// 	// cout << "varName: " << StrUpCase( varName) << " xI: " << xI << endl;
-// 	if (xI == -1) {
-// 
-// 	  SizeT u = pro->AddVar(StrUpCase(varName));
-//  	  s = callStack[desiredlevnum-1]->AddEnv();
-// 	  //cout << "AddVar u: " << u << endl;
-// 	  //cout << "AddEnv s: " << s << endl;
-// 
-// 	} else {
-// 	  s = xI;
-// 	  //cout << "FindVar s: " << s << endl;
-// 	}
-// 
-// // 	BaseGDL*& par = ((EnvT*)(callStack[desiredlevnum-1]))->GetPar( s-nKey);
-// 
-//  	((EnvT*)(callStack[desiredlevnum-1]))->GetPar( s-nKey) = res->Dup();
-// 
-// 	//	cout << "par: " << &par << endl << endl;
-// // 	memcpy(&par, &res, sizeof(par)); 
+      } 
+      else { // STORE
 
 	return NULL;
       }
-    } else {
+    } 
+    else 
+    {
 	// Get Compiled Procedures & Functions 
 	return NULL;
     }
   }
 
-  
-  
-  
-  
-  
-  
-  
   
   
 } // namespace

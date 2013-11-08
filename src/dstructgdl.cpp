@@ -25,6 +25,15 @@
 using namespace std;
 
 vector< void*> DStructGDL::freeList;
+#ifdef HAVE_LIBWXWIDGETS
+#include <wx/wx.h>
+wxMutex mutexNewDelete;
+#define LOCK_MUTEXNEWDELETE	mutexNewDelete.Lock();
+#define UNLOCK_MUTEXNEWDELETE	mutexNewDelete.Unlock();
+#else
+#define LOCK_MUTEXNEWDELETE	;
+#define UNLOCK_MUTEXNEWDELETE	;
+#endif
 
 void* DStructGDL::operator new( size_t bytes)
 {
@@ -32,28 +41,36 @@ void* DStructGDL::operator new( size_t bytes)
 	
 	if( freeList.size() > 0)
 	{
-		void* res = freeList.back();
-		freeList.pop_back();
-		return res;	
+	    LOCK_MUTEXNEWDELETE
+	    void* res = freeList.back();
+	    freeList.pop_back();
+	    UNLOCK_MUTEXNEWDELETE
+	    
+	    return res;	
 	}
 
 	//cout << "Alloc: " << bytes << "  " << "STRUCT" << endl;
 
-	const size_t newSize = multiAlloc - 1;
-	freeList.resize( newSize);
 	char* res = static_cast< char*>( malloc( sizeof( DStructGDL) * multiAlloc)); // one more than newSize
+	const size_t newSize = multiAlloc - 1;
+
+	LOCK_MUTEXNEWDELETE
+	freeList.resize( newSize);
 	for( size_t i=0; i<newSize; ++i)
 	{
 		freeList[ i] = res;
 		res += sizeof( DStructGDL);
 	} 
+	UNLOCK_MUTEXNEWDELETE
 	
 	return res;
 }
 
 void DStructGDL::operator delete( void *ptr)
 {
+	LOCK_MUTEXNEWDELETE
 	freeList.push_back( ptr);
+	UNLOCK_MUTEXNEWDELETE
 }
 
 DStructGDL::~DStructGDL() 
@@ -345,12 +362,12 @@ void DStructGDL::AssignAt( BaseGDL* srcIn, ArrayIndexListT* ixList,
 	  SizeT nCp=N_Elements();
 	
 	  // if (non-indexed) src is smaller -> just copy its number of elements
-	  if( nCp > (srcElem-offset))
+	  if( nCp > (srcElem-offset)) {
 	    if( offset == 0)
 	      nCp=srcElem;
 	    else
 	      throw GDLException("Source expr contains not enough elements.");
-
+	  }
 	  for( SizeT c=0; c<nCp; c++)
 	    {
 // 	      SizeT cTag= c*nTags;

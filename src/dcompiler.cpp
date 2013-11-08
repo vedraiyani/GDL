@@ -442,18 +442,21 @@ RefDNode DCompiler::ByReference(RefDNode nIn)
   // APRO,(((a=2))=3) // forbidden in GDL
   // Makes IDL segfault: APRO,++(((a=2))=3)
 
-  // expressions (braces) are ignored
-  while( n->getType() == EXPR) n = n->getFirstChild();
   int t=n->getType();
-  if( t == DEC || t == INC) // only preinc can be reference
-    {
-      n = n->getFirstChild();
-      t=n->getType();
-    }
-
   // expressions (braces) are ignored
-  while( n->getType() == EXPR) n = n->getFirstChild();
-  t=n->getType();
+  do {
+    while( n->getType() == EXPR) n = n->getFirstChild();
+    t = n->getType();
+    if( t == DEC || t == INC) // only preinc can be reference
+      {
+	n = n->getFirstChild();
+	t = n->getType();
+      }
+  }
+  while( t == DEC || t == INC || t == EXPR);
+//   // expressions (braces) are ignored
+//   while( n->getType() == EXPR) n = n->getFirstChild();
+//   t=n->getType();
   bool assignReplace = false;
   if( t == ASSIGN_REPLACE)
     {
@@ -469,7 +472,7 @@ RefDNode DCompiler::ByReference(RefDNode nIn)
   // only var, common block var and deref ptr are passed by reference
   // note: trinary op is REF_CHECK 
   // *** see AssignReplace(...)
-  if( !assignReplace && t != VAR && t != VARPTR && t != DEREF) // && t != QUESTION) 
+  if( !assignReplace && t != VAR && t != VARPTR && t != DEREF && !GDLTreeParser::IsREF_CHECK(t)) // && t != QUESTION) 
     return null; 
 
 // #ifdef GDL_DEBUG

@@ -119,7 +119,7 @@ public:
   {
 //     delete allIx;
     delete ix;
-	cleanupIx.Cleanup(); // must be explicitely cleaned up
+    cleanupIx.Cleanup(); // must be explicitely cleaned up
   }
 
   // constructor
@@ -130,13 +130,13 @@ public:
   { nParam = 0;}
 
   ArrayIndexListOneT( const ArrayIndexListOneT& cp):
-	cleanupIx(),
     ArrayIndexListT( cp),
+	cleanupIx(),
     ix( cp.ix->Dup()),
     allIx( NULL)
   {
     assert( cp.allIx == NULL);
-	assert( cp.cleanupIx.size() == 0);
+    assert( cp.cleanupIx.size() == 0);
   }
 
   // called after structure is fixed
@@ -152,9 +152,8 @@ public:
 //     delete allIx;
     allIx = NULL;
 //     allIxMulti.Clear();
-    
     ix->Clear();
-	cleanupIx.Cleanup();
+    cleanupIx.Cleanup();
   }
 
   ArrayIndexListT* Clone() { return new ArrayIndexListOneT( *this);}
@@ -166,30 +165,28 @@ public:
 
 //     if( cleanupIxIn != NULL)
 //       cleanupIx = *cleanupIxIn;
-    
     if( nParam == 0) return;
-    if( nParam == 1) 
-      {
-		ix->Init( ix_[ 0]);
-      }
-    else if( nParam == 2) 
-      {
-		ix->Init( ix_[ 0], ix_[ 1]);
-		return;
-      }
+    if( nParam == 1)
+    {
+	ix->Init( ix_[ 0]);
+    }
+    else if( nParam == 2)
+    {
+	ix->Init( ix_[ 0], ix_[ 1]);
+	return;
+    }
     else // nParam == 3
-      {
-		ix->Init( ix_[ 0], ix_[ 1], ix_[ 2]);
-		return;
-      }
+    {
+	ix->Init( ix_[ 0], ix_[ 1], ix_[ 2]);
+	return;
+    }
   }
 
   void Init() {} // eg. a[*]
 
-  // requires special handling
-  // used by Assoc_<> returns last index in lastIx, removes it
-  // and returns true is the list is empty
-//   bool ToAssocIndex( SizeT& lastIx)
+// requires special handling
+// used by Assoc_<> returns last index in lastIx, removes it
+// and returns true is the list is empty
   bool ToAssocIndex( SizeT& lastIx)
   {
     // cannot be ArrayIndexScalar[VP] ix->Init();
@@ -210,9 +207,11 @@ public:
     assert( allIx == NULL);
 
     // for assoc variables last index is the record
-    // we cannot return here as sInit is not yet copied to s
-    //if( var->IsAssoc()) return;
-
+    if( var->IsAssoc())
+    {
+	// note: s is copied from sIter in ArrayIndex::Init
+       return;
+    }
     // ArrayIndexScalar[VP] are not initialized
     // they need the NIter call, but
     // for only one index they have their own ArrayIndexListT
@@ -222,18 +221,18 @@ public:
   // structure of indexed expression
   const dimension GetDim()
   {
-    if( ix->Scalar())
+      if( ix->Scalar())
       {
-		return dimension();
+	  return dimension();
       }
-    else if( ix->Indexed())
+      else if( ix->Indexed())
       {
-		return static_cast<ArrayIndexIndexed*>(ix)->GetDim();
-	// gets structure of indexing array
+	  return static_cast<ArrayIndexIndexed*>(ix)->GetDim();
+	  // gets structure of indexing array
       }
-    else
+      else
       {
-		return dimension( nIx); // one dimensional if not indexed
+	  return dimension( nIx); // one dimensional if not indexed
       }
   }
 
@@ -247,9 +246,6 @@ public:
   {
     if( allIx != NULL) // can happen if called from DotAccessDescT::DoAssign()
       return allIx;
-    assert( allIx == NULL);
-//     if( allIx != NULL)
-// 		return allIx;
 
     if( ix->Indexed())
       {
@@ -336,14 +332,18 @@ public:
   BaseGDL* Index( BaseGDL* var, IxExprListT& ix_)
   {
     Init( ix_);//, NULL);
-    if( !var->IsAssoc() && ix->Scalar()) //ix->NIter( var->N_Elements()/*var->Size()*/) == 1)// && var->Type() != GDL_STRUCT) 
+
+    if( var->IsAssoc()) // deault case
+      return var->Index( this);
+    
+    if( /*!var->IsAssoc() &&*/ ix->Scalar()) //ix->NIter( var->N_Elements()/*var->Size()*/) == 1)// && var->Type() != GDL_STRUCT) 
       {
 	SizeT assertValue = ix->NIter( var->N_Elements()/*var->Size()*/);
 	assert( assertValue == 1);
 
 	return var->NewIx( ix->GetIx0());
       }
-    // normal case
+    // normal case, no assoc
     SetVariable( var);
     return var->Index( this);
   }
@@ -2178,6 +2178,7 @@ public:
   }
   void reset( ArrayIndexListT* aL_) { aL = aL_;}
   ArrayIndexListT* release() { ArrayIndexListT* res = aL; aL = NULL; return res;}
+  void Release() { aL = NULL;}
 };
 
 

@@ -32,7 +32,7 @@
 
 #include "objects.hpp"
 #include "dstructgdl.hpp"
-#include "graphics.hpp"
+#include "graphicsdevice.hpp"
 
 #include "file.hpp"
 
@@ -51,7 +51,7 @@ namespace SysVar
   UInt nullIx, pathIx, promptIx, edit_inputIx, quietIx, 
     dIx, pIx, xIx, yIx, zIx, vIx, gdlIx, cIx, MouseIx,
     errorStateIx, errorIx, errIx, err_stringIx, valuesIx,
-    journalIx, exceptIx, mapIx, cpuIx, dirIx, stimeIx, warnIx, usersymIx;
+    journalIx, exceptIx, mapIx, cpuIx, dirIx, stimeIx, warnIx, usersymIx, orderIx;
 
   // !D structs
   const int nDevices = 4;
@@ -293,7 +293,13 @@ namespace SysVar
     DVar& pSysVar = *sysVarList[ usersymIx];
     return static_cast<DStructGDL*>(pSysVar.Data());
   }
-    
+
+  DLong TV_ORDER()
+  {
+    DVar& orderVar=*sysVarList[orderIx];
+    return static_cast<DLongGDL&>(*orderVar.Data())[0];
+  }
+
   // call only once in main
   void InitSysVar()
   { 
@@ -389,15 +395,19 @@ namespace SysVar
     // !ORDER
     DLongGDL *orderData = new DLongGDL( 0 );
     DVar *order = new DVar( "ORDER", orderData);
+    orderIx     = sysVarList.size();
     sysVarList.push_back( order);
 
     // !GDL (to allow distinguish IDL/GDL with DEFSYSV, '!gdl', exists=exists )
     DStructGDL*  gdlStruct = new DStructGDL( "!GNUDATALANGUAGE");
     gdlStruct->NewTag("RELEASE", new DStringGDL( VERSION));
 
+    // creating an explicit build date in !GDL (also exist in !version)
+    gdlStruct->NewTag("BUILD_DATE", new DStringGDL(__DATE__)); 
+
     // creating and Epoch entry in order to have a simple incremental number 
-    string MyDate= __DATE__;
     int CompilationMonth =0, CompilationYear=0, CompilationDay=0;
+    string MyDate= __DATE__;
     string SCompilationYear;
     SCompilationYear=MyDate.substr(7,4);
     CompilationYear=atoi(SCompilationYear.c_str());
